@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: eProcurement_Login (Buyer Portal)
+  Nguồn thực tế: KHÔNG phải Vue component (src-vbizhw Login.vue có <template> đã bị comment hết,
+  chỉ redirect sang OAuth). Màn hình login thật được server-side render bởi service-oauth:
+    src-jbizhw/bizhighway-service/service-oauth/src/main/resources/templates/login/standard-login.html
+    + static/css/common.css
+  Mockup này copy 1:1 HTML/CSS gốc (Thymeleaf th:* đã thay bằng giá trị tĩnh để xem offline).
+  Khối "デモ用ユーザー" và nút "SAMLでログイン" là có điều kiện trong production
+  (chỉ hiện khi useDemoUsers / samlRegistrationId được cấu hình cho company group đó) — giữ lại ở đây
+  để thấy đầy đủ layout, có thể ẩn/xoá khi review với khách.
+-->
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログインする</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Meiryo, sans-serif;
+    }
+
+    *, :after, :before {
+      box-sizing: border-box;
+    }
+
+    .center-screen {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100vh;
+      padding: 1rem;
+    }
+
+    .card {
+      width: 450px;
+      padding: 3rem;
+      border-radius: 1rem;
+      background-color: #232f3e;
+      color: #fff;
+      margin: auto;
+      max-width: 100%;
+    }
+
+    .header-logo {
+      margin-bottom: 1.5rem;
+    }
+    .header-logo img {
+      max-width: 100%;
+    }
+    .footer-logo {
+      margin-top: 1rem;
+    }
+    .footer-logo img {
+      width: 60px;
+    }
+
+    .input-form {
+      margin-bottom: 1rem;
+    }
+
+    .input-group {
+      margin-bottom: .7rem;
+    }
+
+    .input {
+      height: 38px;
+      position: relative;
+    }
+
+    input[type="text"], input[type="password"], input[type="email"], select {
+      display: block;
+      width: 100%;
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #212529;
+      border: 1px solid #dee2e6;
+      border-radius: .375rem;
+    }
+
+    input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus {
+      border-color: #86b7fe;
+      outline: none;
+      box-shadow: 0 0 0 .25rem #0d6efd40;
+    }
+
+    input[type="submit"] {
+      width: 100%;
+      color: #fff;
+      margin-top: .5rem;
+      background-color: #1a9bd5;
+      cursor: pointer;
+      transition: all .2s;
+      border: none;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #559f59;
+    }
+
+    input.error {
+      border-color: #dc3545;
+    }
+
+    .text-danger {
+      text-align: left;
+      color: #dc3545;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: .5rem 1rem;
+      font-size: 1.25rem;
+      font-weight: 400;
+      line-height: 1.5;
+      border: 1px transparent;
+      border-radius: .5rem;
+    }
+
+    .saml-btn {
+      background-color: #f16385;
+      color: #51141e;
+      text-decoration: none;
+      transition: all .2s;
+    }
+
+    .saml-btn:hover {
+      background-color: #f4a7be;
+      color: #51141e;
+    }
+
+    .remember {
+      margin-top: .5rem;
+      text-align: left;
+    }
+
+    .remember input[type="checkbox"], .remember label {
+      cursor: pointer;
+    }
+
+    .forgot-password {
+      font-size: .8rem;
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .forgot-password:hover {
+      text-decoration: underline;
+    }
+
+    a.back-link {
+      color: #0d6efd;
+      text-decoration: none;
+    }
+
+    a.back-link:hover {
+      text-decoration: underline;
+    }
+
+    .demo-user {
+      margin-top: 1rem;
+      border-radius: .375rem;
+      border: 1px solid rgba(255,255,255,.25);
+    }
+
+    .demo-user__list {
+      text-align: left;
+    }
+
+    .drop-label {
+      cursor: pointer;
+    }
+
+    .drop-label:after {
+      display: inline-block;
+      margin-left: .255em;
+      vertical-align: .255em;
+      content: "";
+      border-top: .3em solid;
+      border-right: .3em solid transparent;
+      border-bottom: 0;
+      border-left: .3em solid transparent;
+    }
+
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #fff;
+      min-width: 10rem;
+      overflow: auto;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+      padding: .5rem 0;
+      font-size: 1rem;
+      color: #212529;
+      border: 1px rgba(0, 0, 0, .175);
+      border-radius: .375rem;
+      z-index: 1;
+    }
+
+    .dropdown-content div {
+      color: black;
+      padding: .25rem 1rem;
+      text-decoration: none;
+      display: block;
+      cursor: pointer;
+    }
+
+    .dropdown-content div:hover {
+      background-color: #f1f1f1;
+    }
+
+    .show {
+      display: block;
+    }
+
+    /* Mobile Responsive Styles (giống common.css gốc) */
+    @media (max-width: 768px) {
+      .center-screen {
+        align-items: flex-start;
+        padding: 0;
+        height: 100vh;
+        min-height: 100vh;
+      }
+
+      .card {
+        width: 100%;
+        height: 100vh;
+        min-height: 100vh;
+        border-radius: 0;
+        padding: 2rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow-y: auto;
+      }
+
+      .input-group {
+        margin-bottom: 1rem;
+      }
+
+      .btn {
+        padding: .75rem 1rem;
+        font-size: 1.1rem;
+        min-height: 48px;
+      }
+
+      input[type="submit"] {
+        margin-top: 1rem;
+        min-height: 48px;
+      }
+
+      .remember {
+        margin: 1.5rem 0;
+      }
+
+      .remember input[type="checkbox"] {
+        transform: scale(1.2);
+        margin-right: 0.5rem;
+      }
+
+      .forgot-password {
+        display: none;
+      }
+
+      .footer-logo {
+        margin-top: 2rem;
+      }
+
+      .footer-logo img {
+        width: 50px;
+      }
+
+      .saml-btn {
+        width: 100%;
+        margin-top: 1rem;
+        min-height: 48px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 1.5rem 1rem;
+      }
+
+      .btn {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="center-screen">
+  <div class="card">
+    <div class="header-logo">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABdCAYAAABTl8MxAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6QTQ0RjhBNkJGQzRDMTFFOUFGM0JCRTAxRkVBREExRDQiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6QTQ0RjhBNkNGQzRDMTFFOUFGM0JCRTAxRkVBREExRDQiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpBNDRGOEE2OUZDNEMxMUU5QUYzQkJFMDFGRUFEQTFENCIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpBNDRGOEE2QUZDNEMxMUU5QUYzQkJFMDFGRUFEQTFENCIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/Pnh2E0oAAAgeSURBVHja7F1rbBVF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" alt="BIZHW">
+    </div>
+    <form class="input-form" id="loginForm">
+      <div class="input-group">
+        <label for="companyGroup"></label>
+        <input id="companyGroup" type="text" name="companyGroup" placeholder="企業グループコード" maxlength="50" autofocus>
+        <div id="companyGroupError" class="text-danger"></div>
+      </div>
+
+      <div class="input-group">
+        <label for="username"></label>
+        <input id="username" type="text" name="username" placeholder="ユーザーID" maxlength="100">
+        <div id="usernameError" class="text-danger"></div>
+      </div>
+
+      <div class="input-group">
+        <label for="password"></label>
+        <input id="password" type="password" name="password" placeholder="パスワード" maxlength="50">
+        <div id="passwordError" class="text-danger"></div>
+      </div>
+
+      <input type="submit" class="btn" value="ログイン">
+
+      <div class="remember">
+        <input type="checkbox" id="rememberInput" value="true" checked>
+        <label for="rememberInput">ログイン情報を保持する</label>
+      </div>
+    </form>
+
+    <a href="#" class="forgot-password">
+      企業グループコード、ユーザーID、パスワードを<br>お忘れの方はこちら
+    </a>
+
+    <!-- 条件表示: useDemoUsers が true の場合のみ（開発/検証環境など） -->
+    <fieldset class="demo-user">
+      <legend>デモ用ユーザーでログイン</legend>
+      <div class="demo-user__list demo-user__buyer">
+        <div class="drop-label">バイヤ</div>
+        <div class="dropdown-content">
+          <div>発注担当者（requester）</div>
+          <div>承認者1（approver1）</div>
+          <div>購買担当者（purchaser）</div>
+        </div>
+      </div>
+      <div class="demo-user__list demo-user__group-admin">
+        <div class="drop-label">サプライヤ</div>
+        <div class="dropdown-content">
+          <div>グループ管理者（com_group_admin）</div>
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="footer-logo">
+      <img src="data:image/png;base64,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" alt="BIZHW">
+    </div>
+
+    <!-- 条件表示: samlRegistrationId != null（企業グループに対しSAML連携が有効な場合） -->
+    <div style="text-align: center; margin-top: 20px;">
+      <a href="#" class="btn saml-btn">
+        SAMLでログイン
+      </a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

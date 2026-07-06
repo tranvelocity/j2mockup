@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: eProcurement_Home (Buyer Portal - トップページ)
+  Bản này viết lại dựa TRỰC TIẾP trên source code thật (không suy đoán):
+    - Header:  src/layouts/eProcurement/LoggedHeader.vue (<style scoped> lines 366-567)
+    - Sidebar: src/layouts/eProcurement/LoggedSidebar.vue (<style scoped> lines 1403-1612)
+    - ToDo:    src/modules/Buyer/components/Home/ToDo.vue (template + <style> lines 439-558)
+    - Search:  src/modules/CatalogMall/components/KeywordSearchStructure.vue (nhánh isUseNarrowKeyword)
+    - Marquee: src/modules/CatalogMall/components/MarqueeSlider.vue
+    - Carousel:src/modules/CatalogMall/components/CatalogStructure.vue + CatalogStructure.scss
+  Ảnh nhúng base64 lấy nguyên gốc từ src/assets/img/eProcurement/
+    (j2-logo-2.png, icon_cart.png, icon_estimate.png/.svg, icon_check.png, icon_box.svg, icon_meter.png).
+  Text tiếng Nhật lấy nguyên văn từ src/locales/prod/ja.json (không dịch/suy đoán).
+
+  ĐÃ ĐỐI CHIẾU TRỰC TIẾP với trang thật https://demo.staging.jienie.com/eProcurement/Home
+  (đăng nhập user 依頼裕三 / 本社 総務部, đo DOM bằng JS, 2026-07-05). Các điểm đã sửa:
+    - Header/sidebar: xem chú thích chi tiết trong assets/layout.js + layout.css
+      (hamburger nằm TRONG sidebar chứ không phải header; sidebar 84px <-> 296px overlay;
+      submenu 契約書・請求書情報登録 thật là 請求書支払/定期支払...).
+    - ToDo panel: nền TRẮNG (không phải #edf1f6), vách ngăn 1px #ccc giữa các nhóm,
+      icon tiêu đề 見積ToDo là ô vuông bo góc xanh #4169e1 glyph trắng (các icon còn lại
+      giữ nguyên vì base64 lấy từ assets thật). Số liệu khớp demo thật:
+      見積 10/2/127/64/0・発注 33/2/93/3・検収 34/43/19・契約 0/0/0・
+      契約支払 1/0/0/0・請求支払 0/2/0/0.
+    - Card 通常見積/概算発注/セルフ見積/手配依頼...: icon line-art màu ĐEN (#1a1a2e)
+      như trang thật (không phải xanh), card to hơn (200x125), viền xanh mảnh.
+
+  ToDo: màu sắc từng item bám ĐÚNG theo class thật trong code (không phải suy luận
+  "xanh=tốt/cam=xấu" theo tên field) — mỗi field trong ToDo.vue được gán cứng class
+  black-todo (xanh lá #437643, mờ .5 khi =0) hoặc yellow-todo/orange-todo (cam đỏ #ff4500,
+  mờ thành #f79573 khi =0), xem chú thích tại từng item bên dưới.
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>トップページ</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+    color: #111111;
+    line-height: 1.43;
+    font-size: 14px;
+    background: #ffffff;
+  }
+  a { text-decoration: none; color: inherit; }
+
+  /* ===== Main content (CSS RIENG cua trang Home; header/sidebar shell da co trong assets/layout.css) ===== */
+  .home-content { padding: 1rem 1.8rem; }
+  .Heading1 { display: inline-block; font-size: 28px; font-weight: 500; }
+  .heading-note { font-size: .8rem; display: inline-block; margin-left: .75rem; padding-left: 1rem; border-left: 1px solid #cccccc; color: #555; }
+  .section { margin-bottom: 2rem; }
+
+  /* --- ToDo widget — ToDo.vue, đối chiếu trang thật: nền TRẮNG, vách ngăn xám nhạt giữa các nhóm --- */
+  .todo-list { background: #ffffff; min-height: 76px; margin-bottom: .5rem; display: flex; flex-wrap: wrap; }
+  .box-todo { border-right: 1px solid #cccccc; min-height: 76px; display: flex; padding: 8px 14px; }
+  .todo-title { padding: 0 10px; border-right: 1px solid #cccccc; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 55px; margin-top: 12px; }
+  .todo-title img, .todo-title svg { width: 31px; height: 31px; }
+  /* Icon tiêu đề nhóm: nền xanh #4169e1 đặc, glyph trắng (đúng trang thật) */
+  .todo-badge-ico { width: 34px; height: 34px; border-radius: 8px; background: #4169e1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .todo-badge-ico.round { border-radius: 50%; }
+  .todo-badge-ico svg { width: 18px !important; height: 18px !important; fill: #ffffff; }
+  .todo-title span { display: block; text-align: center; font-weight: bold; font-size: .8rem; margin-top: 5px; white-space: nowrap; }
+  .todo-content { display: flex; margin: 10px 0; }
+  .todo-item { float: left; text-align: center; margin: 0 7px; }
+  .number-todo {
+    display: flex; align-items: center; justify-content: center;
+    width: 35px; height: 32px;
+    margin: 0 auto 6px;
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFYAAAAgCAYAAACILY8rAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RjM2MEYxQkNCQTcxMTFFOUEzNDVEQTQ1NkJFRjg2NjIiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RjM2MEYxQkRCQTcxMTFFOUEzNDVEQTQ1NkJFRjg2NjIiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpGMzYwRjFCQUJBNzExMUU5QTM0NURBNDU2QkVGODY2MiIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpGMzYwRjFCQkJBNzExMUU5QTM0NURBNDU2QkVGODY2MiIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PoN2gwMAAAfMSURBVHjazFoNVFTV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");
+    background-position: 0 0;
+  }
+  .todo-item.yellow-todo .number-todo,
+  .todo-item.orange-todo .number-todo { background-position: -49px 0; }
+  .todo-item.orange-todo .number-todo { opacity: .5; }
+  .number-todo span { font-weight: bold; font-size: 1.1rem; color: #111111; }
+  .label-todo { display: block; border: 1px solid #437643; font-size: .7rem; border-radius: 3px; color: #437643; padding: 0 4px; white-space: nowrap; }
+  .todo-item.black-todo.blur { opacity: .5; }
+  .todo-item.yellow-todo .label-todo { color: #ff4500; border-color: #ff4500; }
+  .todo-item.orange-todo .label-todo { color: #f79573; border-color: #f79573; }
+
+  /* --- カタログモールで検索 (KeywordSearchStructure.vue, nhánh isUseNarrowKeyword) --- */
+  .search-box { padding-top: 1.6rem; }
+  .search-box .SearchColumn-label { font-size: .8rem; color: #555; margin-bottom: .3rem; }
+  .field-pill { display: flex; border: 2px solid #666; border-radius: 5px; overflow: hidden; background: #fff; }
+  .field-pill .pill-label {
+    background: #fff; color: #333; font-size: .82rem; padding: .5rem .9rem;
+    border-right: 2px solid #666; white-space: nowrap; cursor: pointer;
+  }
+  .field-pill input, .field-pill select { flex: 1; border: none; padding: .5rem .8rem; font-size: .85rem; outline: none; }
+  .field-row { display: flex; gap: 1.6rem; margin: 1rem 0; flex-wrap: wrap; }
+  .field-group { flex: 1; min-width: 260px; }
+  .catalog-checklist {
+    margin-top: .5rem; border: 1px solid #ccc; border-radius: 5px; padding: .6rem .9rem;
+    display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; background: #fff; max-width: 460px;
+  }
+  .catalog-checklist label { font-size: .82rem; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .search-submit { text-align: center; margin: 1.4rem 0 1.8rem; }
+  .search-submit button {
+    background: #ffa726; color: #111; border: none; border-radius: 5px;
+    padding: .65rem 2.2rem; font-size: .95rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; font-weight: bold;
+  }
+  .search-submit svg { width: 16px; height: 16px; fill: #111; }
+
+  /* --- partner logo marquee (MarqueeSlider.vue) --- */
+  .marquee-strip {
+    display: flex; align-items: center; gap: 10px; overflow-x: auto;
+    height: 34px; padding: 3px 0; margin: 20px 0 15px;
+    border-top: 1px solid #dadada; border-bottom: 1px solid #dadada;
+  }
+  .marquee-strip .lg {
+    height: 25px; margin: 0 20px; display: flex; align-items: center;
+    font-size: .74rem; font-weight: bold; color: #444; white-space: nowrap;
+  }
+
+  /* --- カタログを選んで検索 carousel (CatalogStructure.vue) --- */
+  .catalog-pick h2.label_title_Top { font-size: 28px; font-weight: 500; margin: 1rem 0 1rem; }
+  .catalog-row { display: flex; align-items: center; gap: 6px; }
+  .catalog-row .nav-arrow {
+    flex: 0 0 auto; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    color: #4169e2; font-size: 22px; cursor: pointer;
+  }
+  .catalog-list { display: flex; gap: 14px; overflow-x: auto; flex: 1; padding: 4px 0 8px; }
+  .catalog-card { flex: 0 0 130px; }
+  .catalog-card .tag { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px 4px; }
+  .catalog-card .cs-card {
+    border: 1px solid #045eb4; border-radius: 10px; overflow: hidden;
+    display: flex; flex-direction: column; background: #fff; cursor: pointer;
+  }
+  .catalog-card .cs-card:hover { border: 2px solid #045eb4; }
+  .catalog-card .cs-image { min-height: 45px; display: flex; align-items: center; justify-content: center; padding: 8px; }
+  .catalog-card .cs-image img, .catalog-card .cs-image .ph {
+    max-width: 100px; max-height: 45px; font-size: .68rem; font-weight: bold; color: #333; text-align: center;
+  }
+  .catalog-card .cs-text { line-height: 30px; text-align: center; font-size: 12px; font-weight: bold; border-top: 1px solid #eee; }
+
+  /* --- Menu card grid --- */
+  .card-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; }
+  .card-quotation {
+    width: 200px; min-height: 125px; display: flex; align-items: center; gap: 12px;
+    border: 1px solid #225ea8; border-radius: 6px; padding: 12px; cursor: pointer; background: #fff;
+  }
+  .card-quotation:hover { border: 2px solid #225ea8; }
+  .card-quotation .icon-box { width: 76px; height: 76px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .card-quotation .icon-box svg { width: 64px; height: 64px; }
+  .card-quotation .label { font-size: .88rem; line-height: 1.4; color: #111111; }
+
+  /* --- Notice list --- */
+  #Notification { padding-top: .5rem; }
+  .notice-item { margin-bottom: 1rem; }
+  .notice-item .date { color: #444; margin-right: .5rem; }
+  .notice-item .body-line { margin-left: 1.1rem; }
+  .notice-item .notice-link { color: #045eb4; font-weight: bold; }
+  .notice-item .notice-link:hover { text-decoration: underline; }
+
+  .catalog-select-box { position: relative; }
+  .catalog-checklist { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+  .catalog-checklist.show { display: flex; }
+
+  .field-pill.input-error { border-color: #dc3545; }
+  .field-error-msg { color: #dc3545; font-size: .78rem; margin-top: .3rem; display: none; }
+  .field-error-msg.show { display: block; }
+
+  .notice-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000;
+    align-items: center; justify-content: center;
+  }
+  .notice-modal-overlay.show { display: flex; }
+  .notice-modal { background: #fff; width: 600px; max-width: 90%; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .notice-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.2rem; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1rem; }
+  .notice-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #888; }
+  .notice-modal-body { padding: 1.2rem; max-height: 260px; overflow-y: auto; white-space: pre-line; font-size: .9rem; }
+  .notice-modal-footer { padding: .8rem 1.2rem; text-align: center; border-top: 1px solid #eee; }
+  .notice-modal-footer button { background: #ffa726; border: none; color: #111; font-weight: bold; padding: .55rem 2.2rem; border-radius: 4px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <!-- ============ Main content ============ -->
+  <main id="wrapper-content">
+
+    <!-- ToDo panel — đúng ToDo.vue: mỗi item giữ nguyên class thật (black-todo / yellow-todo / orange-todo) -->
+    <div class="todo-list">
+      <!-- 見積ToDo (toDoEstimate, icon_estimate.svg) -->
+      <div class="box-todo">
+        <div class="todo-title">
+          <span class="todo-badge-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM8 9h5v2H8V9zm0 4h8v2H8v-2zm0 4h8v2H8v-2z"/><path d="M20.7 3.3l-1-1a1 1 0 0 0-1.4 0l-1 1 2.4 2.4 1-1a1 1 0 0 0 0-1.4z"/></svg></span>
+          <span>見積ToDo</span>
+        </div>
+        <div class="todo-content">
+          <!-- approvalPending: black-todo (xanh lá, không blur vì =10) -->
+          <div class="todo-item black-todo" data-nav="見積承認待ち一覧（eProcurement_Requester_EstimateApplicationApplicantList, status=01）"><div class="number-todo"><span>10</span></div><span class="label-todo">承認待ち</span></div>
+          <!-- sendBack: yellow-todo (cam đỏ, vì !=0) -->
+          <div class="todo-item yellow-todo" data-nav="見積差戻し一覧（status=03）"><div class="number-todo"><span>2</span></div><span class="label-todo">差戻し</span></div>
+          <!-- waitingForAnswer: black-todo -->
+          <div class="todo-item black-todo" data-nav="見積回答待ち一覧（status=06）"><div class="number-todo"><span>125</span></div><span class="label-todo">回答待ち</span></div>
+          <!-- answered: yellow-todo (code dùng ternary màu cam cho field này dù là số "tốt") -->
+          <div class="todo-item yellow-todo" data-nav="見積回答あり一覧（status=07）"><div class="number-todo"><span>64</span></div><span class="label-todo">回答あり</span></div>
+          <!-- noAppoint: orange-todo (=0 nên mờ) -->
+          <div class="todo-item orange-todo" data-nav="見積採用なし一覧（status=11）"><div class="number-todo"><span>0</span></div><span class="label-todo">採用なし</span></div>
+        </div>
+      </div>
+      <!-- 発注ToDo (toDoOrder, icon_check.png) -->
+      <div class="box-todo">
+        <div class="todo-title">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAfCAYAAAAfrhY5AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA3JpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpkOGQ1YWJkZC1kM2FkLTQ1NmQtYWJmMS0zZWUwNmRlODg1NWQiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6MjEyRjI5QUNCQTdEMTFFOTkyQjJBNUM0NDQ0RjdGQTkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6MjEyRjI5QUJCQTdEMTFFOTkyQjJBNUM0NDQ0RjdGQTkiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDozMTllNjM5OS0xMWY3LTQ5MWUtYmRhMS1mMzhkMTQ1ZmQxNzkiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6ZDhkNWFiZGQtZDNhZC00NTZkLWFiZjEtM2VlMDZkZTg4NTVkIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+pTzq2AAAAtJJREFUeNq8l0toE2EQx2c3qUabJsGaBLXgwdLWnhSVUhVUPOjFBEWlB0FQaymUVIqW4sGDHixtqqKgaMWztge13hWqxQfxItKXrS+05FFKa2NtmpczySREZLuPbDLwO+zufPPfb7/Z+eYT9jV/A4VWgxxCdiO1iB2xInNICBlBXiLPkFElAY0yzwXEjXQgdRI+VqaSX64LeYt0Ik+RpFRwcRnhKuQF8ngZYSmr43E0vlqt+DHkPbIH8jMa7+N4isQbkYeIGfQxM8drlBM/ityRWQ4tJnLc41LitMYPEAMUxijufdb5R5yy+h5SBoW1MtYRcsXdOiSXmiR054q3Q3GtPSNOlau+yOKkVyNyVdLNTrls0H91A1RWrJBzdYlcq/M2AVOotWENnDhogXKrAbo9Drkhu4y8SeT3D+EUOk6Ww/4dpanrWDwJt/pm5IbV0swdSgS2Vptgten/2rOyRIDLTfascCSahEt3p+G5b0EupINmbpHzok9Jazn5Ywku3AzCbDiRul+6SoQrTWthS5Updb2wmICLt0PwYSKiZD4WmsovOa8D9ekyvwmT6HqbE+w2A9jMInhxXTPCc/hCbTeCSoXJ5gVsJj7xXixpJNZzzgkVjvT2PxWKQTSWhI3rSlLX07NxOI9f5Ls/qiZVJmjmw3JeIQzu8frhy1Q6+Hq7MStML9LiDagVJhsm8SElnrTOnp4AjH5dyt77/DMKLd1+CM7EtPwkQyQ+oNT7959E6vP6Rhbh42QEWq8FssmnwQYEbiDfaGiV8rHXyM7Mj9tZ5NrelburUZc5WCThQdbLiie5xwoXWJjin82007n1chw5jcQLJExxzyBjUg1kH9KMJHQWTnDcR3Ktcy/SoOMShDler9JDQz+yTYckpPHbOZ6q4xLlwF7kMPJOpSj5H+HxY1oPipSVTxjq9Vzc+WxGnNwKzyMBPqW+4oqp6JT6V4ABAKTev4mygF6BAAAAAElFTkSuQmCC" alt="check" width="31" height="31">
+          <span>発注ToDo</span>
+        </div>
+        <div class="todo-content">
+          <div class="todo-item black-todo" data-nav="発注承認待ち一覧（eProcurement_Requester_Ordered, status=240）"><div class="number-todo"><span>33</span></div><span class="label-todo">承認待ち</span></div>
+          <div class="todo-item yellow-todo" data-nav="発注差戻し一覧（status=250）"><div class="number-todo"><span>2</span></div><span class="label-todo">差戻し</span></div>
+          <div class="todo-item black-todo" data-nav="受注待ち一覧（status=260）"><div class="number-todo"><span>93</span></div><span class="label-todo">受注待ち</span></div>
+          <div class="todo-item yellow-todo" data-nav="受注辞退一覧（status=270）"><div class="number-todo"><span>3</span></div><span class="label-todo">受注辞退</span></div>
+        </div>
+      </div>
+      <!-- 検収ToDo (toDoAcceptance, icon_box.svg) -->
+      <div class="box-todo">
+        <div class="todo-title">
+          <svg viewBox="0 0 472.35 512" fill="rgb(70,109,226)"><path d="M472.27,129.24,249.55,3.5a27.14,27.14,0,0,0-26.67,0L13.8,121.53A27.15,27.15,0,0,0,0,145.17L.07,366.78a27.11,27.11,0,0,0,13.79,23.61l209,118.1a27.12,27.12,0,0,0,26.69,0l209-118.09a27.15,27.15,0,0,0,13.78-23.63Zm-40.55,46.61v183l-119.5,67.5L252.45,460V277l64.2-36.25v65.13l-.12,32.37.12-.07v.28l74.8-42.24V198.46L418.91,183ZM410.39,141.1l-39.53,22.35L256.6,98.92l-60-34,39.57-22.29,114.35,64.56ZM220,400.21l-.12,59.84L40.71,358.88V175.72L220,277ZM62,141l59.87-33.83L236.71,172l59.45,33.72-60,33.83L120.9,174.35Z"/></svg>
+          <span>検収ToDo</span>
+        </div>
+        <div class="todo-content">
+          <div class="todo-item black-todo" data-nav="納品待ち一覧（status=290）"><div class="number-todo"><span>34</span></div><span class="label-todo">納品待ち</span></div>
+          <div class="todo-item yellow-todo" data-nav="未検収一覧（eProcurement_Requester_WaitingAcceptance, status=300,350,360）"><div class="number-todo"><span>43</span></div><span class="label-todo">未検収</span></div>
+          <div class="todo-item black-todo" data-nav="検収承認待ち一覧（status=320）"><div class="number-todo"><span>19</span></div><span class="label-todo">承認待ち</span></div>
+        </div>
+      </div>
+      <!-- 契約ToDo (toDoContract, icon_estimate.png) -->
+      <div class="box-todo">
+        <div class="todo-title">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAfCAYAAAAfrhY5AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA3JpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpkOGQ1YWJkZC1kM2FkLTQ1NmQtYWJmMS0zZWUwNmRlODg1NWQiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RjgzNzBGQzhCQTdDMTFFOUExMTVBQTA1NkU0NjlCNEMiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RjgzNzBGQzdCQTdDMTFFOUExMTVBQTA1NkU0NjlCNEMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDozMTllNjM5OS0xMWY3LTQ5MWUtYmRhMS1mMzhkMTQ1ZmQxNzkiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6ZDhkNWFiZGQtZDNhZC00NTZkLWFiZjEtM2VlMDZkZTg4NTVkIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+Wb33eAAAA0lJREFUeNq0l39IU1EUx8/cy2VNF9pUIigi/DGIAiMZSqVQSZDST6L6Iygr/TeSCKRIIRX6KyJRMSgo00izCIzESK20guyPmUI/DMvKjdwvbc1tnfO8m9nb27ub7sAXLnfvns/bO+eee64qr2QEOC0DtQuVizKg9CgdyooaRw2iulEPUO95HAoKv6tQRaizqGyZZ3RMa9nL1aD6UFWo+yifnPOYEOA0VBeqNQRYzrLZOlqfHi58P+oNagvMz2j9a+aPC16MakJpYWFMy/wVK8H3oa4phCMSi2F+D8jBKcaNKDVEx8hvA+PMyXbK6jpU/P8rjhUug4PbE0DN+S0sVg+crzOD6ZMr2M/xjJNHu8APL5JLLgK3dNrA9NHFBT9coIMC41I5uD8Jidfmh5fJfiv8xwTuGZjigu8wamGRoFJ6rMwPp8pl5A1capK0Lk25vGB1eOdWJ+SnJgowZpkO5oZ4GQKrStx2q2KFZK7jpROqb1jE8YTdA61ddjhzJEn8/DcfWeH6Q2swV4UCq9XcVnh6VDLn9sxW0Np7E5ikOuh85QTjujjYmx8vB88R2CHBbRWn9JK5ftMU3O6wgYCxPnc0SYRuMsRBZaMZ4jSy8TcQPDkceM/ApGRuZMwNmlgVVJ7UQ1bmYnEuOVEtJmuIRE0meEKkVYOS7Em/UwRfKtXDhrQZ8DSG4UK9Gb/I71DLEwhuC+cFctcvCYy/jruh++1kUPDzd4pb007wn+HAy2vHA2Mv5lnmao0E/Mvm4XH1g+Am1ghwWfvllYHxh9E/cPXuhDh2uX1wscEM6atiIQX39+Bni5IrE8F7aQfxwg+Vf5vdYtM+sZbnl34JzO3M0YJj0svjqpfg7ahqXvj34BUrEmsXWLPXJ9cqefBPGNZouD0u16l5Yv6CuP5CXcV6Lok1PbbNHKnb+I/UK81OpcdqxPrPWmcqQ09RmyH69gy1lc5zf4vgYz2WI8pg8n/C307/258MU+NCYY4SmPweRw3JNZDNqBKqHwsM9jK/d5Ra53rqnhYwBA7mr5730tCCymLJMd/k2sj8hXVdGmZZuZuO7DCh9Pwetn4o0osiZWUbUwYrw9T5ZKJSWCtsp0OC3VJ7WMXkuqX+FWAAaUD9+c+7nyQAAAAASUVORK5CYII=" alt="estimate" width="31" height="31">
+          <span>契約ToDo</span>
+        </div>
+        <div class="todo-content">
+          <div class="todo-item black-todo blur" data-nav="契約承認待ち一覧（eProcurement_Settings_Contract_Pending_Approval, status=20,190）"><div class="number-todo"><span>0</span></div><span class="label-todo">承認待ち</span></div>
+          <div class="todo-item orange-todo" data-nav="契約差戻し一覧（status=40,210）"><div class="number-todo"><span>0</span></div><span class="label-todo">差戻し</span></div>
+          <div class="todo-item black-todo blur" data-nav="契約変更依頼一覧（eProcurement_Settings_Contract_Approved, status=170）"><div class="number-todo"><span>0</span></div><span class="label-todo">変更依頼</span></div>
+        </div>
+      </div>
+      <!-- 契約支払ToDo (toDoContractPayment, icon_estimate.png) -->
+      <div class="box-todo">
+        <div class="todo-title">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAfCAYAAAAfrhY5AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA3JpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpkOGQ1YWJkZC1kM2FkLTQ1NmQtYWJmMS0zZWUwNmRlODg1NWQiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RjgzNzBGQzhCQTdDMTFFOUExMTVBQTA1NkU0NjlCNEMiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RjgzNzBGQzdCQTdDMTFFOUExMTVBQTA1NkU0NjlCNEMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDozMTllNjM5OS0xMWY3LTQ5MWUtYmRhMS1mMzhkMTQ1ZmQxNzkiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6ZDhkNWFiZGQtZDNhZC00NTZkLWFiZjEtM2VlMDZkZTg4NTVkIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+Wb33eAAAA0lJREFUeNq0l39IU1EUx8/cy2VNF9pUIigi/DGIAiMZSqVQSZDST6L6Iygr/TeSCKRIIRX6KyJRMSgo00izCIzESK20guyPmUI/DMvKjdwvbc1tnfO8m9nb27ub7sAXLnfvns/bO+eee64qr2QEOC0DtQuVizKg9CgdyooaRw2iulEPUO95HAoKv6tQRaizqGyZZ3RMa9nL1aD6UFWo+yifnPOYEOA0VBeqNQRYzrLZOlqfHi58P+oNagvMz2j9a+aPC16MakJpYWFMy/wVK8H3oa4phCMSi2F+D8jBKcaNKDVEx8hvA+PMyXbK6jpU/P8rjhUug4PbE0DN+S0sVg+crzOD6ZMr2M/xjJNHu8APL5JLLgK3dNrA9NHFBT9coIMC41I5uD8Jidfmh5fJfiv8xwTuGZjigu8wamGRoFJ6rMwPp8pl5A1capK0Lk25vGB1eOdWJ+SnJgowZpkO5oZ4GQKrStx2q2KFZK7jpROqb1jE8YTdA61ddjhzJEn8/DcfWeH6Q2swV4UCq9XcVnh6VDLn9sxW0Np7E5ikOuh85QTjujjYmx8vB88R2CHBbRWn9JK5ftMU3O6wgYCxPnc0SYRuMsRBZaMZ4jSy8TcQPDkceM/ApGRuZMwNmlgVVJ7UQ1bmYnEuOVEtJmuIRE0meEKkVYOS7Em/UwRfKtXDhrQZ8DSG4UK9Gb/I71DLEwhuC+cFctcvCYy/jruh++1kUPDzd4pb007wn+HAy2vHA2Mv5lnmao0E/Mvm4XH1g+Am1ghwWfvllYHxh9E/cPXuhDh2uX1wscEM6atiIQX39+Bni5IrE8F7aQfxwg+Vf5vdYtM+sZbnl34JzO3M0YJj0svjqpfg7ahqXvj34BUrEmsXWLPXJ9cqefBPGNZouD0u16l5Yv6CuP5CXcV6Lok1PbbNHKnb+I/UK81OpcdqxPrPWmcqQ09RmyH69gy1lc5zf4vgYz2WI8pg8n/C307/258MU+NCYY4SmPweRw3JNZDNqBKqHwsM9jK/d5Ra53rqnhYwBA7mr5730tCCymLJMd/k2sj8hXVdGmZZuZuO7DCh9Pwetn4o0osiZWUbUwYrw9T5ZKJSWCtsp0OC3VJ7WMXkuqX+FWAAaUD9+c+7nyQAAAAASUVORK5CYII=" alt="estimate" width="31" height="31">
+          <span>契約支払ToDo</span>
+        </div>
+        <div class="todo-content">
+          <div class="todo-item black-todo" data-nav="契約支払確認待ち一覧（eProcurement_Payment_List_Confirmation, paymentType=9, status5_0）"><div class="number-todo"><span>1</span></div><span class="label-todo">確認待ち</span></div>
+          <div class="todo-item black-todo blur" data-nav="契約支払承認待ち一覧（paymentType=9, status5_3）"><div class="number-todo"><span>0</span></div><span class="label-todo">承認待ち</span></div>
+          <div class="todo-item orange-todo" data-nav="契約支払差戻し一覧（paymentType=9, status5_8）"><div class="number-todo"><span>0</span></div><span class="label-todo">差戻し</span></div>
+          <div class="todo-item black-todo blur" data-nav="契約支払変更待ち一覧（paymentType=9, status5_1系）"><div class="number-todo"><span>0</span></div><span class="label-todo">変更待ち</span></div>
+        </div>
+      </div>
+      <!-- 請求支払ToDo (toDoBillPayment, icon_estimate.png) -->
+      <div class="box-todo">
+        <div class="todo-title">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAfCAYAAAAfrhY5AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA3JpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpkOGQ1YWJkZC1kM2FkLTQ1NmQtYWJmMS0zZWUwNmRlODg1NWQiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RjgzNzBGQzhCQTdDMTFFOUExMTVBQTA1NkU0NjlCNEMiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RjgzNzBGQzdCQTdDMTFFOUExMTVBQTA1NkU0NjlCNEMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDozMTllNjM5OS0xMWY3LTQ5MWUtYmRhMS1mMzhkMTQ1ZmQxNzkiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6ZDhkNWFiZGQtZDNhZC00NTZkLWFiZjEtM2VlMDZkZTg4NTVkIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+Wb33eAAAA0lJREFUeNq0l39IU1EUx8/cy2VNF9pUIigi/DGIAiMZSqVQSZDST6L6Iygr/TeSCKRIIRX6KyJRMSgo00izCIzESK20guyPmUI/DMvKjdwvbc1tnfO8m9nb27ub7sAXLnfvns/bO+eee64qr2QEOC0DtQuVizKg9CgdyooaRw2iulEPUO95HAoKv6tQRaizqGyZZ3RMa9nL1aD6UFWo+yifnPOYEOA0VBeqNQRYzrLZOlqfHi58P+oNagvMz2j9a+aPC16MakJpYWFMy/wVK8H3oa4phCMSi2F+D8jBKcaNKDVEx8hvA+PMyXbK6jpU/P8rjhUug4PbE0DN+S0sVg+crzOD6ZMr2M/xjJNHu8APL5JLLgK3dNrA9NHFBT9coIMC41I5uD8Jidfmh5fJfiv8xwTuGZjigu8wamGRoFJ6rMwPp8pl5A1capK0Lk25vGB1eOdWJ+SnJgowZpkO5oZ4GQKrStx2q2KFZK7jpROqb1jE8YTdA61ddjhzJEn8/DcfWeH6Q2swV4UCq9XcVnh6VDLn9sxW0Np7E5ikOuh85QTjujjYmx8vB88R2CHBbRWn9JK5ftMU3O6wgYCxPnc0SYRuMsRBZaMZ4jSy8TcQPDkceM/ApGRuZMwNmlgVVJ7UQ1bmYnEuOVEtJmuIRE0meEKkVYOS7Em/UwRfKtXDhrQZ8DSG4UK9Gb/I71DLEwhuC+cFctcvCYy/jruh++1kUPDzd4pb007wn+HAy2vHA2Mv5lnmao0E/Mvm4XH1g+Am1ghwWfvllYHxh9E/cPXuhDh2uX1wscEM6atiIQX39+Bni5IrE8F7aQfxwg+Vf5vdYtM+sZbnl34JzO3M0YJj0svjqpfg7ahqXvj34BUrEmsXWLPXJ9cqefBPGNZouD0u16l5Yv6CuP5CXcV6Lok1PbbNHKnb+I/UK81OpcdqxPrPWmcqQ09RmyH69gy1lc5zf4vgYz2WI8pg8n/C307/258MU+NCYY4SmPweRw3JNZDNqBKqHwsM9jK/d5Ra53rqnhYwBA7mr5730tCCymLJMd/k2sj8hXVdGmZZuZuO7DCh9Pwetn4o0osiZWUbUwYrw9T5ZKJSWCtsp0OC3VJ7WMXkuqX+FWAAaUD9+c+7nyQAAAAASUVORK5CYII=" alt="estimate" width="31" height="31">
+          <span>請求支払ToDo</span>
+        </div>
+        <div class="todo-content">
+          <div class="todo-item black-todo blur" data-nav="請求支払確認待ち一覧（paymentType=10, status5_0）"><div class="number-todo"><span>0</span></div><span class="label-todo">確認待ち</span></div>
+          <div class="todo-item black-todo" data-nav="請求支払承認待ち一覧（paymentType=10, status5_3）"><div class="number-todo"><span>2</span></div><span class="label-todo">承認待ち</span></div>
+          <div class="todo-item orange-todo" data-nav="請求支払差戻し一覧（paymentType=10, status5_8）"><div class="number-todo"><span>0</span></div><span class="label-todo">差戻し</span></div>
+          <div class="todo-item black-todo blur" data-nav="請求支払変更待ち一覧（paymentType=10, status5_1系）"><div class="number-todo"><span>0</span></div><span class="label-todo">変更待ち</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-content">
+      <!-- カタログモールで検索 — nhánh isUseNarrowKeyword của KeywordSearchStructure.vue -->
+      <div class="search-box section">
+        <div class="Heading1">カタログモールで検索</div>
+        <span class="heading-note">カタログを横断的に検索できます</span>
+
+        <div class="SearchColumn-label" style="margin-top:1rem;">検索対象を選ぶ</div>
+        <div class="catalog-select-box">
+          <div class="field-pill" style="max-width:340px;cursor:pointer;" id="catalogSelectPill">
+            <div class="pill-label">カタログ選択</div>
+            <div style="flex:1;padding:.5rem .8rem;color:#333;" id="catalogSelectLabel">すべてのカタログ ▾</div>
+          </div>
+          <div class="catalog-checklist" id="catalogChecklist">
+            <label><input type="checkbox" checked class="chk-all">すべて</label>
+            <label><input type="checkbox" checked class="chk-item">定番品</label>
+            <label><input type="checkbox" checked class="chk-item">Amazon</label>
+            <label><input type="checkbox" checked class="chk-item">アズワン</label>
+            <label><input type="checkbox" checked class="chk-item">ビックカメラ</label>
+            <label><input type="checkbox" checked class="chk-item">エスコ</label>
+            <label><input type="checkbox" checked class="chk-item">モノタロウ</label>
+            <label><input type="checkbox" checked class="chk-item">大塚商会</label>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field-group">
+            <div class="SearchColumn-label">検索キーワードを指定する</div>
+            <div class="field-pill">
+              <div class="pill-label">検索キーワード</div>
+              <input type="text" id="kwInput" placeholder="検索キーワードを入力してください">
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="SearchColumn-label">除外キーワードを指定する</div>
+            <div class="field-pill">
+              <div class="pill-label">除外キーワード</div>
+              <input type="text" placeholder="除外キーワードを入力してください">
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row" style="margin-top:0;">
+          <div class="field-group" style="max-width:420px;">
+            <div class="SearchColumn-label">型番/品番指定　型番/品番で絞込む</div>
+            <div class="field-pill">
+              <div class="pill-label">型番/品番</div>
+              <input type="text" id="narrowInput" placeholder="型番/品番を指定する">
+            </div>
+            <div class="field-error-msg" id="searchErrorMsg">検索キーワードまたは型番/品番を入力してください。</div>
+          </div>
+        </div>
+
+        <div class="search-submit">
+          <button id="searchSubmitBtn"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>検索</button>
+        </div>
+      </div>
+
+      <!-- 提携カタログのロゴマーキー（MarqueeSlider.vue） -->
+      <div class="marquee-strip">
+        <div class="lg">Amazon business</div>
+        <div class="lg">アズワン ocean</div>
+        <div class="lg">ビックカメラ</div>
+        <div class="lg">ESCO エスコ</div>
+        <div class="lg">ミドリ安全</div>
+        <div class="lg">モノタロウ</div>
+        <div class="lg">たのめーる</div>
+        <div class="lg">大塚商会</div>
+      </div>
+
+      <!-- カタログを選んで検索（CatalogStructure.vue） -->
+      <div class="catalog-pick section">
+        <div class="label_title_Top">カタログを選んで検索</div>
+        <div class="catalog-row">
+          <div class="nav-arrow">&#8249;</div>
+          <div class="catalog-list">
+            <div class="catalog-card">
+              <div class="tag">Amazon</div>
+              <div class="cs-card" data-nav="Amazon カタログ商品一覧画面（CatalogMall_Catalogue_Entry）"><div class="cs-image"><span class="ph">amazon<br>business</span></div><div class="cs-text">Amazon</div></div>
+            </div>
+            <div class="catalog-card">
+              <div class="tag">部品</div>
+              <div class="cs-card" data-nav="ミスミ カタログ商品一覧画面"><div class="cs-image"><span class="ph">MiSUMi</span></div><div class="cs-text">ミスミ</div></div>
+            </div>
+            <div class="catalog-card">
+              <div class="tag">&nbsp;</div>
+              <div class="cs-card" data-nav="MSカタログ商品一覧画面"><div class="cs-image"><span class="ph">NO IMAGE</span></div><div class="cs-text">MSカタログ…</div></div>
+            </div>
+            <div class="catalog-card">
+              <div class="tag">家電</div>
+              <div class="cs-card" data-nav="ビックカメラ カタログ商品一覧画面"><div class="cs-image"><span class="ph">ビックカメラ</span></div><div class="cs-text">ビックカメラ…</div></div>
+            </div>
+            <div class="catalog-card">
+              <div class="tag">部品</div>
+              <div class="cs-card" data-nav="エスコ カタログ商品一覧画面"><div class="cs-image"><span class="ph">ESCO エスコ</span></div><div class="cs-text">エスコ</div></div>
+            </div>
+            <div class="catalog-card">
+              <div class="tag">書籍</div>
+              <div class="cs-card" data-nav="紀伊國屋書店 カタログ商品一覧画面"><div class="cs-image"><span class="ph">紀伊國屋書店</span></div><div class="cs-text">紀伊國屋書店</div></div>
+            </div>
+            <div class="catalog-card">
+              <div class="tag">制服</div>
+              <div class="cs-card" data-nav="ミドリ安全 カタログ商品一覧画面"><div class="cs-image"><span class="ph">ミドリ安全</span></div><div class="cs-text">テスト用ミド…</div></div>
+            </div>
+          </div>
+          <div class="nav-arrow">&#8250;</div>
+        </div>
+      </div>
+
+      <!-- 購買へ見積依頼をして購入 (HOME.LB_REQUEST_QUOTE — text thật ja.json) -->
+      <div class="section">
+        <span class="Heading1">購買へ見積依頼をして購入</span>
+        <span class="heading-note">（カタログに無いアイテムやサービスの見積を取得して購入します）</span>
+        <div class="card-row">
+          <div class="card-quotation" data-nav="見積入力画面（eProcurement_Estimate_Input）">
+            <div class="icon-box"><svg viewBox="0 0 512 487.35" fill="#1a1a2e"><path d="M503.56,143.68,485,125.12a28.83,28.83,0,0,0-40.78,0L426.84,142.5l59.35,59.35,17.37-17.37A28.88,28.88,0,0,0,503.56,143.68Z"/><polygon points="264.08 305.26 264.08 364.6 323.43 364.6 470 218.03 410.66 158.69 264.08 305.26"/><rect x="121.11" y="118.67" width="167.62" height="34.45"/><rect x="121.11" y="190.53" width="167.62" height="34.45"/><rect x="121.11" y="262.39" width="114.1" height="34.45"/><rect x="121.11" y="334.25" width="114.1" height="34.45"/><path d="M372.59,442.34a7.78,7.78,0,0,1-7.77,7.77H45a7.81,7.81,0,0,1-7.77-7.77V45A7.81,7.81,0,0,1,45,37.24H364.82A7.8,7.8,0,0,1,372.59,45V157.24L409.84,120V45a45,45,0,0,0-45-45H45A45,45,0,0,0,0,45V442.33a45,45,0,0,0,45,45H364.82a45,45,0,0,0,45-45V317.7L372.58,355v87.39Z"/></svg></div>
+            <div class="label">通常見積<br>（購買部へ見積依頼）</div>
+          </div>
+          <div class="card-quotation" data-nav="概算発注入力画面">
+            <div class="icon-box"><svg viewBox="0 0 24 24" fill="#1a1a2e"><path d="M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 4v3h3V7H6zm5 0v3h3V7h-3zm5 0v3h3V7h-3zM6 12v3h3v-3H6zm5 0v3h3v-3h-3zm5 0v3h3v-3h-3zM6 17v2h12v-2H6z"/></svg></div>
+            <div class="label">概算発注<br>（概算見積を取得）</div>
+          </div>
+          <div class="card-quotation" data-nav="セルフ見積入力画面">
+            <div class="icon-box"><svg viewBox="0 0 24 24" fill="#1a1a2e"><path d="M12 2 3 7v10l9 5 9-5V7z"/></svg></div>
+            <div class="label">セルフ見積<br>（自部門で見積取得）</div>
+          </div>
+          <div class="card-quotation" data-nav="手配依頼入力画面">
+            <div class="icon-box"><svg viewBox="0 0 472.35 512" fill="#1a1a2e"><path d="M472.27,129.24,249.55,3.5a27.14,27.14,0,0,0-26.67,0L13.8,121.53A27.15,27.15,0,0,0,0,145.17L.07,366.78a27.11,27.11,0,0,0,13.79,23.61l209,118.1a27.12,27.12,0,0,0,26.69,0l209-118.09a27.15,27.15,0,0,0,13.78-23.63Zm-40.55,46.61v183l-119.5,67.5L252.45,460V277l64.2-36.25v65.13l-.12,32.37.12-.07v.28l74.8-42.24V198.46L418.91,183ZM410.39,141.1l-39.53,22.35L256.6,98.92l-60-34,39.57-22.29,114.35,64.56ZM220,400.21l-.12,59.84L40.71,358.88V175.72L220,277ZM62,141l59.87-33.83L236.71,172l59.45,33.72-60,33.83L120.9,174.35Z"/></svg></div>
+            <div class="label">手配依頼<br>（購買部で見積取得後発注）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 見積書を添付して発注 (HOME.LB_PURCHASE_SPECIFY — text thật ja.json) -->
+      <div class="section">
+        <span class="Heading1">見積書を添付して発注</span>
+        <span class="heading-note">（入手済みの見積書を添付して発注します）</span>
+        <div class="card-row">
+          <div class="card-quotation" data-nav="ダイレクト発注入力画面（eProcurement_DirectOrder_Input）">
+            <div class="icon-box"><svg viewBox="0 0 24 24" fill="#1a1a2e"><path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9z"/></svg></div>
+            <div class="label">取得済見積書を添付して発注（ダイレクト…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 契約書/請求書から支払 (HOME.LB_CONTRACT_001 — text thật ja.json) -->
+      <div class="section">
+        <span class="Heading1">契約書/請求書から支払</span>
+        <div class="card-row">
+          <div class="card-quotation" data-nav="支払申請入力画面（eProcurement_PaymentApplication_Input）">
+            <div class="icon-box"><svg viewBox="0 0 24 24" fill="#1a1a2e"><path d="M19 3H5a2 2 0 0 0-2 2v16l4-4h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM11 7h2v2h-2zm0 4h2v6h-2z"/></svg></div>
+            <div class="label">請求書支払</div>
+          </div>
+          <div class="card-quotation" data-nav="契約登録入力画面（eProcurement_Contract_Info_Register_Input）">
+            <div class="icon-box"><svg viewBox="0 0 24 24" fill="#1a1a2e"><path d="M4 4h16v16H4zM8 8h3v3H8zm5 5h3v3h-3z"/></svg></div>
+            <div class="label">定期支払</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- お知らせ -->
+      <div id="Notification" class="section">
+        <div class="Heading1 my-4">お知らせ</div>
+        <div class="notice-item">
+          <span class="date">・2026-06-20</span>
+          <div class="body-line">夏季休暇中の配送について</div>
+          <div class="body-line">(→ <a class="notice-link" href="#" data-title="夏季休暇中の配送について" data-body="2026年8月13日（木）～8月16日（日）は夏季休業のため、配送業務を停止いたします。休業期間中にご注文いただいた商品は、8月18日（火）以降に順次発送いたします。ご不便をおかけしますが、何卒ご了承ください。">こちら</a> をクリックしてください)</div>
+        </div>
+        <div class="notice-item">
+          <span class="date">・2026-06-05</span>
+          <div class="body-line">月末の納品と検収登録について</div>
+          <div class="body-line">(→ <a class="notice-link" href="#" data-title="月末の納品と検収登録について" data-body="月末（6/30）納品分については、翌営業日中に検収登録をお願いいたします。検収登録が翌月にずれ込むと、支払処理が1ヶ月遅延する場合がございますのでご注意ください。">こちら</a> をクリックしてください)</div>
+        </div>
+        <div class="notice-item">
+          <span class="date">・2026-05-18</span>
+          <div class="body-line">システムメンテナンスによる配送遅延について</div>
+          <div class="body-line">(→ <a class="notice-link" href="#" data-title="システムメンテナンスによる配送遅延について" data-body="2026年5月20日（水）深夜2:00～5:00にシステムメンテナンスを実施いたします。メンテナンス時間中は発注・検収処理をご利用いただけません。また、前後の時間帯で一部配送に遅延が生じる可能性がございます。">こちら</a> をクリックしてください)</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+
+<!-- Modal chi tiet thong bao - mo phong NoticeList.vue -->
+<div class="notice-modal-overlay" id="noticeOverlay">
+  <div class="notice-modal">
+    <div class="notice-modal-header">
+      <span id="noticeModalTitle"></span>
+      <button class="notice-modal-close" id="noticeModalClose">&times;</button>
+    </div>
+    <div class="notice-modal-body" id="noticeModalBody"></div>
+    <div class="notice-modal-footer">
+      <button id="noticeModalConfirm">確認</button>
+    </div>
+  </div>
+</div>
+
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var toast = JienieLayout.toast;
+
+  // ---- Catalog search: dropdown カタログ選択 + logic "すべて" (giong onChangeGenreCatalog that) ----
+  var pill = document.getElementById('catalogSelectPill');
+  var checklist = document.getElementById('catalogChecklist');
+  var selectLabel = document.getElementById('catalogSelectLabel');
+  pill.addEventListener('click', function (e) {
+    e.stopPropagation();
+    checklist.classList.toggle('show');
+  });
+  checklist.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.addEventListener('click', function () { checklist.classList.remove('show'); });
+
+  var chkAll = document.querySelector('.chk-all');
+  var chkItems = Array.prototype.slice.call(document.querySelectorAll('.chk-item'));
+  function updateSelectLabel() {
+    var allChecked = chkItems.every(function (c) { return c.checked; });
+    selectLabel.textContent = (allChecked ? 'すべてのカタログ' : '検索対象') + ' ▾';
+  }
+  chkAll.addEventListener('change', function () {
+    chkItems.forEach(function (c) { c.checked = chkAll.checked; });
+    updateSelectLabel();
+  });
+  chkItems.forEach(function (c) {
+    c.addEventListener('change', function () {
+      chkAll.checked = chkItems.every(function (x) { return x.checked; });
+      updateSelectLabel();
+    });
+  });
+
+  // ---- Search validation (giong isNotValid() that trong KeywordSearchStructure.vue) ----
+  var kwInput = document.getElementById('kwInput');
+  var narrowInput = document.getElementById('narrowInput');
+  var errorMsg = document.getElementById('searchErrorMsg');
+  document.getElementById('searchSubmitBtn').addEventListener('click', function (e) {
+    e.preventDefault();
+    var invalid = !kwInput.value.trim() && !narrowInput.value.trim();
+    kwInput.closest('.field-pill').classList.toggle('input-error', invalid);
+    errorMsg.classList.toggle('show', invalid);
+    if (invalid) {
+      kwInput.focus();
+    } else {
+      toast('実際の画面ではカタログモール検索結果画面へ遷移します');
+    }
+  });
+  [kwInput, narrowInput].forEach(function (inp) {
+    inp.addEventListener('input', function () {
+      kwInput.closest('.field-pill').classList.remove('input-error');
+      errorMsg.classList.remove('show');
+    });
+  });
+
+  // ---- Carousel カタログを選んで検索: nut prev/next (giong vue3-carousel Navigation) ----
+  var catalogList = document.querySelector('.catalog-list');
+  var arrows = document.querySelectorAll('.catalog-row .nav-arrow');
+  if (arrows.length === 2) {
+    arrows[0].addEventListener('click', function () { catalogList.scrollBy({ left: -280, behavior: 'smooth' }); });
+    arrows[1].addEventListener('click', function () { catalogList.scrollBy({ left: 280, behavior: 'smooth' }); });
+  }
+
+  // ---- お知らせ: modal chi tiet (giong NoticeList.vue modalNoticeDetail) ----
+  var overlay = document.getElementById('noticeOverlay');
+  var modalTitle = document.getElementById('noticeModalTitle');
+  var modalBody = document.getElementById('noticeModalBody');
+  document.querySelectorAll('.notice-link').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      modalTitle.textContent = link.getAttribute('data-title') || '';
+      modalBody.textContent = link.getAttribute('data-body') || '';
+      overlay.classList.add('show');
+    });
+  });
+  function closeNoticeModal() { overlay.classList.remove('show'); }
+  document.getElementById('noticeModalClose').addEventListener('click', closeNoticeModal);
+  document.getElementById('noticeModalConfirm').addEventListener('click', closeNoticeModal);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeNoticeModal(); });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: eProcurement_Requester_WaitingAcceptance (Buyer Portal - 購買取引案件照会 / 検収タブ)
+  ĐÃ ĐỐI CHIẾU TRỰC TIẾP trang thật
+  https://demo.staging.jienie.com/eProcurement/Requester/WaitingAcceptance (2026-07-05) + src-vbizhw.
+  Khác với tab すべて:
+    - ステータス 1 dòng 4 checkbox: 未検収 検収承認待ち 検収差戻し 検収引戻し.
+    - Trên danh sách có hàng chọn hàng loạt: [☐ すべてチェック　※カタログ のみ有効] bên trái,
+      bên phải "チェックした案件を [検収処理実行]" (nút trắng có icon tròn xanh check).
+    - Card có CHECKBOX ở đầu; dòng trái: 依頼者 / 納品日; cột phải 4 dòng:
+      検収金額（税抜）・税額（10%対象）・検収金額（税込）・納品日 (isTaxIncludedAmount).
+    - Sort có 4 option: 発注申請日時/案件番号/金額/検査完了期日. Demo thật: 全30件 / 2 trang.
+    - Status: 未検収 (#ff6699) / 検収承認待ち (#008000) / 金額調整 nền đỏ.
+  Còn lại giống tab すべて (form 詳細条件, pagination...) - xem eProcurement_Requester_All.html.
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>購買取引案件照会</title>
+<link rel="stylesheet" href="assets/layout.css">
+<link rel="stylesheet" href="assets/requester.css">
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li class="active">購買取引案件照会</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="page-title"><h3>購買取引案件照会</h3></div>
+
+      <nav class="req-tabs">
+        <a href="eProcurement_Requester_EstimateApplicationApplicantList.html">見積依頼 見積回答</a>
+        <a href="eProcurement_Requester_All.html">すべて</a>
+        <a href="eProcurement_Requester_Ordered.html">発注</a>
+        <a class="active">検収</a>
+        <a href="eProcurement_Requester_FinishedAcceptance.html">検収完了</a>
+        <a href="eProcurement_Requester_OpportunityDraft.html">一時保存</a>
+      </nav>
+
+      <!-- ===== Search filter ===== -->
+      <form class="wrapper-search" id="searchForm">
+        <div class="search-keywords">
+          <input type="text" placeholder="キーワードで検索" maxlength="50">
+          <div class="couple-btn">
+            <button type="button" class="active" data-op="and">and検索</button>
+            <button type="button" data-op="or">or検索</button>
+          </div>
+          <button type="button" class="collapse-toggle" id="searchCollapseToggle">
+            <span class="toggle-text">詳細条件を追加</span><span class="circle-arrow">▼</span>
+          </button>
+        </div>
+        <hr class="sep">
+
+        <div class="search-options" id="searchOptions">
+          <div class="field-row">
+            <div class="field-half"><label>案件名</label><input type="text" maxlength="50"></div>
+            <div class="field-half"><label>案件番号</label><input type="text" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <select style="width:150px;flex:none;">
+                <option>申請日</option>
+                <option>注文日</option>
+                <option>希望納品日</option>
+                <option>受注／受注辞退日</option>
+                <option>納品予定日</option>
+                <option>納品日</option>
+                <option>検収日</option>
+                <option>支払い予定日</option>
+                <option>発注承認日</option>
+                <option>検収承認日</option>
+              </select>
+              <div class="date-range">
+                <input type="text" value="2025-07-05" readonly>
+                <span>～</span>
+                <input type="text" placeholder="YYYY-MM-DD" readonly>
+                <button type="button" class="reset-date">✕</button>
+              </div>
+            </div>
+            <div class="field-half"><label>サプライヤ名</label><input type="text" maxlength="100"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <label>購買種別</label>
+              <select>
+                <option>範囲全体</option>
+                <option>カタログ購買</option>
+                <option>ダイレクト発注</option>
+                <option>見積購買</option>
+                <option>セルフ見積</option>
+                <option>発注（概算）</option>
+              </select>
+            </div>
+            <div class="field-half"><label>サプライヤコード</label><input type="text" maxlength="100"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <label>品目ジャンル</label>
+              <span style="white-space:nowrap;">大分類</span>
+              <select><option>-</option><option>理化学・試薬・研究機器</option><option>事務用機器、付属品および供給品</option><option>オフィス材</option></select>
+            </div>
+            <div class="field-half">
+              <label>中分類</label>
+              <select style="max-width:220px;"><option>-</option></select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-half"><label>メーカー品番</label><input type="text" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <label>注文金額</label>
+              <div style="display:flex;align-items:center;gap:.4rem;flex:1;">
+                <span>¥</span><input type="text" style="flex:1;min-width:0;">
+                <span style="white-space:nowrap;">～¥</span><input type="text" style="flex:1;min-width:0;">
+              </div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-half"><label>原価センタ</label><input type="text" maxlength="50"></div>
+            <div class="field-half"><label>勘定科目</label><input type="text" maxlength="50"></div>
+          </div>
+          <div class="mgmt-item-row">
+            <label>管理項目</label>
+            <select class="mgmt-select-code"><option>-</option><option>[Code01] 稟議番号</option></select>
+            <span>が</span>
+            <input type="text" maxlength="50">
+            <select class="mgmt-op"><option>-</option></select>
+            <button type="button" class="mgmt-add-btn" title="条件を追加" data-nav="管理項目の条件行を追加（addCon）">＋</button>
+          </div>
+        </div>
+
+        <!-- ステータス（検収タブ: 1 dòng 4 checkbox） -->
+        <div class="status-row">
+          <label>ステータス</label>
+          <div class="status-checks">
+            <div class="chk-line">
+              <label class="chk"><input type="checkbox">未検収</label>
+              <label class="chk"><input type="checkbox">検収承認待ち</label>
+              <label class="chk"><input type="checkbox">検収差戻し</label>
+              <label class="chk"><input type="checkbox">検収引戻し</label>
+            </div>
+          </div>
+        </div>
+        <hr class="sep">
+
+        <div class="org-row">
+          <label>組織または依頼者</label>
+          <select data-nav="詳細条件設定を選ぶと組織・依頼者選択ダイアログ（OrgOrRequester）が開く">
+            <option>本人</option>
+            <option>範囲すべて</option>
+            <option>詳細条件設定</option>
+          </select>
+        </div>
+        <hr class="sep">
+
+        <div class="search-buttons">
+          <button type="submit" class="btn-search-submit" data-nav="検索結果を再取得（getAcceptanceAnkenList）">🔍　検索</button>
+          <button type="button" class="btn-search-reset" data-nav="検索条件クリア（reset）"><span class="ico">↺</span>　クリアする</button>
+          <button type="button" class="btn-export" data-nav="明細ダウンロード（DOWNLOAD_DETAIL_SEARCH_ACCEPTANCE_ANKEN）"><span class="ico">⬇</span>　明細ダウンロード</button>
+        </div>
+      </form>
+
+      <!-- ===== Pagination trên ===== -->
+      <div class="wrapper-pagination">
+        <div class="pagination-left">
+          <div>1 - 20 / 全30件</div>
+          <select><option>10件表示</option><option selected>20件表示</option><option>50件表示</option></select>
+          <select><option>発注申請日時</option><option>案件番号</option><option>金額</option><option>検査完了期日</option></select>
+          <div class="sort-order-btn">
+            <button type="button" class="active" title="降順">▼</button>
+            <button type="button" title="昇順">▲</button>
+          </div>
+          <button type="button" class="btn-collapse-all"><span class="ico">▼</span>　全ての明細を開く</button>
+        </div>
+        <ul class="pagination-pages">
+          <li class="active"><span>1</span></li>
+          <li><a data-nav="ページ2へ">2</a></li>
+          <li><a data-nav="次のページへ">次へ ›</a></li>
+        </ul>
+      </div>
+
+      <!-- ===== Hàng chọn hàng loạt（trang thật: chỉ カタログ được chọn） ===== -->
+      <div class="bulk-row">
+        <label class="chk"><input type="checkbox" id="checkAllAnken">すべてチェック　※カタログ のみ有効</label>
+        <div class="bulk-right">
+          <span>チェックした案件を</span>
+          <button type="button" class="btn-acceptance-exec" data-nav="検収処理実行（チェックした案件の検収登録画面へ）"><span class="blue-circle">✓</span>検収処理実行</button>
+        </div>
+      </div>
+
+      <!-- ===== Danh sách案件 ===== -->
+      <div class="wrapper-main-items">
+
+        <!-- Case 1: カタログ購買・金額調整＋未検収 -->
+        <div class="anken-card">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <input type="checkbox" class="anken-check">
+              <span class="badge-order-type catalog">カタログ購買</span>
+              <span class="anken-no">案件番号：PDEMO2606000128</span>
+            </div>
+            <div class="anken-header-right">
+              <span class="lb-adjustment">金額調整</span>
+              <span>ステータス：</span>
+              <span class="status-badge st-pink">未検収</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">研究消耗品発注</div>
+              <div class="info-line"><label>依頼者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>納品日</label><span>2026-06-26</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>検収金額（税抜）</label><span class="val money">¥1,375</span></div>
+              <div class="amount-line"><label>税額（10%対象）</label><span class="val money">¥137</span></div>
+              <div class="amount-line"><label>検収金額（税込）</label><span class="val money">¥1,512</span></div>
+              <div class="amount-line"><label>納品日</label><span class="val">2026-06-26</span></div>
+            </div>
+          </div>
+          <div class="collapse-line">
+            <button type="button" class="anken-toggle">
+              <span class="toggle-arrow">∨</span>　<span class="toggle-label">明細を開く</span> ｜ <span class="case-count">4</span> 件
+            </button>
+          </div>
+          <div class="anken-detail" style="display:none;">
+            <h5>明細情報</h5>
+            <div class="supplier-line">
+              <div class="supplier-name">株式会社ＭｏｎｏｔａＲＯ<a href="#" data-nav="問い合わせ先ダイアログ（ContactInformation）">問い合わせ先</a></div>
+            </div>
+            <table>
+              <tr>
+                <th>明細.001-01</th>
+                <td><b>カタログ品番</b> 39078123 / <b>メーカー</b> NIKKO(ニッコーハンセン) / <b>メーカー品番</b> -<br>
+                    <b>品名</b> <a href="#" data-nav="商品情報の表示">PPディスポビーカー 1個</a></td>
+                <th>納品金額</th>
+                <td class="num">¥75</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-pink">未検収</span></td>
+              </tr>
+              <tr>
+                <th>納品日</th>
+                <td>2026-06-26</td>
+                <th>納品数量</th>
+                <td class="num">1個</td>
+                <th>単価</th>
+                <td class="num" style="text-align:left;">¥75　<b>課税区分</b>　課税（税抜）</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- Case 2: カタログ購買・検収承認待ち -->
+        <div class="anken-card">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <input type="checkbox" class="anken-check" disabled>
+              <span class="badge-order-type catalog">カタログ購買</span>
+              <span class="anken-no">案件番号：PDEMO2606000083</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-green">検収承認待ち</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">カタログ購買_001</div>
+              <div class="info-line"><label>依頼者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>納品日</label><span>2026-06-19</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>検収金額（税抜）</label><span class="val money">¥3,180</span></div>
+              <div class="amount-line"><label>税額（10%対象）</label><span class="val money">¥318</span></div>
+              <div class="amount-line"><label>検収金額（税込）</label><span class="val money">¥3,498</span></div>
+              <div class="amount-line"><label>納品日</label><span class="val">2026-06-19</span></div>
+            </div>
+          </div>
+          <div class="collapse-line">
+            <button type="button" class="anken-toggle">
+              <span class="toggle-arrow">∨</span>　<span class="toggle-label">明細を開く</span> ｜ <span class="case-count">2</span> 件
+            </button>
+          </div>
+          <div class="anken-detail" style="display:none;">
+            <h5>明細情報</h5>
+            <div class="supplier-line">
+              <div class="supplier-name">株式会社ＭｏｎｏｔａＲＯ<a href="#" data-nav="問い合わせ先ダイアログ（ContactInformation）">問い合わせ先</a></div>
+            </div>
+            <table>
+              <tr>
+                <th>明細.001-01</th>
+                <td><b>品名</b> <a href="#" data-nav="商品情報の表示">コピー用紙 A4 5000枚</a></td>
+                <th>納品金額</th>
+                <td class="num">¥3,180</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-green">検収承認待ち</span></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- Case 3: ダイレクト発注・未検収（có 見積書/添付ファイル） -->
+        <div class="anken-card">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <input type="checkbox" class="anken-check" disabled>
+              <span class="badge-order-type direct">ダイレクト発注</span>
+              <span class="anken-no">案件番号：PDEMO2606000119</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-pink">未検収</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">販促用ノベルティ印刷</div>
+              <div class="info-line"><label>依頼者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>納品日</label><span>2026-06-24</span></div>
+              <div class="info-line"><label>見積書</label><span><a href="#" style="color:#045eb4;text-decoration:underline;" data-nav="見積書ファイルのダウンロード">見積書_20260610.pdf</a></span></div>
+              <div class="info-line"><label>添付ファイル</label><span></span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>検収金額（税抜）</label><span class="val money">¥86,900</span></div>
+              <div class="amount-line"><label>税額（10%対象）</label><span class="val money">¥8,690</span></div>
+              <div class="amount-line"><label>検収金額（税込）</label><span class="val money">¥95,590</span></div>
+              <div class="amount-line"><label>納品日</label><span class="val">2026-06-24</span></div>
+            </div>
+          </div>
+          <div class="collapse-line">
+            <button type="button" class="anken-toggle">
+              <span class="toggle-arrow">∨</span>　<span class="toggle-label">明細を開く</span> ｜ <span class="case-count">1</span> 件
+            </button>
+          </div>
+          <div class="anken-detail" style="display:none;">
+            <h5>明細情報</h5>
+            <div class="supplier-line"><div class="supplier-name">大東印刷株式会社</div></div>
+            <table>
+              <tr>
+                <th>明細.001-01</th>
+                <td><b>品名</b> 社名入りボールペン（黒・0.5mm）500本</td>
+                <th>納品金額</th>
+                <td class="num">¥86,900</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-pink">未検収</span></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== Pagination dưới ===== -->
+      <div class="wrapper-pagination" style="margin-bottom:1rem;">
+        <div class="pagination-left">
+          <div>1 - 20 / 全30件</div>
+          <select><option>10件表示</option><option selected>20件表示</option><option>50件表示</option></select>
+          <select><option>発注申請日時</option><option>案件番号</option><option>金額</option><option>検査完了期日</option></select>
+          <div class="sort-order-btn">
+            <button type="button" class="active" title="降順">▼</button>
+            <button type="button" title="昇順">▲</button>
+          </div>
+          <button type="button" class="btn-collapse-all"><span class="ico">▼</span>　全ての明細を開く</button>
+        </div>
+        <ul class="pagination-pages">
+          <li class="active"><span>1</span></li>
+          <li><a data-nav="ページ2へ">2</a></li>
+          <li><a data-nav="次のページへ">次へ ›</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/requester.js"></script>
+<script>
+JienieLayout.init();
+JienieRequester.init();
+</script>
+
+</body>
+</html>

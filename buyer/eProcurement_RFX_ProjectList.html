@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: 調達案件一覧画面（画面ID：SCR-RFX-001）— RFX機能（新規開発・Buyer Portal）
+  Dùng chung header/sidebar qua assets/layout.css + assets/layout.js.
+
+  Nguồn yêu cầu (projects/standard/documents/features/RFX機能/):
+    - 02_要件定義書.md §4.2 SCR-RFX-001: Buyerが担当・参加する全調達案件の一覧を表示。
+      ステータス・カテゴリ・作成日等での絞り込みが可能。案件名クリックで SCR-RFX-003 へ遷移。
+    - 03_基本設計書.md §3.2 画面遷移: 「新規作成ボタン」→ SCR-RFX-002、「案件名クリック」→ SCR-RFX-003
+    - 03_基本設計書.md §5.3 rfx_project / §8.2 案件ステータス（100作成中/200 RFI実施中/300 RFP実施中/
+      400評価中/450落札承認待ち/500落札完了/900キャンセル）/ §6.1 調達案件一覧取得API / §8.1 権限
+
+  FEEDBACK ĐÃ PHẢN ÁNH:
+    - 2026-07-05: thuật ngữ「Award」→「落札」toàn bộ.
+    - 2026-07-05: nâng cấp SUB-FEATURE HOẠT ĐỘNG THẬT (theo MOCKUP_GENERATION_PROMPT.md mục 4):
+      1. 検索/クリアする: lọc thật danh sách card theo keyword (and/or)・ステータス・カテゴリ・
+         kỳ hạn (作成日/RFI回答期限/RFP提出期限/評価期限); 0 kết quả hiển thị message chuẩn J2
+         và ẩn pagination; số liệu「1 - N / 全N件」cập nhật ở cả 2 thanh pagination.
+      2. Sort thật: 作成日時/案件番号/RFP提出期限/評価期限 + couple ▼▲ sắp xếp lại card
+         (kỳ hạn 未設定 luôn xếp cuối). Mặc định 作成日時降順 áp dụng ngay khi mở trang.
+      3. 案件キャンセル (card 作成中): modal xác nhận + lý do → badge → キャンセル, card mờ,
+         bỏ nút thao tác, filter/sort nhận trạng thái mới.
+      4. 承認タスクへ (card 落札承認待ち): modal 落札承認 (SCR-RFX-012 giản lược): thông tin
+         落札候補 + score + comment 申請者 + ô 承認コメント → 承認する = card chuyển 落札完了
+         (badge + phase strip ✓ hết + toast PO連携/通知) / 差し戻す = card về 評価中 (BD-RFX-008).
+      5. 評価シート入力 (card 評価中): modal SCR-RFX-009 giản lược: bảng supplier × 技術/価格スコア
+         (validate 0〜100)・総合 tự tính theo trọng số 技術60%/価格40%・コメント・保存
+         (RD-RFX-008: lưu độc lập, không xem score người khác).
+      6. 評価結果確認: modal SCR-RFX-010 giản lược: bảng so sánh tổng hợp score các評価者
+         (score mình vừa lưu được phản ánh), highlight ứng viên số 1, nút 落札確定申請へ.
+
+  Design style: theo design system J2 (xem MOCKUP_GENERATION_PROMPT.md mục 3).
+  Demo data nhất quán với eProcurement_RFX_ProjectDetail.html / eProcurement_RFX_ProjectCreate.html.
+
+  Các điểm TỰ ĐỀ XUẤT (chưa có trong 基本設計 - cần confirm khi 詳細設計):
+    - 案件番号 display code "RFX<yymm>######" (DB chỉ có UUID)
+    - Thanh tiến trình phase (RFI→RFP→評価→落札) trong card
+    - Màu status badge (map theo convention màu J2)
+    - Nút thao tác nhanh trên card (評価シート入力/評価結果確認/承認タスクへ/案件設定変更/キャンセル)
+      — theo 画面遷移図 các chức năng này khởi động từ SCR-RFX-003; đặt shortcut ở一覧 là đề xuất
+    - Vị trí menu sidebar cho RFX vẫn ■未確定 (Q-BD-RFX-005)
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調達案件一覧</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+
+  /* ===== Breadcrumb + Page title ===== */
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+  .btn-new-project {
+    background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%);
+    border: 1px solid #4169e1; color: #fff; font-size: 1rem; padding: .65rem 1.8rem;
+    border-radius: 4px; cursor: pointer; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5); font-weight: bold;
+  }
+
+  /* ===== Search filter (J2 wrapper-search chuẩn) ===== */
+  .wrapper-search { background: #edf1f6; padding: 1rem 1.5rem; }
+  .search-keywords { display: flex; align-items: center; gap: .8rem; }
+  .search-keywords input[type="text"] { flex: 1; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; }
+  .couple-btn { display: flex; border: 1px solid #4169e1; border-radius: 4px; overflow: hidden; flex-shrink: 0; background: #fff; }
+  .couple-btn button { border: none; background: #fff; color: #111; padding: .55rem 1rem; font-size: .95rem; cursor: pointer; white-space: nowrap; }
+  .couple-btn button.active { background: #4169e1; color: #fff; }
+  .collapse-toggle { background: none; border: none; color: #111; font-size: 1rem; cursor: pointer; white-space: nowrap; margin-left: 1.2rem; display: flex; align-items: center; gap: .4rem; }
+  .collapse-toggle .circle-arrow {
+    width: 20px; height: 20px; border-radius: 50%; background: #4169e1; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: .7rem; transition: transform .2s;
+  }
+  .collapse-toggle.open .circle-arrow { transform: rotate(180deg); }
+  hr.sep { border: none; border-top: 1px solid #d7dce6; margin: 1rem 0; }
+
+  .search-options { display: none; }
+  .search-options.show { display: block; }
+  .field-row { display: flex; gap: 2rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+  .field-half { flex: 1; min-width: 340px; display: flex; align-items: center; gap: .8rem; }
+  .field-half > label { width: 150px; flex-shrink: 0; font-size: .9rem; color: #111; }
+  .field-half input[type="text"], .field-half select { flex: 1; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .date-range { display: flex; align-items: center; gap: .4rem; flex: 1; }
+  .date-range input { flex: 1; min-width: 0; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .date-range .reset-date { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: .45rem .7rem; cursor: pointer; color: #111; font-weight: bold; }
+
+  .status-row { display: flex; gap: 1.2rem; align-items: flex-start; margin-bottom: .4rem; flex-wrap: wrap; }
+  .status-row > label { width: 150px; flex-shrink: 0; font-size: .9rem; padding-top: .1rem; }
+  .status-checks { flex: 1; }
+  .status-checks .chk { font-size: .9rem; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 1.4rem; margin-bottom: .5rem; }
+  .status-checks input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4169e1; }
+  .org-row { display: flex; align-items: center; gap: 1.2rem; }
+  .org-row > label { width: 150px; flex-shrink: 0; font-size: .9rem; }
+  .org-row select { min-width: 230px; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+
+  .search-buttons { display: flex; align-items: center; justify-content: center; gap: 1.5rem; }
+  .btn-search-submit {
+    background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%);
+    border: 1px solid #4169e1; color: #fff; font-size: 1.05rem; padding: .7rem 2rem;
+    border-radius: 4px; cursor: pointer; min-width: 210px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+  }
+  .btn-search-reset {
+    background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1.05rem; padding: .7rem 1.6rem;
+    border-radius: 4px; cursor: pointer; min-width: 210px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+  }
+  .btn-search-reset .ico { color: #4169e1; }
+
+  /* ===== Pagination ===== */
+  .wrapper-pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 1.4rem; flex-wrap: wrap; gap: .8rem; }
+  .pagination-left { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .pagination-left select { padding: .45rem .6rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .sort-order-btn { display: flex; border: 1px solid #4169e1; border-radius: 4px; overflow: hidden; background: #fff; }
+  .sort-order-btn button { border: none; background: #fff; color: #4169e1; padding: .45rem .8rem; cursor: pointer; font-size: .9rem; }
+  .sort-order-btn button.active { background: #4169e1; color: #fff; }
+  .pagination-pages { display: flex; list-style: none; margin: 0; padding: 0; gap: 5px; align-items: center; }
+  .pagination-pages li a, .pagination-pages li span {
+    display: block; padding: .45rem .8rem; border: 1px solid #c9d4f2; border-radius: 4px;
+    color: #4169e1; font-size: .95rem; font-weight: bold; cursor: pointer; background: #fff;
+  }
+  .pagination-pages li.active span { background: #4169e1; color: #fff; border-color: #4169e1; }
+
+  .no-result { display: none; margin-top: 1.4rem; font-size: 1.05rem; }
+  .no-result.show { display: block; }
+
+  /* ===== Card案件 ===== */
+  .wrapper-main-items { margin-top: 1rem; display: flex; flex-direction: column; gap: 1.2rem; }
+  .anken-card { background: #f5f5f5; border: 1px solid #ededed; border-radius: 0 0 5px 5px; padding: 1rem 1.4rem; }
+  .anken-card.cancelled { opacity: .65; }
+  .anken-header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+  .anken-header-left { display: flex; align-items: center; }
+  .badge-rfx { padding: 4px 14px; font-size: .9rem; display: inline-block; background: #fff; border: 1px solid #7654b4; color: #7654b4; }
+  .anken-no { margin-left: .8rem; padding-left: .8rem; border-left: 1px solid #cccccc; font-size: .95rem; }
+  .anken-header-right { display: flex; align-items: center; gap: .6rem; }
+  .status-badge { min-width: 140px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 5px; font-size: .95rem; background: #fff; }
+  .st-draft   { color: #808080; border-color: #808080; }
+  .st-rfi     { color: #0074c1; border-color: #0074c1; }
+  .st-rfp     { color: #008000; border-color: #008000; }
+  .st-eval    { color: #ff9933; border-color: #ff9933; }
+  .st-award-w { color: #ff6699; border-color: #ff6699; }
+  .st-award   { color: #437643; border-color: #437643; }
+  .st-cancel  { color: #808080; border-color: #808080; }
+  .anken-hr { border: none; border-top: 1px solid #dddddd; margin: .8rem 0 0; }
+  .anken-body-row { display: flex; }
+  .anken-body-left { flex: 2; min-width: 0; padding: .6rem 0 .4rem; }
+  .anken-body-right { flex: 1; border-left: 1px solid #dddddd; padding: 2rem 0 .4rem 1.2rem; }
+  .anken-title { font-size: 1.4rem; font-weight: bold; word-break: break-all; margin: .2rem 0 .4rem; }
+  .anken-title a { color: #045eb4; }
+  .anken-title a:hover { text-decoration: underline; }
+  .info-line { font-size: .95rem; display: flex; align-items: flex-start; margin-bottom: .1rem; }
+  .info-line > label { width: 130px; flex-shrink: 0; border-right: 1px solid #cccccc; margin-right: 1rem; }
+  .amount-line { margin-bottom: .5rem; font-size: .95rem; display: flex; align-items: center; }
+  .amount-line > label { width: 110px; flex-shrink: 0; border-right: 1px solid #cccccc; margin-right: 1rem; font-weight: bold; }
+  .amount-line .val { font-weight: bold; font-size: 1.05rem; }
+  .card-actions { text-align: center; padding: .8rem 0 .2rem; }
+  .card-actions button {
+    background: #fff; border: 1px solid #dadbde; color: #111; padding: .6rem 1.6rem;
+    border-radius: 4px; cursor: pointer; font-size: .95rem; margin: 0 .5rem; min-width: 150px;
+  }
+
+  /* Phase strip RFI→RFP→評価→落札 */
+  .phase-strip { display: flex; align-items: center; margin-top: .9rem; padding: .7rem 1rem .5rem; background: #ffffff; border: 1px solid #ededed; border-radius: 4px; }
+  .phase-step { flex: 1; text-align: center; position: relative; }
+  .phase-step::after { content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 3px; background: #d9d9d9; z-index: 0; }
+  .phase-step:last-child::after { display: none; }
+  .phase-step .ps-dot {
+    width: 26px; height: 26px; border-radius: 50%; margin: 0 auto; position: relative; z-index: 1;
+    background: #c9c9c9; color: #fff; font-size: .75rem; display: flex; align-items: center; justify-content: center;
+  }
+  .phase-step.done .ps-dot { background: #5cb85c; }
+  .phase-step.current .ps-dot { background: #4169e1; width: 30px; height: 30px; }
+  .phase-step.skip .ps-dot { background: #e3e3e3; color: #999; }
+  .phase-step .ps-label { font-size: .78rem; margin-top: .35rem; color: #555; }
+  .phase-step.current .ps-label { color: #4169e1; font-weight: bold; }
+
+  /* ===== Modals ===== */
+  .rfx-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; align-items: center; justify-content: center; }
+  .rfx-overlay.show { display: flex; }
+  .rfx-modal { background: #fff; width: 560px; max-width: 94%; max-height: 88vh; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+  .rfx-modal.wide { width: 880px; }
+  .rfx-modal-header { padding: 1rem 1.3rem; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .rfx-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #888; }
+  .rfx-modal-body { padding: 1.2rem 1.3rem; font-size: .95rem; line-height: 1.7; overflow-y: auto; }
+  .rfx-modal-footer { padding: .8rem 1.3rem 1.2rem; display: flex; gap: 1rem; justify-content: center; flex-shrink: 0; border-top: 1px solid #f0f0f0; }
+  .rfx-modal-footer .ok { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-weight: bold; padding: .6rem 2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal-footer .warn { background: #fff; border: 1px solid #d9534f; color: #d9534f; font-weight: bold; padding: .6rem 2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal-footer .ng { background: #fff; border: 1px solid #ccc; color: #111; padding: .6rem 2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal textarea { width: 100%; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .92rem; font-family: inherit; resize: vertical; }
+  .rfx-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .rfx-table th { background: #eef1f7; border: 1px solid #e3e3e6; padding: .6rem .8rem; font-weight: bold; text-align: center; white-space: nowrap; }
+  .rfx-table td { border: 1px solid #e3e3e6; padding: .6rem .8rem; background: #fff; vertical-align: middle; }
+  .rfx-table input.score-in { width: 70px; padding: .4rem .5rem; border: 1px solid #ccc; border-radius: 4px; text-align: right; font-size: .92rem; }
+  .rfx-table input.score-in.has-error { border-color: #dc3545; background: #fff5f5; }
+  .rfx-table input.cmt-in { width: 100%; padding: .4rem .5rem; border: 1px solid #ccc; border-radius: 4px; font-size: .88rem; }
+  .rfx-table .total-cell { font-weight: bold; color: #4169e1; text-align: right; }
+  .rfx-table tr.top-rank td { background: #fffbe8; }
+  .rank-label { display: inline-block; background: #e6b422; color: #fff; font-size: .75rem; font-weight: bold; padding: 2px 8px; border-radius: 2px; margin-left: .5rem; }
+  .modal-note { font-size: .82rem; color: #777; margin-top: .6rem; }
+  .err-line { color: #dc3545; font-size: .85rem; margin-top: .5rem; display: none; }
+  .err-line.show { display: block; }
+  .cand-box { border: 1px solid #e3e3e6; border-radius: 4px; background: #fafbfd; padding: .9rem 1.1rem; margin-bottom: .9rem; }
+  .cand-box .kv { display: flex; margin-bottom: .3rem; }
+  .cand-box .kv label { width: 150px; flex-shrink: 0; font-weight: bold; }
+
+  #Notification { display: none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li class="active">調達案件一覧</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="page-title">
+        <h3>調達案件一覧</h3>
+        <button type="button" class="btn-new-project" onclick="window.location.href='eProcurement_RFX_ProjectCreate.html'">＋　新規案件作成</button>
+      </div>
+
+      <!-- ===== Search filter（lọc thật - 調達案件一覧取得API tương đương） ===== -->
+      <form class="wrapper-search" id="searchForm">
+        <div class="search-keywords">
+          <input type="text" id="kwInput" placeholder="キーワードで検索" maxlength="50">
+          <div class="couple-btn" id="opButtons">
+            <button type="button" class="active" data-op="and">and検索</button>
+            <button type="button" data-op="or">or検索</button>
+          </div>
+          <button type="button" class="collapse-toggle" id="searchCollapseToggle">
+            <span class="toggle-text">詳細条件を追加</span><span class="circle-arrow">▼</span>
+          </button>
+        </div>
+        <hr class="sep">
+
+        <div class="search-options" id="searchOptions">
+          <div class="field-row">
+            <div class="field-half"><label>案件名</label><input type="text" id="nameInput" maxlength="100"></div>
+            <div class="field-half"><label>案件番号</label><input type="text" id="noInput" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <select id="periodType" style="width:150px;flex:none;">
+                <option value="created">作成日</option>
+                <option value="rfi">RFI回答期限</option>
+                <option value="rfp">RFP提出期限</option>
+                <option value="eval">評価期限</option>
+              </select>
+              <div class="date-range">
+                <input type="text" id="dateFrom" value="2025-07-05" placeholder="YYYY-MM-DD">
+                <span>～</span>
+                <input type="text" id="dateTo" placeholder="YYYY-MM-DD">
+                <button type="button" class="reset-date" id="resetDateBtn">✕</button>
+              </div>
+            </div>
+            <div class="field-half">
+              <label>対象カテゴリ</label>
+              <select id="categorySelect">
+                <option value="">-</option>
+                <option>システム関連調達</option>
+                <option>ビジネスサービス</option>
+                <option>事務用機器、付属品および供給品</option>
+                <option>輸送、保管および郵便サービス</option>
+                <option>建物および施設の建設と修繕サービス</option>
+                <option>オフィス材</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ステータス（§8.2 - 7種） -->
+        <div class="status-row">
+          <label>ステータス</label>
+          <div class="status-checks" id="statusChecks">
+            <label class="chk"><input type="checkbox" value="draft">作成中</label>
+            <label class="chk"><input type="checkbox" value="rfi">RFI実施中</label>
+            <label class="chk"><input type="checkbox" value="rfp">RFP実施中</label>
+            <label class="chk"><input type="checkbox" value="eval">評価中</label>
+            <label class="chk"><input type="checkbox" value="awardw">落札承認待ち</label>
+            <label class="chk"><input type="checkbox" value="award">落札完了</label>
+            <label class="chk"><input type="checkbox" value="cancel">キャンセル</label>
+          </div>
+        </div>
+        <hr class="sep">
+
+        <div class="org-row">
+          <label>組織または担当者</label>
+          <select data-nav="詳細条件設定を選ぶと組織・担当者選択ダイアログが開く">
+            <option>本人</option>
+            <option>範囲すべて</option>
+            <option>詳細条件設定</option>
+          </select>
+        </div>
+        <hr class="sep">
+
+        <div class="search-buttons">
+          <button type="submit" class="btn-search-submit">🔍　検索</button>
+          <button type="button" class="btn-search-reset" id="clearBtn"><span class="ico">↺</span>　クリアする</button>
+        </div>
+      </form>
+
+      <!-- ===== Pagination trên ===== -->
+      <div class="wrapper-pagination" id="paginationTop">
+        <div class="pagination-left">
+          <div class="count-label">1 - 7 / 全7件</div>
+          <select>
+            <option>10件表示</option>
+            <option selected>20件表示</option>
+            <option>50件表示</option>
+          </select>
+          <select id="sortKey">
+            <option value="created">作成日時</option>
+            <option value="no">案件番号</option>
+            <option value="rfp">RFP提出期限</option>
+            <option value="eval">評価期限</option>
+          </select>
+          <div class="sort-order-btn" id="sortOrder">
+            <button type="button" class="active" data-dir="desc" title="降順">▼</button>
+            <button type="button" data-dir="asc" title="昇順">▲</button>
+          </div>
+        </div>
+        <ul class="pagination-pages">
+          <li class="active"><span>1</span></li>
+        </ul>
+      </div>
+
+      <div class="no-result" id="noResult">検索結果がありません。検索条件を入力し直してから「検索」ボタンを押してください。</div>
+
+      <!-- ===== Danh sách調達案件 ===== -->
+      <div class="wrapper-main-items" id="cardList">
+
+        <!-- Case 1: 300 RFP実施中 -->
+        <div class="anken-card" data-status="rfp" data-no="RFX2607000006" data-name="新基幹サーバ更改に伴う機器・構築役務調達"
+             data-category="システム関連調達" data-created="2026-06-24" data-rfi="2026-07-08" data-rfp="2026-07-24" data-eval="2026-08-07">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-rfx">調達案件</span>
+              <span class="anken-no">案件番号：RFX2607000006</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-rfp">RFP実施中</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title"><a href="eProcurement_RFX_ProjectDetail.html">新基幹サーバ更改に伴う機器・構築役務調達</a></div>
+              <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>対象カテゴリ</label><span>システム関連調達</span></div>
+              <div class="info-line"><label>参加サプライヤ</label><span>5社（参加確定 4社 ／ 招待中 1社）</span></div>
+              <div class="info-line"><label>作成日</label><span>2026-06-24</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>RFP提出期限</label><span class="val">2026-07-24</span></div>
+              <div class="amount-line"><label>評価期限</label><span class="val">2026-08-07</span></div>
+            </div>
+          </div>
+          <div class="phase-strip">
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">RFI</div></div>
+            <div class="phase-step current"><div class="ps-dot">RFP</div><div class="ps-label">RFP実施中</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">評価</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">落札</div></div>
+          </div>
+        </div>
+
+        <!-- Case 2: 200 RFI実施中 -->
+        <div class="anken-card" data-status="rfi" data-no="RFX2607000005" data-name="オフィス清掃業務委託（2027年度）"
+             data-category="ビジネスサービス" data-created="2026-07-01" data-rfi="2026-07-15" data-rfp="2026-08-21" data-eval="2026-09-04">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-rfx">調達案件</span>
+              <span class="anken-no">案件番号：RFX2607000005</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-rfi">RFI実施中</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title"><a href="eProcurement_RFX_ProjectDetail.html">オフィス清掃業務委託（2027年度）</a></div>
+              <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>対象カテゴリ</label><span>ビジネスサービス</span></div>
+              <div class="info-line"><label>参加サプライヤ</label><span>6社（参加確定 6社）</span></div>
+              <div class="info-line"><label>作成日</label><span>2026-07-01</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>RFI回答期限</label><span class="val">2026-07-15</span></div>
+              <div class="amount-line"><label>RFP提出期限</label><span class="val">2026-08-21</span></div>
+              <div class="amount-line"><label>評価期限</label><span class="val">2026-09-04</span></div>
+            </div>
+          </div>
+          <div class="phase-strip">
+            <div class="phase-step current"><div class="ps-dot">RFI</div><div class="ps-label">RFI実施中</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">RFP</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">評価</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">落札</div></div>
+          </div>
+        </div>
+
+        <!-- Case 3: 400 評価中（RFIスキップ・BR-RFX-001） -->
+        <div class="anken-card" data-status="eval" data-no="RFX2606000004" data-name="社用車リース更新（営業車両 12台）"
+             data-category="輸送、保管および郵便サービス" data-created="2026-06-10" data-rfi="" data-rfp="2026-06-30" data-eval="2026-07-10">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-rfx">調達案件</span>
+              <span class="anken-no">案件番号：RFX2606000004</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-eval">評価中</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title"><a href="eProcurement_RFX_ProjectDetail.html">社用車リース更新（営業車両 12台）</a></div>
+              <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>対象カテゴリ</label><span>輸送、保管および郵便サービス</span></div>
+              <div class="info-line"><label>参加サプライヤ</label><span>3社（参加確定 3社）※RFIスキップ</span></div>
+              <div class="info-line"><label>作成日</label><span>2026-06-10</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>RFP提出期限</label><span class="val">2026-06-30</span></div>
+              <div class="amount-line"><label>評価期限</label><span class="val">2026-07-10</span></div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button type="button" id="evalSheetBtn" title="評価者のみ表示">評価シート入力</button>
+            <button type="button" id="evalResultBtn">評価結果確認</button>
+          </div>
+          <div class="phase-strip">
+            <div class="phase-step skip"><div class="ps-dot">－</div><div class="ps-label">RFI（スキップ）</div></div>
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">RFP</div></div>
+            <div class="phase-step current"><div class="ps-dot">評価</div><div class="ps-label">評価中</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">落札</div></div>
+          </div>
+        </div>
+
+        <!-- Case 4: 450 落札承認待ち -->
+        <div class="anken-card" data-status="awardw" data-no="RFX2606000003" data-name="ノートPC 200台調達（2026年度下期）"
+             data-category="事務用機器、付属品および供給品" data-created="2026-06-02" data-rfi="2026-06-10" data-rfp="2026-06-20" data-eval="2026-06-30" id="awardCard">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-rfx">調達案件</span>
+              <span class="anken-no">案件番号：RFX2606000003</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-award-w">落札承認待ち</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title"><a href="eProcurement_RFX_ProjectDetail.html">ノートPC 200台調達（2026年度下期）</a></div>
+              <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>対象カテゴリ</label><span>事務用機器、付属品および供給品</span></div>
+              <div class="info-line"><label>参加サプライヤ</label><span>4社（参加確定 4社・ショートリスト 2社）</span></div>
+              <div class="info-line"><label>作成日</label><span>2026-06-02</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>RFP提出期限</label><span class="val">2026-06-20</span></div>
+              <div class="amount-line"><label>評価期限</label><span class="val">2026-06-30</span></div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button type="button" id="approvalTaskBtn" title="承認者のみ表示">承認タスクへ</button>
+          </div>
+          <div class="phase-strip">
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">RFI</div></div>
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">RFP</div></div>
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">評価</div></div>
+            <div class="phase-step current"><div class="ps-dot">承</div><div class="ps-label">落札承認待ち</div></div>
+          </div>
+        </div>
+
+        <!-- Case 5: 500 落札完了 -->
+        <div class="anken-card" data-status="award" data-no="RFX2605000002" data-name="複合機リプレース（本社・支社 計8台）"
+             data-category="事務用機器、付属品および供給品" data-created="2026-05-11" data-rfi="2026-05-20" data-rfp="2026-05-29" data-eval="2026-06-12">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-rfx">調達案件</span>
+              <span class="anken-no">案件番号：RFX2605000002</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-award">落札完了</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title"><a href="eProcurement_RFX_ProjectDetail.html">複合機リプレース（本社・支社 計8台）</a></div>
+              <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>対象カテゴリ</label><span>事務用機器、付属品および供給品</span></div>
+              <div class="info-line"><label>落札サプライヤ</label><span>株式会社オフィスソリューション東京（PO連携済）</span></div>
+              <div class="info-line"><label>作成日</label><span>2026-05-11</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>RFP提出期限</label><span class="val">2026-05-29</span></div>
+              <div class="amount-line"><label>評価期限</label><span class="val">2026-06-12</span></div>
+            </div>
+          </div>
+          <div class="phase-strip">
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">RFI</div></div>
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">RFP</div></div>
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">評価</div></div>
+            <div class="phase-step done"><div class="ps-dot">✓</div><div class="ps-label">落札完了</div></div>
+          </div>
+        </div>
+
+        <!-- Case 6: 100 作成中（Draft） -->
+        <div class="anken-card" data-status="draft" data-no="RFX2607000007" data-name="データセンター移設に伴う回線調達（検討中）"
+             data-category="システム関連調達" data-created="2026-07-03" data-rfi="" data-rfp="" data-eval="" id="draftCard">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-rfx">調達案件</span>
+              <span class="anken-no">案件番号：RFX2607000007</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-draft">作成中</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title"><a href="eProcurement_RFX_ProjectDetail.html">データセンター移設に伴う回線調達（検討中）</a></div>
+              <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>対象カテゴリ</label><span>システム関連調達</span></div>
+              <div class="info-line"><label>参加サプライヤ</label><span>未招待</span></div>
+              <div class="info-line"><label>作成日</label><span>2026-07-03</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>RFP提出期限</label><span class="val">未設定</span></div>
+              <div class="amount-line"><label>評価期限</label><span class="val">未設定</span></div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button type="button" onclick="window.location.href='eProcurement_RFX_ProjectCreate.html'" title="案件担当者のみ表示">案件設定変更</button>
+            <button type="button" id="cancelDraftBtn" title="案件担当者のみ表示">キャンセル</button>
+          </div>
+          <div class="phase-strip">
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">RFI</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">RFP</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">評価</div></div>
+            <div class="phase-step"><div class="ps-dot"></div><div class="ps-label">落札</div></div>
+          </div>
+        </div>
+
+        <!-- Case 7: 900 キャンセル -->
+        <div class="anken-card cancelled" data-status="cancel" data-no="RFX2606000001" data-name="社内食堂運営委託（凍結）"
+             data-category="ビジネスサービス" data-created="2026-06-05" data-rfi="" data-rfp="" data-eval="">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-rfx">調達案件</span>
+              <span class="anken-no">案件番号：RFX2606000001</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-cancel">キャンセル</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title"><a href="eProcurement_RFX_ProjectDetail.html">社内食堂運営委託（凍結）</a></div>
+              <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>対象カテゴリ</label><span>ビジネスサービス</span></div>
+              <div class="info-line"><label>参加サプライヤ</label><span>2社（招待中 2社）</span></div>
+              <div class="info-line"><label>作成日</label><span>2026-06-05</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>RFP提出期限</label><span class="val">－</span></div>
+              <div class="amount-line"><label>評価期限</label><span class="val">－</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== Pagination dưới ===== -->
+      <div class="wrapper-pagination" id="paginationBottom" style="margin-bottom:1rem;">
+        <div class="pagination-left">
+          <div class="count-label">1 - 7 / 全7件</div>
+        </div>
+        <ul class="pagination-pages">
+          <li class="active"><span>1</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- ===== 案件キャンセル確認（→900） ===== -->
+<div class="rfx-overlay" id="cancelOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">案件キャンセルの確認<button class="rfx-modal-close" data-close="cancelOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      案件「データセンター移設に伴う回線調達（検討中）」をキャンセルします。よろしいですか？<br>
+      キャンセル後は元に戻せません。<br><br>
+      <div style="font-size:.9rem;">キャンセル理由（任意）</div>
+      <textarea rows="3" id="cancelReason" placeholder="例：移設計画の見直しにより本調達を凍結"></textarea>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="warn" id="cancelOk">案件をキャンセルする</button>
+      <button type="button" class="ng" data-close="cancelOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 落札承認（SCR-RFX-012 giản lược・承認者のみ） ===== -->
+<div class="rfx-overlay" id="approvalOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">落札承認：ノートPC 200台調達（2026年度下期）<button class="rfx-modal-close" data-close="approvalOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div class="cand-box">
+        <div class="kv"><label>落札候補</label><span>[SUP-000155] テックサプライ株式会社</span></div>
+        <div class="kv"><label>総合スコア</label><span><b style="color:#4169e1;font-size:1.1rem;">88.4</b>（技術 86.0 ／ 価格 92.0・2位との差 +5.2）</span></div>
+        <div class="kv"><label>提案金額</label><span>¥28,600,000（税抜）</span></div>
+        <div class="kv"><label>申請者</label><span>本社 総務部　依頼裕三（2026-07-02 申請）</span></div>
+        <div class="kv"><label>申請コメント</label><span>総合スコア1位。納期・保守体制とも要件充足のため落札を申請します。</span></div>
+      </div>
+      <div style="font-size:.9rem;margin-bottom:.3rem;">承認コメント（差し戻し時は必須）</div>
+      <textarea rows="3" id="approvalComment" placeholder="コメントを入力してください"></textarea>
+      <div class="err-line" id="approvalErr">差し戻し時はコメントを入力してください。</div>
+      <div class="modal-note">承認すると案件ステータスは「落札完了」となり、全参加サプライヤへ結果通知・発注管理サービスへのPO連携が行われます（BD-RFX-008）。差し戻すと案件は「評価中」へ戻ります。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="approveOk">承認する</button>
+      <button type="button" class="warn" id="remandOk">差し戻す</button>
+      <button type="button" class="ng" data-close="approvalOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 評価シート入力（SCR-RFX-009 giản lược・評価者のみ） ===== -->
+<div class="rfx-overlay" id="scoreOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">評価シート入力：社用車リース更新（営業車両 12台）<button class="rfx-modal-close" data-close="scoreOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div style="margin-bottom:.8rem;font-size:.9rem;">
+        評価者：<b>依頼裕三</b>（評価者ウェイト 50%）　｜　評価軸重み：技術 <b>60%</b> ／ 価格 <b>40%</b>　｜　スコアは 0〜100 の整数
+      </div>
+      <table class="rfx-table" id="scoreTable">
+        <thead>
+          <tr>
+            <th style="text-align:left;">評価対象サプライヤ</th>
+            <th style="width:110px;">技術スコア</th>
+            <th style="width:110px;">価格スコア</th>
+            <th style="width:110px;">総合スコア<br><span style="font-weight:normal;font-size:.75rem;">（自動計算）</span></th>
+            <th>コメント（任意・500文字）</th>
+            <th style="width:90px;">入力状態</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-sup="トヨタレンタリース東京">
+            <td>[SUP-000411] トヨタレンタリース東京</td>
+            <td style="text-align:center;"><input type="text" class="score-in tech" value="85"></td>
+            <td style="text-align:center;"><input type="text" class="score-in price" value="78"></td>
+            <td class="total-cell">82.2</td>
+            <td><input type="text" class="cmt-in" maxlength="500" value="納期・メンテ網とも安定。"></td>
+            <td style="text-align:center;"><span class="pill-state" style="color:#437643;font-weight:bold;">入力済</span></td>
+          </tr>
+          <tr data-sup="日産フィナンシャルサービス">
+            <td>[SUP-000482] 日産フィナンシャルサービス</td>
+            <td style="text-align:center;"><input type="text" class="score-in tech" value=""></td>
+            <td style="text-align:center;"><input type="text" class="score-in price" value=""></td>
+            <td class="total-cell">－</td>
+            <td><input type="text" class="cmt-in" maxlength="500" value=""></td>
+            <td style="text-align:center;"><span class="pill-state" style="color:#ff9933;font-weight:bold;">入力中</span></td>
+          </tr>
+          <tr data-sup="オリックス自動車">
+            <td>[SUP-000508] オリックス自動車</td>
+            <td style="text-align:center;"><input type="text" class="score-in tech" value=""></td>
+            <td style="text-align:center;"><input type="text" class="score-in price" value=""></td>
+            <td class="total-cell">－</td>
+            <td><input type="text" class="cmt-in" maxlength="500" value=""></td>
+            <td style="text-align:center;"><span class="pill-state" style="color:#ff9933;font-weight:bold;">入力中</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="err-line" id="scoreErr">スコアは 0〜100 の整数で入力してください。</div>
+      <div class="modal-note">他の評価者のスコア・コメントは表示されません。各評価者が独立して入力します（RD-RFX-008）。入力途中でも保存できます。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="scoreSaveBtn">保存する</button>
+      <button type="button" class="ng" data-close="scoreOverlay">案件詳細へ戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 評価結果・比較（SCR-RFX-010 giản lược） ===== -->
+<div class="rfx-overlay" id="resultOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">評価結果・比較：社用車リース更新（営業車両 12台）<button class="rfx-modal-close" data-close="resultOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <table class="rfx-table" id="resultTable">
+        <thead>
+          <tr>
+            <th style="text-align:left;">サプライヤ</th>
+            <th>依頼裕三<br><span style="font-weight:normal;font-size:.75rem;">（ウェイト50%）</span></th>
+            <th>経理雄之助<br><span style="font-weight:normal;font-size:.75rem;">（ウェイト50%）</span></th>
+            <th>総合スコア</th>
+            <th style="text-align:left;">評価コメント（抜粋）</th>
+          </tr>
+        </thead>
+        <tbody><!-- render bằng JS --></tbody>
+      </table>
+      <div class="modal-note">
+        総合スコア＝各評価者の（技術×60%＋価格×40%）を評価者ウェイトで加重平均（BR-RFX-003）。
+        評価者全員が全スコア・コメントを閲覧できます（BR-RFX-006）。
+        未入力のスコアは「－」表示で集計対象外です。
+      </div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" data-nav="落札確定申請画面（SCR-RFX-011）※案件担当者のみ">落札確定申請へ</button>
+      <button type="button" class="ng" data-close="resultOverlay">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+JienieLayout.init();
+JienieDatepicker.init('#dateFrom, #dateTo');
+(function () {
+  var toast = JienieLayout.toast;
+
+  // ===== Modal chung =====
+  function open(id) { document.getElementById(id).classList.add('show'); }
+  function close(id) { document.getElementById(id).classList.remove('show'); }
+  document.querySelectorAll('[data-close]').forEach(function (b) {
+    b.addEventListener('click', function () { close(b.getAttribute('data-close')); });
+  });
+  document.querySelectorAll('.rfx-overlay').forEach(function (ov) {
+    ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
+  });
+
+  // ===== Toggle 詳細条件 / couple and-or =====
+  var searchToggle = document.getElementById('searchCollapseToggle');
+  var searchOptions = document.getElementById('searchOptions');
+  searchToggle.addEventListener('click', function () {
+    var isOpen = searchOptions.classList.toggle('show');
+    searchToggle.classList.toggle('open', isOpen);
+    searchToggle.querySelector('.toggle-text').textContent = isOpen ? '詳細条件を省略' : '詳細条件を追加';
+  });
+  document.querySelectorAll('#opButtons button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#opButtons button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+  document.getElementById('resetDateBtn').addEventListener('click', function () {
+    document.getElementById('dateFrom').value = '2025-07-05';
+    document.getElementById('dateTo').value = '';
+  });
+
+  // ===== SUB-FEATURE 1: 検索（lọc thật） =====
+  function cards() { return Array.prototype.slice.call(document.querySelectorAll('#cardList .anken-card')); }
+
+  function cardMatches(card) {
+    var d = card.dataset;
+    // keyword and/or（đối tượng: 案件名・案件番号・カテゴリ・担当者）
+    var kw = document.getElementById('kwInput').value.trim();
+    if (kw) {
+      var tokens = kw.split(/[\s　]+/).filter(Boolean);
+      var haystack = (d.name + ' ' + d.no + ' ' + d.category + ' 依頼裕三').toLowerCase();
+      var isAnd = document.querySelector('#opButtons button.active').dataset.op === 'and';
+      var hit = isAnd
+        ? tokens.every(function (t) { return haystack.indexOf(t.toLowerCase()) > -1; })
+        : tokens.some(function (t) { return haystack.indexOf(t.toLowerCase()) > -1; });
+      if (!hit) return false;
+    }
+    // 案件名・案件番号
+    var nm = document.getElementById('nameInput').value.trim();
+    if (nm && d.name.indexOf(nm) === -1) return false;
+    var no = document.getElementById('noInput').value.trim();
+    if (no && d.no.toLowerCase().indexOf(no.toLowerCase()) === -1) return false;
+    // カテゴリ
+    var cat = document.getElementById('categorySelect').value;
+    if (cat && d.category !== cat) return false;
+    // 期間（作成日/RFI回答期限/RFP提出期限/評価期限）
+    var pt = document.getElementById('periodType').value;
+    var from = document.getElementById('dateFrom').value.trim();
+    var to = document.getElementById('dateTo').value.trim();
+    if (from || to) {
+      var v = d[pt]; // data-created / data-rfi / data-rfp / data-eval
+      if (!v) return false;                      // kỳ hạn 未設定 → loại khi có điều kiện ngày
+      if (from && v < from) return false;
+      if (to && v > to) return false;
+    }
+    // ステータス（không check gì = tất cả）
+    var checked = Array.prototype.slice.call(document.querySelectorAll('#statusChecks input:checked')).map(function (c) { return c.value; });
+    if (checked.length > 0 && checked.indexOf(d.status) === -1) return false;
+    return true;
+  }
+
+  function applyFilters() {
+    var visible = 0;
+    cards().forEach(function (card) {
+      var show = cardMatches(card);
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    // Cập nhật số liệu + no-result（J2: totalItemCount=0 → ẩn pagination）
+    var label = visible > 0 ? ('1 - ' + visible + ' / 全' + visible + '件') : '';
+    document.querySelectorAll('.count-label').forEach(function (el) { el.textContent = label; });
+    document.getElementById('paginationTop').style.display = visible > 0 ? '' : 'none';
+    document.getElementById('paginationBottom').style.display = visible > 0 ? '' : 'none';
+    document.getElementById('noResult').classList.toggle('show', visible === 0);
+  }
+
+  document.getElementById('searchForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    applyFilters();
+    toast('検索条件で一覧を再取得しました（調達案件一覧取得API相当）');
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', function () {
+    document.getElementById('kwInput').value = '';
+    document.getElementById('nameInput').value = '';
+    document.getElementById('noInput').value = '';
+    document.getElementById('categorySelect').value = '';
+    document.getElementById('periodType').value = 'created';
+    document.getElementById('dateFrom').value = '2025-07-05';
+    document.getElementById('dateTo').value = '';
+    document.querySelectorAll('#statusChecks input').forEach(function (c) { c.checked = false; });
+    document.querySelectorAll('#opButtons button').forEach(function (b, i) { b.classList.toggle('active', i === 0); });
+    applyFilters();
+  });
+
+  // ===== SUB-FEATURE 2: Sort thật =====
+  function sortCards() {
+    var key = document.getElementById('sortKey').value;   // created / no / rfp / eval
+    var dir = document.querySelector('#sortOrder button.active').dataset.dir;
+    var list = document.getElementById('cardList');
+    var arr = cards();
+    arr.sort(function (a, b) {
+      var av = a.dataset[key] || '';
+      var bv = b.dataset[key] || '';
+      if (!av && !bv) return 0;
+      if (!av) return 1;   // 未設定 luôn xếp cuối
+      if (!bv) return -1;
+      var cmp = av < bv ? -1 : (av > bv ? 1 : 0);
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    arr.forEach(function (c) { list.appendChild(c); });
+  }
+  document.getElementById('sortKey').addEventListener('change', sortCards);
+  document.querySelectorAll('#sortOrder button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#sortOrder button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      sortCards();
+    });
+  });
+
+  // ===== SUB-FEATURE 3: 案件キャンセル（card 作成中 → 900） =====
+  document.getElementById('cancelDraftBtn').addEventListener('click', function () { open('cancelOverlay'); });
+  document.getElementById('cancelOk').addEventListener('click', function () {
+    close('cancelOverlay');
+    var card = document.getElementById('draftCard');
+    card.dataset.status = 'cancel';
+    card.classList.add('cancelled');
+    var badge = card.querySelector('.status-badge');
+    badge.textContent = 'キャンセル';
+    badge.className = 'status-badge st-cancel';
+    var actions = card.querySelector('.card-actions');
+    if (actions) actions.remove();
+    var strip = card.querySelector('.phase-strip');
+    if (strip) strip.remove();
+    toast('案件をキャンセルしました（ステータス900）');
+  });
+
+  // ===== SUB-FEATURE 4: 落札承認（SCR-RFX-012 giản lược） =====
+  document.getElementById('approvalTaskBtn').addEventListener('click', function () { open('approvalOverlay'); });
+
+  function finishApprovalCard(approved) {
+    var card = document.getElementById('awardCard');
+    var badge = card.querySelector('.status-badge');
+    var actions = card.querySelector('.card-actions');
+    var lastStep = card.querySelector('.phase-strip .phase-step:last-child');
+    if (approved) {
+      card.dataset.status = 'award';
+      badge.textContent = '落札完了';
+      badge.className = 'status-badge st-award';
+      lastStep.className = 'phase-step done';
+      lastStep.querySelector('.ps-dot').textContent = '✓';
+      lastStep.querySelector('.ps-label').textContent = '落札完了';
+      if (actions) actions.remove();
+      // 落札サプライヤ行を担当者行の下に追加
+      var left = card.querySelector('.anken-body-left');
+      var line = document.createElement('div');
+      line.className = 'info-line';
+      line.innerHTML = '<label>落札サプライヤ</label><span>テックサプライ株式会社（PO連携中）</span>';
+      left.insertBefore(line, left.querySelector('.info-line:last-child'));
+    } else {
+      card.dataset.status = 'eval';
+      badge.textContent = '評価中';
+      badge.className = 'status-badge st-eval';
+      lastStep.className = 'phase-step';
+      lastStep.querySelector('.ps-dot').textContent = '';
+      lastStep.querySelector('.ps-label').textContent = '落札';
+      var evalStep = card.querySelector('.phase-strip .phase-step:nth-child(3)');
+      evalStep.className = 'phase-step current';
+      evalStep.querySelector('.ps-dot').textContent = '評価';
+      evalStep.querySelector('.ps-label').textContent = '評価中';
+      if (actions) actions.innerHTML = '<button type="button" data-nav="評価シート入力画面（SCR-RFX-009）※評価者のみ表示">評価シート入力</button><button type="button" data-nav="評価結果・比較画面（SCR-RFX-010）">評価結果確認</button>';
+      if (window.JienieLayout && JienieLayout.bindDataNavToasts) JienieLayout.bindDataNavToasts();
+    }
+  }
+  document.getElementById('approveOk').addEventListener('click', function () {
+    document.getElementById('approvalErr').classList.remove('show');
+    close('approvalOverlay');
+    finishApprovalCard(true);
+    toast('落札を承認しました。全参加サプライヤへ結果通知・発注管理サービスへPO連携を行います（BD-RFX-008）');
+  });
+  document.getElementById('remandOk').addEventListener('click', function () {
+    // 差し戻し時はコメント必須（SCR-RFX-012 承認ワークフロー）
+    if (!document.getElementById('approvalComment').value.trim()) {
+      document.getElementById('approvalErr').classList.add('show');
+      return;
+    }
+    document.getElementById('approvalErr').classList.remove('show');
+    close('approvalOverlay');
+    finishApprovalCard(false);
+    toast('落札申請を差し戻しました。案件は「評価中」へ戻り、担当者へ通知されます');
+  });
+
+  // ===== SUB-FEATURE 5: 評価シート入力（SCR-RFX-009 giản lược） =====
+  document.getElementById('evalSheetBtn').addEventListener('click', function () { open('scoreOverlay'); });
+
+  function recalcRow(tr) {
+    var t = tr.querySelector('.tech').value.trim();
+    var p = tr.querySelector('.price').value.trim();
+    var totalCell = tr.querySelector('.total-cell');
+    var state = tr.querySelector('.pill-state');
+    var tOk = /^\d+$/.test(t) && +t >= 0 && +t <= 100;
+    var pOk = /^\d+$/.test(p) && +p >= 0 && +p <= 100;
+    tr.querySelector('.tech').classList.toggle('has-error', t !== '' && !tOk);
+    tr.querySelector('.price').classList.toggle('has-error', p !== '' && !pOk);
+    if (tOk && pOk) {
+      // 総合 = 技術60% + 価格40%（BR-RFX-003）
+      totalCell.textContent = (+t * 0.6 + +p * 0.4).toFixed(1);
+      state.textContent = '入力済';
+      state.style.color = '#437643';
+    } else {
+      totalCell.textContent = '－';
+      state.textContent = '入力中';
+      state.style.color = '#ff9933';
+    }
+  }
+  document.querySelectorAll('#scoreTable tbody tr').forEach(function (tr) {
+    tr.querySelectorAll('.score-in').forEach(function (inp) {
+      inp.addEventListener('input', function () { recalcRow(tr); });
+    });
+    recalcRow(tr);
+  });
+  document.getElementById('scoreSaveBtn').addEventListener('click', function () {
+    var anyError = document.querySelectorAll('#scoreTable .score-in.has-error').length > 0;
+    document.getElementById('scoreErr').classList.toggle('show', anyError);
+    if (anyError) return;
+    close('scoreOverlay');
+    toast('評価スコアを保存しました（他の評価者へは非公開のまま保存されます・RD-RFX-008）');
+  });
+
+  // ===== SUB-FEATURE 6: 評価結果・比較（SCR-RFX-010 giản lược） =====
+  // Score demo của 経理雄之助（評価者2）
+  var evaluator2 = {
+    'トヨタレンタリース東京': { total: 84.6, cmt: '実績・保守network評価。' },
+    '日産フィナンシャルサービス': { total: 79.8, cmt: '価格競争力あり。' },
+    'オリックス自動車': { total: 81.2, cmt: 'EV比率の提案が良い。' }
+  };
+  document.getElementById('evalResultBtn').addEventListener('click', function () {
+    var tbody = document.querySelector('#resultTable tbody');
+    tbody.innerHTML = '';
+    var rows = [];
+    document.querySelectorAll('#scoreTable tbody tr').forEach(function (tr) {
+      var sup = tr.dataset.sup;
+      var mine = tr.querySelector('.total-cell').textContent;   // score mình vừa nhập (入力済 mới có số)
+      var other = evaluator2[sup];
+      var total = '－';
+      if (mine !== '－') { total = ((parseFloat(mine) + other.total) / 2).toFixed(1); }  // weight 50/50
+      var myCmt = tr.querySelector('.cmt-in').value.trim();
+      rows.push({ sup: tr.querySelector('td').textContent, mine: mine, other: other.total.toFixed(1), total: total, cmt: (myCmt ? '依頼：' + myCmt + '　' : '') + '経理：' + other.cmt });
+    });
+    // Xếp hạng: total lớn nhất lên đầu（未入力 xuống cuối）
+    rows.sort(function (a, b) {
+      if (a.total === '－') return 1;
+      if (b.total === '－') return -1;
+      return parseFloat(b.total) - parseFloat(a.total);
+    });
+    rows.forEach(function (r, i) {
+      var tr = document.createElement('tr');
+      var isTop = i === 0 && r.total !== '－';
+      if (isTop) tr.className = 'top-rank';
+      tr.innerHTML =
+        '<td>' + r.sup + (isTop ? '<span class="rank-label">総合1位</span>' : '') + '</td>' +
+        '<td style="text-align:right;">' + r.mine + '</td>' +
+        '<td style="text-align:right;">' + r.other + '</td>' +
+        '<td class="total-cell">' + r.total + '</td>' +
+        '<td style="font-size:.85rem;">' + r.cmt + '</td>';
+      tbody.appendChild(tr);
+    });
+    if (window.JienieLayout && JienieLayout.bindDataNavToasts) JienieLayout.bindDataNavToasts();
+    open('resultOverlay');
+  });
+
+  // ===== Khởi tạo: sort mặc định 作成日時降順 + đếm số liệu =====
+  sortCards();
+  applyFilters();
+})();
+</script>
+
+</body>
+</html>

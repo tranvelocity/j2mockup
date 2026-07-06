@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: eProcurement_Requester_All (Buyer Portal - 購買取引案件照会 / すべて)
+  Dùng chung header/sidebar qua assets/layout.css + assets/layout.js (xem hướng dẫn trong layout.js).
+
+  ĐÃ ĐỐI CHIẾU TRỰC TIẾP với trang thật https://demo.staging.jienie.com/eProcurement/Requester/All
+  (đăng nhập user 依頼裕三 / 本社 総務部, ngày 2026-07-05) + source src-vbizhw. Các điểm đã sửa so với bản trước:
+    1. Khối ステータス + 組織または依頼者 LUÔN hiển thị kể cả khi thu gọn 詳細条件
+       (trong SearchSkeleton.vue 2 khối này nằm NGOÀI div.collapse#collapseSearchOptions).
+    2. Nhãn checkbox ステータス đúng theo trang thật, chia 3 dòng:
+       発注承認待ち 発注差戻し 発注引戻し 受注待ち 受注辞退 納品待ち 取下げ
+       未検収 検収承認待ち 検収差戻し 検収引戻し ／ 検収完了 支払締め済み
+       (default check: 検収引戻し + 検収完了 - đúng trạng thái khi mới mở trang thật)
+    3. 組織または依頼者 là SELECT (本人/範囲すべて/詳細条件設定), không phải input text.
+    4. Nút toggle: 詳細条件を追加 / 詳細条件を省略 (kèm icon tròn xanh), không phải "詳細条件".
+    5. Nhãn field đúng trang thật: メーカー品番 (không phải メーカー型番), 注文金額 (không phải 金額),
+       品目ジャンル 大分類/中分類. Options 期間: 申請日/注文日/希望納品日/受注／受注辞退日/納品予定日/
+       納品日/検収日/支払い予定日/発注承認日/検収承認日. Options 購買種別: 範囲全体/カタログ購買/
+       ダイレクト発注/見積購買/セルフ見積/発注（概算）. 管理項目: [Code01] 稟議番号.
+       Default 期間 from = hôm nay - 12 tháng (buyerSwitch.startPeriodMonthDefault).
+    6. Thanh toggle 明細を開く｜N 件 là BAR xanh gradient (#658bfc→#4169e1) full-width card, chữ trắng
+       (Card.css .collapse-line), không phải link chữ đen. Breakdown nhiều trạng thái format
+       "( 取下げ：1明細 検収完了：2明細 )" (đơn vị 明細, không phải 割).
+    7. Màu status badge lấy từ statusColor thật: 発注承認待ち/受注待ち/検収承認待ち = green(#008000),
+       未検収 = #ff6699, 取下げ = #808080. Badge min-width 140px. Nhãn 金額調整 nền đỏ chữ trắng.
+    8. Pagination đúng component Pagination.vue: "1 - 20 / 全166件", select 10/20/50件表示,
+       sort 発注申請日時/案件番号/金額 + couple button ▾▴, nút 全ての明細を開く;
+       trang 1 KHÔNG có nút 前へ; hiển thị 1 2 3 ... 9 次へ. Pagination lặp lại ở cuối trang.
+    9. Khối 明細 mở rộng dựng đúng theo trang thật: heading 明細情報, tên supplier + link 問い合わせ先,
+       nút 補正開始, bảng th xám: 明細.001-01 / カタログ品番 / 納品金額 / ステータス / 希望納品日 /
+       発注数量 / 単価 / 課税区分 / 納品日 / 納品数量 / 納品先 / 添付ファイル / 原価センタ / 勘定科目 /
+       内部指図 / 備考 / 研究テーマ / 稟議番号 / サプライヤからの連絡事項(ô vàng) / サプライヤ添付ファイル(ô vàng).
+   10. Bỏ các label 通常/見積確定/修正あり cạnh tên案件 và banner 至急対応 (không có trên trang thật).
+       Card ダイレクト発注 có thêm 2 dòng nhãn 見積書 / 添付ファイル như trang thật.
+  Dữ liệu demo mô phỏng đúng format demo thật (案件番号 PDEMOyyyymm######, 依頼者
+  ジーニーソリューションズ株式会社　本社 総務部　依頼裕三, 希望納品日 最短...).
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>購買取引案件照会</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+
+  /* ===== Breadcrumb + Page title (PageTitle.vue) ===== */
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1.5rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+
+  /* ===== Tab nav-pills nav-justified (Custom/tabs.css) ===== */
+  .req-tabs { display: flex; border-bottom: 2px solid #4169e1; }
+  .req-tabs a {
+    flex: 1; text-align: center; border-radius: 5px 5px 0 0; background: #eeeeee; color: #111111;
+    padding: .8rem 0; margin: 10px 1px 0; font-size: .9rem; font-weight: bold; cursor: pointer;
+  }
+  .req-tabs a.active { background: #4169e1; color: #ffffff; padding: .94rem 0; font-size: 1.1rem; margin-top: 0; }
+  .req-tabs a:hover:not(.active) { background: #4169e1; color: #ffffff; }
+
+  /* ===== Search filter (SearchSkeleton.vue - wrapper-search) ===== */
+  .wrapper-search { background: #edf1f6; padding: 1rem 1.5rem; }
+  .search-keywords { display: flex; align-items: center; gap: .8rem; }
+  .search-keywords input[type="text"] { flex: 1; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; }
+  .couple-btn { display: flex; border: 1px solid #4169e1; border-radius: 4px; overflow: hidden; flex-shrink: 0; background: #fff; }
+  .couple-btn button { border: none; background: #fff; color: #111; padding: .55rem 1rem; font-size: .95rem; cursor: pointer; white-space: nowrap; }
+  .couple-btn button.active { background: #4169e1; color: #fff; }
+  .collapse-toggle { background: none; border: none; color: #111; font-size: 1rem; cursor: pointer; white-space: nowrap; margin-left: 1.2rem; display: flex; align-items: center; gap: .4rem; }
+  .collapse-toggle .circle-arrow {
+    width: 20px; height: 20px; border-radius: 50%; background: #4169e1; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: .7rem; transition: transform .2s;
+  }
+  .collapse-toggle.open .circle-arrow { transform: rotate(180deg); }
+  hr.sep { border: none; border-top: 1px solid #d7dce6; margin: 1rem 0; }
+
+  .search-options { display: none; }
+  .search-options.show { display: block; }
+  .field-row { display: flex; gap: 2rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+  .field-half { flex: 1; min-width: 340px; display: flex; align-items: center; gap: .8rem; }
+  .field-half > label { width: 150px; flex-shrink: 0; font-size: .9rem; color: #111; }
+  .field-half input[type="text"], .field-half select { flex: 1; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .date-range { display: flex; align-items: center; gap: .4rem; flex: 1; }
+  .date-range input { flex: 1; min-width: 0; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .date-range .reset-date { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: .45rem .7rem; cursor: pointer; color: #111; font-weight: bold; }
+
+  /* 管理項目（queries.conditions 動的追加/削除） */
+  .mgmt-item-row { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+  .mgmt-item-row > label { width: 150px; flex-shrink: 0; font-size: .9rem; }
+  .mgmt-item-row select, .mgmt-item-row input[type="text"] { padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .mgmt-item-row .mgmt-select-code { min-width: 230px; }
+  .mgmt-item-row input[type="text"] { min-width: 280px; }
+  .mgmt-item-row .mgmt-op { min-width: 170px; }
+  .mgmt-item-row .mgmt-add-btn { background: none; border: none; color: #4169e1; cursor: pointer; font-size: 1.2rem; padding: 0 .3rem; }
+
+  /* ステータス + 組織または依頼者（LUÔN hiển thị - nằm ngoài collapse trong code thật） */
+  .status-row { display: flex; gap: 1.2rem; align-items: flex-start; margin-bottom: .4rem; flex-wrap: wrap; }
+  .status-row > label { width: 150px; flex-shrink: 0; font-size: .9rem; padding-top: .1rem; }
+  .status-checks { flex: 1; }
+  .status-checks .chk-line { margin-bottom: .5rem; }
+  .status-checks .chk { font-size: .9rem; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 1.4rem; }
+  .status-checks input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4169e1; }
+  .org-row { display: flex; align-items: center; gap: 1.2rem; }
+  .org-row > label { width: 150px; flex-shrink: 0; font-size: .9rem; }
+  .org-row select { min-width: 230px; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+
+  .search-buttons { display: flex; align-items: center; justify-content: center; gap: 1.5rem; position: relative; }
+  .btn-search-submit {
+    background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%);
+    border: 1px solid #4169e1; color: #fff; font-size: 1.05rem; padding: .7rem 2rem;
+    border-radius: 4px; cursor: pointer; min-width: 210px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+  }
+  .btn-search-reset {
+    background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1.05rem; padding: .7rem 1.6rem;
+    border-radius: 4px; cursor: pointer; min-width: 210px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+  }
+  .btn-export {
+    position: absolute; right: 0; background: #fff; border: 1px solid #dadbde; color: #111;
+    padding: .6rem 1.2rem; border-radius: 4px; cursor: pointer; font-size: .95rem;
+  }
+  .btn-export .ico, .btn-search-reset .ico { color: #4169e1; }
+
+  /* ===== Pagination (Pagination.vue) ===== */
+  .wrapper-pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 1.4rem; flex-wrap: wrap; gap: .8rem; }
+  .pagination-left { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .pagination-left select { padding: .45rem .6rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .sort-order-btn { display: flex; border: 1px solid #4169e1; border-radius: 4px; overflow: hidden; background: #fff; }
+  .sort-order-btn button { border: none; background: #fff; color: #4169e1; padding: .45rem .8rem; cursor: pointer; font-size: .9rem; }
+  .sort-order-btn button.active { background: #4169e1; color: #fff; }
+  .btn-collapse-all {
+    background: #fff; border: 1px solid #cccccc;
+    padding: .5rem 1.1rem; border-radius: 4px; font-weight: bold; font-size: .9rem; cursor: pointer;
+  }
+  .btn-collapse-all .ico { color: #4169e1; }
+  .pagination-pages { display: flex; list-style: none; margin: 0; padding: 0; gap: 5px; align-items: center; }
+  .pagination-pages li a, .pagination-pages li span {
+    display: block; padding: .45rem .8rem; border: 1px solid #c9d4f2; border-radius: 4px;
+    color: #4169e1; font-size: .95rem; font-weight: bold; cursor: pointer; background: #fff;
+  }
+  .pagination-pages li.active span { background: #4169e1; color: #fff; border-color: #4169e1; }
+  .pagination-pages li.ellipsis span { border: none; background: none; cursor: default; }
+
+  /* ===== Item card (ItemSkeleton.vue + Card.css) ===== */
+  .wrapper-main-items { margin-top: 1rem; display: flex; flex-direction: column; gap: 1.2rem; }
+  .anken-card { background: #f5f5f5; border: 1px solid #ededed; border-radius: 0 0 5px 5px; padding: 1rem 1.4rem 0; }
+  .anken-header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+  .anken-header-left { display: flex; align-items: center; }
+  .badge-order-type { padding: 4px 14px; font-size: .9rem; display: inline-block; background: #fff; }
+  .badge-order-type.catalog { border: 1px solid #74a63f; color: #74a63f; }
+  .badge-order-type.estimate { border: 1px solid #3333ff; color: #3333ff; }
+  .badge-order-type.direct { border: 1px solid #ff9933; color: #ff9933; }
+  .anken-no { margin-left: .8rem; padding-left: .8rem; border-left: 1px solid #cccccc; font-size: .95rem; }
+  .anken-header-right { display: flex; align-items: center; gap: .6rem; }
+  .lb-adjustment { background: #ff0000; color: #fff; font-weight: bold; padding: .25rem .7rem; font-size: .9rem; }
+  .status-badge { min-width: 140px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 5px; font-size: .95rem; background: #fff; }
+  .st-green { color: #008000; border-color: #008000; }
+  .st-pink { color: #ff6699; border-color: #ff6699; }
+  .st-gray { color: #808080; border-color: #808080; }
+  .anken-hr { border: none; border-top: 1px solid #dddddd; margin: .8rem 0 0; }
+  .anken-body-row { display: flex; }
+  .anken-body-left { flex: 2; min-width: 0; padding: .6rem 0 1rem; }
+  .anken-body-right { flex: 1; border-left: 1px solid #dddddd; padding: 2rem 0 1rem 1.2rem; }
+  .anken-title { font-size: 1.4rem; font-weight: bold; word-break: break-all; margin: .2rem 0 .4rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+  .anken-title .tag-label { font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 2px; color: #fff; }
+  .tag-yellow { background: #e6b422; }
+  .info-line { font-size: .95rem; display: flex; align-items: flex-start; margin-bottom: .1rem; }
+  .info-line > label { width: 110px; flex-shrink: 0; border-right: 1px solid #cccccc; margin-right: 1rem; }
+  .amount-line { margin-bottom: .5rem; font-size: .95rem; display: flex; align-items: center; }
+  .amount-line > label { width: 90px; flex-shrink: 0; border-right: 1px solid #cccccc; margin-right: 1rem; font-weight: bold; }
+  .amount-line .val { font-weight: bold; }
+  .amount-line .val.money { font-size: 1.15rem; }
+
+  /* Blue collapse bar (Card.css .collapse-line) */
+  .collapse-line { margin: 1rem -1.4rem 0; }
+  .collapse-line button {
+    display: block; width: 100%; border: none; cursor: pointer;
+    background: linear-gradient(to bottom, #658bfc 0%, #4169e1 100%);
+    color: #fff; font-size: .95rem; padding: .55rem 0; border-radius: 0 0 5px 5px; text-align: center;
+  }
+  .collapse-line .case-count { font-weight: bold; font-size: 1.3rem; margin: 0 4px; }
+  .collapse-line .breakdown-text { font-size: .85rem; margin-left: .4rem; }
+  .collapse-line .bd-gray { color: #d9d9d9; }
+  .collapse-line .bd-green { color: #b5f5b5; }
+
+  /* ===== 明細情報 (khối chi tiết khi mở, theo trang thật) ===== */
+  .anken-detail { margin-top: 1rem; background: #fff; border: 1px solid #ededed; padding: 1.1rem 1.3rem; }
+  .anken-detail h5 { margin: 0 0 1rem; font-size: 1.05rem; font-weight: bold; }
+  .supplier-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: .8rem; flex-wrap: wrap; gap: .6rem; }
+  .supplier-name { font-weight: bold; font-size: 1.15rem; }
+  .supplier-name a { color: #045eb4; font-size: .8rem; font-weight: normal; text-decoration: underline; margin-left: .6rem; }
+  .btn-correction { background: #fff; border: 1px solid #dadbde; color: #111; padding: .55rem 1.4rem; border-radius: 4px; cursor: pointer; font-size: .95rem; }
+  .btn-correction .ico { color: #4169e1; }
+  .anken-detail table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .anken-detail th { text-align: center; font-weight: bold; color: #111; padding: .6rem .5rem; width: 118px; background: #f0f0f2; border: 1px solid #e3e3e6; vertical-align: middle; }
+  .anken-detail td { padding: .6rem .8rem; border: 1px solid #e3e3e6; background: #fff; vertical-align: middle; }
+  .anken-detail td.num { text-align: right; }
+  .anken-detail a { color: #045eb4; text-decoration: underline; }
+  .anken-detail .status-badge { min-width: 130px; }
+  .anken-detail th.th-yellow { background: #e6b422; color: #fff; }
+
+  #Notification { display: none; } /* trang nay khong co muc お知らせ rieng */
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <!-- ===== Breadcrumb (PageTitle.vue) ===== -->
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li class="active">購買取引案件照会</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="page-title"><h3>購買取引案件照会</h3></div>
+
+      <!-- ===== Tab (Requester.vue nav-pills nav-justified) ===== -->
+      <nav class="req-tabs">
+        <a href="eProcurement_Requester_EstimateApplicationApplicantList.html">見積依頼 見積回答</a>
+        <a class="active">すべて</a>
+        <a data-nav="発注一覧（eProcurement_Requester_Ordered）">発注</a>
+        <a data-nav="検収一覧（eProcurement_Requester_WaitingAcceptance）">検収</a>
+        <a data-nav="検収完了一覧（eProcurement_Requester_FinishedAcceptance）">検収完了</a>
+        <a data-nav="一時保存一覧（eProcurement_Requester_OpportunityDraft）">一時保存</a>
+      </nav>
+
+      <!-- ===== Search filter ===== -->
+      <form class="wrapper-search" id="searchForm">
+        <div class="search-keywords">
+          <input type="text" placeholder="キーワードで検索" maxlength="50">
+          <div class="couple-btn">
+            <button type="button" class="active" data-op="and">and検索</button>
+            <button type="button" data-op="or">or検索</button>
+          </div>
+          <button type="button" class="collapse-toggle" id="searchCollapseToggle">
+            <span class="toggle-text">詳細条件を追加</span><span class="circle-arrow">▼</span>
+          </button>
+        </div>
+        <hr class="sep">
+
+        <!-- 詳細条件（collapse - mặc định đóng, giống queries.isOpenCollapse:false thật） -->
+        <div class="search-options" id="searchOptions">
+          <div class="field-row">
+            <div class="field-half"><label>案件名</label><input type="text" maxlength="50"></div>
+            <div class="field-half"><label>案件番号</label><input type="text" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <select style="width:150px;flex:none;">
+                <option>申請日</option>
+                <option>注文日</option>
+                <option>希望納品日</option>
+                <option>受注／受注辞退日</option>
+                <option>納品予定日</option>
+                <option>納品日</option>
+                <option>検収日</option>
+                <option>支払い予定日</option>
+                <option>発注承認日</option>
+                <option>検収承認日</option>
+              </select>
+              <div class="date-range">
+                <input type="text" value="2025-07-05">
+                <span>～</span>
+                <input type="text" placeholder="YYYY-MM-DD">
+                <button type="button" class="reset-date">✕</button>
+              </div>
+            </div>
+            <div class="field-half"><label>サプライヤ名</label><input type="text" maxlength="100"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <label>購買種別</label>
+              <select>
+                <option>範囲全体</option>
+                <option>カタログ購買</option>
+                <option>ダイレクト発注</option>
+                <option>見積購買</option>
+                <option>セルフ見積</option>
+                <option>発注（概算）</option>
+              </select>
+            </div>
+            <div class="field-half"><label>サプライヤコード</label><input type="text" maxlength="100"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <label>品目ジャンル</label>
+              <span style="white-space:nowrap;">大分類</span>
+              <select>
+                <option>-</option>
+                <option>理化学・試薬・研究機器</option>
+                <option>試薬・ラボ化学品</option>
+                <option>配管材</option>
+                <option>事務用機器、付属品および供給品</option>
+                <option>オフィス材</option>
+              </select>
+            </div>
+            <div class="field-half">
+              <label>中分類</label>
+              <select style="max-width:220px;"><option>-</option></select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-half"><label>メーカー品番</label><input type="text" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-half">
+              <label>注文金額</label>
+              <div style="display:flex;align-items:center;gap:.4rem;flex:1;">
+                <span>¥</span><input type="text" style="flex:1;min-width:0;">
+                <span style="white-space:nowrap;">～¥</span><input type="text" style="flex:1;min-width:0;">
+              </div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-half"><label>原価センタ</label><input type="text" maxlength="50"></div>
+            <div class="field-half"><label>勘定科目</label><input type="text" maxlength="50"></div>
+          </div>
+
+          <!-- 管理項目（queries.conditions 動的追加/削除 - feature DEV-327） -->
+          <div class="mgmt-item-row">
+            <label>管理項目</label>
+            <select class="mgmt-select-code">
+              <option>-</option>
+              <option>[Code01] 稟議番号</option>
+            </select>
+            <span>が</span>
+            <input type="text" maxlength="50">
+            <select class="mgmt-op">
+              <option>-</option>
+            </select>
+            <button type="button" class="mgmt-add-btn" title="条件を追加" data-nav="管理項目の条件行を追加（addCon）">＋</button>
+          </div>
+        </div>
+
+        <!-- ステータス（luôn hiển thị - nằm ngoài collapse trong SearchSkeleton.vue thật） -->
+        <div class="status-row">
+          <label>ステータス</label>
+          <div class="status-checks">
+            <div class="chk-line">
+              <label class="chk"><input type="checkbox">発注承認待ち</label>
+              <label class="chk"><input type="checkbox">発注差戻し</label>
+              <label class="chk"><input type="checkbox">発注引戻し</label>
+              <label class="chk"><input type="checkbox">受注待ち</label>
+              <label class="chk"><input type="checkbox">受注辞退</label>
+              <label class="chk"><input type="checkbox">納品待ち</label>
+              <label class="chk"><input type="checkbox">取下げ</label>
+            </div>
+            <div class="chk-line">
+              <label class="chk"><input type="checkbox">未検収</label>
+              <label class="chk"><input type="checkbox">検収承認待ち</label>
+              <label class="chk"><input type="checkbox">検収差戻し</label>
+              <label class="chk"><input type="checkbox" checked>検収引戻し</label>
+            </div>
+            <div class="chk-line">
+              <label class="chk"><input type="checkbox" checked>検収完了</label>
+              <label class="chk"><input type="checkbox">支払締め済み</label>
+            </div>
+          </div>
+        </div>
+        <hr class="sep">
+
+        <!-- 組織または依頼者（select: OrgOrRequester.vue、luôn hiển thị） -->
+        <div class="org-row">
+          <label>組織または依頼者</label>
+          <select data-nav="詳細条件設定を選ぶと組織・依頼者選択ダイアログ（OrgOrRequester）が開く">
+            <option>本人</option>
+            <option>範囲すべて</option>
+            <option>詳細条件設定</option>
+          </select>
+        </div>
+        <hr class="sep">
+
+        <div class="search-buttons">
+          <button type="submit" class="btn-search-submit" data-nav="検索結果を再取得（getAnkenList）">🔍　検索</button>
+          <button type="button" class="btn-search-reset" data-nav="検索条件クリア（reset）"><span class="ico">↺</span>　クリアする</button>
+          <button type="button" class="btn-export" data-nav="明細ダウンロード（DOWNLOAD_DETAIL_SEARCH_ALL_ANKEN）"><span class="ico">⬇</span>　明細ダウンロード</button>
+        </div>
+      </form>
+
+      <!-- ===== Pagination trên (Pagination.vue) ===== -->
+      <div class="wrapper-pagination">
+        <div class="pagination-left">
+          <div>1 - 20 / 全166件</div>
+          <select>
+            <option>10件表示</option>
+            <option selected>20件表示</option>
+            <option>50件表示</option>
+          </select>
+          <select>
+            <option>発注申請日時</option>
+            <option>案件番号</option>
+            <option>金額</option>
+          </select>
+          <div class="sort-order-btn">
+            <button type="button" class="active" title="降順">▼</button>
+            <button type="button" title="昇順">▲</button>
+          </div>
+          <button type="button" class="btn-collapse-all" id="collapseAllBtn"><span class="ico">▼</span>　全ての明細を開く</button>
+        </div>
+        <ul class="pagination-pages">
+          <li class="active"><span>1</span></li>
+          <li><a data-nav="ページ2へ">2</a></li>
+          <li><a data-nav="ページ3へ">3</a></li>
+          <li class="ellipsis"><span>...</span></li>
+          <li><a data-nav="最終ページ（9）へ">9</a></li>
+          <li><a data-nav="次のページへ">次へ ›</a></li>
+        </ul>
+      </div>
+
+      <!-- ===== Danh sách案件 (ItemSkeleton.vue) ===== -->
+      <div class="wrapper-main-items">
+
+        <!-- Case 1: カタログ購買・発注承認待ち（chưa mở明細） -->
+        <div class="anken-card">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-order-type catalog">カタログ購買</span>
+              <span class="anken-no">案件番号：PDEMO2607000023</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-green">発注承認待ち</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">研究用消耗品購入</div>
+              <div class="info-line"><label>依頼者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>発注申請日時</label><span>2026-07-02 19:58:14</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>発注金額</label><span class="val money">¥1,208</span></div>
+              <div class="amount-line"><label>希望納品日</label><span class="val">最短</span></div>
+            </div>
+          </div>
+          <div class="collapse-line">
+            <button type="button" class="anken-toggle">
+              <span class="toggle-arrow">∨</span>　<span class="toggle-label">明細を開く</span> ｜ <span class="case-count">3</span> 件
+            </button>
+          </div>
+          <div class="anken-detail" style="display:none;">
+            <h5>明細情報</h5>
+            <div class="supplier-line">
+              <div class="supplier-name">株式会社ＭｏｎｏｔａＲＯ<a href="#" data-nav="問い合わせ先ダイアログ（ContactInformation）">問い合わせ先</a></div>
+            </div>
+            <table>
+              <tr>
+                <th>明細.001-01</th>
+                <td><b>カタログ品番</b> 61515astm / <b>メーカー</b> AS ONE(アズワン) / <b>メーカー品番</b> 6-8688-01<br>
+                    <b>品名</b> <a href="#" data-nav="商品情報の表示">ニトリル手袋（粉なし）Mサイズ 100枚入</a></td>
+                <th>納品金額</th>
+                <td class="num">¥398</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-green">発注承認待ち</span></td>
+              </tr>
+              <tr>
+                <th>希望納品日</th>
+                <td>最短</td>
+                <th>発注数量</th>
+                <td class="num">1個</td>
+                <th>単価</th>
+                <td class="num" style="text-align:left;">¥398　<b>課税区分</b>　課税（税抜）</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- Case 2: ダイレクト発注・受注待ち（có dòng 見積書/添付ファイル như trang thật） -->
+        <div class="anken-card">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-order-type direct">ダイレクト発注</span>
+              <span class="anken-no">案件番号：PDEMO2606000131</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-green">受注待ち</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">ダイレクト発注テスト</div>
+              <div class="info-line"><label>依頼者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>発注申請日時</label><span>2026-06-30 11:05:37</span></div>
+              <div class="info-line"><label>見積書</label><span><a href="#" style="color:#045eb4;text-decoration:underline;" data-nav="見積書ファイルのダウンロード">見積書_20260630.pdf</a></span></div>
+              <div class="info-line"><label>添付ファイル</label><span></span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>発注金額</label><span class="val money">¥100,000</span></div>
+              <div class="amount-line"><label>希望納品日</label><span class="val">最短</span></div>
+            </div>
+          </div>
+          <div class="collapse-line">
+            <button type="button" class="anken-toggle">
+              <span class="toggle-arrow">∨</span>　<span class="toggle-label">明細を開く</span> ｜ <span class="case-count">1</span> 件
+            </button>
+          </div>
+          <div class="anken-detail" style="display:none;">
+            <h5>明細情報</h5>
+            <div class="supplier-line">
+              <div class="supplier-name">大東印刷株式会社</div>
+            </div>
+            <table>
+              <tr>
+                <th>明細.001-01</th>
+                <td><b>品名</b> 社名入り封筒（長3・1,000枚）</td>
+                <th>納品金額</th>
+                <td class="num">¥100,000</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-green">受注待ち</span></td>
+              </tr>
+              <tr>
+                <th>希望納品日</th>
+                <td>最短</td>
+                <th>発注数量</th>
+                <td class="num">1式</td>
+                <th>単価</th>
+                <td class="num" style="text-align:left;">¥100,000　<b>課税区分</b>　課税（税抜）</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- Case 3: カタログ購買・金額調整＋未検収（đã mở明細 - khối 明細情報 theo trang thật） -->
+        <div class="anken-card">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-order-type catalog">カタログ購買</span>
+              <span class="anken-no">案件番号：PDEMO2606000128</span>
+            </div>
+            <div class="anken-header-right">
+              <span class="lb-adjustment">金額調整</span>
+              <span>ステータス：</span>
+              <span class="status-badge st-pink">未検収</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">研究消耗品発注</div>
+              <div class="info-line"><label>依頼者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>発注申請日時</label><span>2026-06-26 21:34:38</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>発注金額</label><span class="val money">¥575</span></div>
+              <div class="amount-line"><label>希望納品日</label><span class="val">最短</span></div>
+            </div>
+          </div>
+          <div class="anken-detail" style="display:block;">
+            <h5>明細情報</h5>
+            <div class="supplier-line">
+              <div class="supplier-name">株式会社ＭｏｎｏｔａＲＯ<a href="#" data-nav="問い合わせ先ダイアログ（ContactInformation）">問い合わせ先</a></div>
+              <button type="button" class="btn-correction" data-nav="補正開始（発注内容補正画面へ）"><span class="ico">✎</span>　補正開始</button>
+            </div>
+            <table>
+              <tr>
+                <th>明細.001-01</th>
+                <td><b>カタログ品番</b> 39078123 / <b>メーカー</b> NIKKO(ニッコーハンセン) / <b>メーカー品番</b> -<br>
+                    <b>品名</b> <a href="#" data-nav="商品情報の表示">PPディスポビーカー 1個</a></td>
+                <th>納品金額</th>
+                <td class="num">¥75</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-pink">未検収</span></td>
+              </tr>
+              <tr>
+                <th>希望納品日</th>
+                <td>最短</td>
+                <th>発注数量</th>
+                <td class="num">1個</td>
+                <th>単価</th>
+                <td class="num" style="text-align:left;">¥75　<b>課税区分</b>　課税（税抜）</td>
+              </tr>
+              <tr>
+                <th>納品日</th>
+                <td>2026-06-26</td>
+                <th>納品数量</th>
+                <td class="num">1個</td>
+                <th>納品先</th>
+                <td>東京株式会社 購買部門 佐藤花子<br>〒 105-0011 東京都港区芝公園 4-2-8 東京オフィス 3F 030-12341234 shinse@tokyo.jienie.com</td>
+              </tr>
+              <tr>
+                <th>添付ファイル</th>
+                <td colspan="5"></td>
+              </tr>
+              <tr>
+                <th>原価センタ</th>
+                <td colspan="2">[DM1CC004] 営業部</td>
+                <th>勘定科目</th>
+                <td colspan="2">[6100-001] [製]修繕費-設備</td>
+              </tr>
+              <tr>
+                <th>内部指図</th>
+                <td colspan="2"></td>
+                <th>備考</th>
+                <td colspan="2"></td>
+              </tr>
+              <tr>
+                <th>研究テーマ</th>
+                <td colspan="2"></td>
+                <th>稟議番号</th>
+                <td colspan="2"></td>
+              </tr>
+              <tr>
+                <th>備考</th>
+                <td colspan="5">●CAS RN®　1111-11</td>
+              </tr>
+              <tr>
+                <th class="th-yellow">サプライヤからの連絡事項</th>
+                <td colspan="2"></td>
+                <th class="th-yellow">サプライヤ添付ファイル</th>
+                <td colspan="2"></td>
+              </tr>
+            </table>
+          </div>
+          <div class="collapse-line">
+            <button type="button" class="anken-toggle is-open">
+              <span class="toggle-arrow">∧</span>　<span class="toggle-label">明細を閉じる</span> ｜ <span class="case-count">4</span> 件
+            </button>
+          </div>
+        </div>
+
+        <!-- Case 4: カタログ購買・取下げ（案件 nhiều dòng nhiều trạng thái - có breakdown trong bar） -->
+        <div class="anken-card">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-order-type catalog">カタログ購買</span>
+              <span class="anken-no">案件番号：PDEMO2606000059</span>
+            </div>
+            <div class="anken-header-right">
+              <span>ステータス：</span>
+              <span class="status-badge st-gray">取下げ</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">工事ヘルメット</div>
+              <div class="info-line"><label>依頼者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+              <div class="info-line"><label>発注申請日時</label><span>2026-06-16 14:11:54</span></div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>発注金額</label><span class="val money">¥7,838</span></div>
+              <div class="amount-line"><label>希望納品日</label><span class="val">最短</span></div>
+            </div>
+          </div>
+          <div class="collapse-line">
+            <button type="button" class="anken-toggle">
+              <span class="toggle-arrow">∨</span>　<span class="toggle-label">明細を開く</span> ｜ <span class="case-count">3</span> 件<span class="breakdown-text">( <span class="bd-gray">取下げ：1明細</span> <span class="bd-green">検収完了：2明細</span> )</span>
+            </button>
+          </div>
+          <div class="anken-detail" style="display:none;">
+            <h5>明細情報</h5>
+            <div class="supplier-line">
+              <div class="supplier-name">株式会社ＭｏｎｏｔａＲＯ<a href="#" data-nav="問い合わせ先ダイアログ（ContactInformation）">問い合わせ先</a></div>
+            </div>
+            <table>
+              <tr>
+                <th>明細.001-01</th>
+                <td><b>カタログ品番</b> 35543867 / <b>メーカー</b> ミドリ安全 / <b>メーカー品番</b> SC-11PCLS-A<br>
+                    <b>品名</b> <a href="#" data-nav="商品情報の表示">ヘルメット（作業用）通気孔付</a></td>
+                <th>納品金額</th>
+                <td class="num">¥2,613</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-gray">取下げ</span></td>
+              </tr>
+              <tr>
+                <th>明細.002-01</th>
+                <td><b>カタログ品番</b> 35543876 / <b>メーカー</b> ミドリ安全 / <b>メーカー品番</b> SC-13PCLNS<br>
+                    <b>品名</b> <a href="#" data-nav="商品情報の表示">ヘルメット（作業用）白</a></td>
+                <th>納品金額</th>
+                <td class="num">¥5,225</td>
+                <th>ステータス</th>
+                <td style="text-align:center;"><span class="status-badge st-green">検収完了</span></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== Pagination dưới（component lặp lại giống trang thật） ===== -->
+      <div class="wrapper-pagination" style="margin-bottom:1rem;">
+        <div class="pagination-left">
+          <div>1 - 20 / 全166件</div>
+          <select>
+            <option>10件表示</option>
+            <option selected>20件表示</option>
+            <option>50件表示</option>
+          </select>
+          <select>
+            <option>発注申請日時</option>
+            <option>案件番号</option>
+            <option>金額</option>
+          </select>
+          <div class="sort-order-btn">
+            <button type="button" class="active" title="降順">▼</button>
+            <button type="button" title="昇順">▲</button>
+          </div>
+          <button type="button" class="btn-collapse-all collapse-all-mirror"><span class="ico">▼</span>　全ての明細を開く</button>
+        </div>
+        <ul class="pagination-pages">
+          <li class="active"><span>1</span></li>
+          <li><a data-nav="ページ2へ">2</a></li>
+          <li><a data-nav="ページ3へ">3</a></li>
+          <li class="ellipsis"><span>...</span></li>
+          <li><a data-nav="最終ページ（9）へ">9</a></li>
+          <li><a data-nav="次のページへ">次へ ›</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+JienieLayout.init();
+JienieDatepicker.init('.date-range input[type="text"]');
+(function () {
+  // Nut ✕ reset khoang ngay (giong resetDatePicker() that)
+  document.querySelectorAll('.reset-date').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var inputs = btn.closest('.date-range').querySelectorAll('input');
+      inputs[0].value = '2025-07-05';
+      inputs[1].value = '';
+    });
+  });
+  // ---- and/or couple button ----
+  document.querySelectorAll('.couple-btn button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+
+  // ---- Toggle 詳細条件（mặc định đóng, giống queries.isOpenCollapse:false thật）----
+  var searchToggle = document.getElementById('searchCollapseToggle');
+  var searchOptions = document.getElementById('searchOptions');
+  searchToggle.addEventListener('click', function () {
+    var open = searchOptions.classList.toggle('show');
+    searchToggle.classList.toggle('open', open);
+    searchToggle.querySelector('.toggle-text').textContent = open ? '詳細条件を省略' : '詳細条件を追加';
+  });
+
+  // ---- Sort order toggle ----
+  document.querySelectorAll('.sort-order-btn button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+
+  // ---- Toggle từng案件 (giống toggleDetail() thật) ----
+  function setToggleState(btn, isOpen) {
+    var card = btn.closest('.anken-card');
+    var detail = card.querySelector('.anken-detail');
+    if (detail) { detail.style.display = isOpen ? 'block' : 'none'; }
+    btn.classList.toggle('is-open', isOpen);
+    btn.querySelector('.toggle-arrow').textContent = isOpen ? '∧' : '∨';
+    btn.querySelector('.toggle-label').textContent = isOpen ? '明細を閉じる' : '明細を開く';
+    // Bar luôn nằm cuối card: khi mở, đưa bar xuống sau khối明細 (giống ItemSkeleton 2 collapse-line)
+    var line = btn.closest('.collapse-line');
+    if (isOpen && detail) { card.appendChild(line); }
+  }
+  document.querySelectorAll('.anken-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setToggleState(btn, !btn.classList.contains('is-open'));
+    });
+  });
+
+  // ---- Toggle tất cả (giống collapseItems() thật, 2 nút trên/dưới đồng bộ) ----
+  var collapseAllBtns = document.querySelectorAll('.btn-collapse-all');
+  var allOpen = false;
+  collapseAllBtns.forEach(function (cBtn) {
+    cBtn.addEventListener('click', function () {
+      allOpen = !allOpen;
+      document.querySelectorAll('.anken-toggle').forEach(function (btn) { setToggleState(btn, allOpen); });
+      collapseAllBtns.forEach(function (b) {
+        b.innerHTML = allOpen ? '<span class="ico">▲</span>　全ての明細を閉じる' : '<span class="ico">▼</span>　全ての明細を開く';
+      });
+    });
+  });
+
+  document.getElementById('searchForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    JienieLayout.toast('実際の画面では検索条件で再取得した一覧が表示されます');
+  });
+})();
+</script>
+
+</body>
+</html>

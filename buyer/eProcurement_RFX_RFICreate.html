@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: RFI作成・送信画面（画面ID：SCR-RFX-004）— RFX機能（新規開発・Buyer Portal）
+  Dùng chung header/sidebar qua assets/layout.css + assets/layout.js、date picker qua assets/datepicker.js.
+
+  Nguồn yêu cầu (projects/standard/documents/features/RFX機能/):
+    - 03_基本設計書.md §3.1 画面一覧: SCR-RFX-004 RFI作成・送信画面（Buyer案件担当者／Buyer Portal／
+      対応機能BD-RFX-003／対応要件RD-RFX-003）
+    - 03_基本設計書.md §3.2 画面遷移図: SCR003 -「RFI作成ボタン」→ SCR004 -「送信完了／キャンセル」→ SCR003
+    - 03_基本設計書.md §5.3 rfx_event テーブル定義: 種別(RFI/RFP)・タイトル・内容（要求仕様等）・回答期限・
+      ステータスコード(10作成中/20送信済/30終了)・送信日時 → dùng làm cơ sở cho item 画面
+    - 02_要件定義書.md RD-RFX-003（RFI作成・送信・回答収集）§309-322:
+        入力: RFIタイトル・質問項目（複数設定可）・回答期限・添付資料（任意）
+        処理: RFIイベント(rfx_event)生成→参加サプライヤへ通知。回答期限後に回答一覧化
+        受入基準: 一斉送信できること／送信後は内容変更不可（BR-RFX-005）／回答期限前にリマインド自動送信
+        （■未確定：リマインド送信タイミングはQ-RD-RFX-004参照）
+    - 02_要件定義書.md §502-505 SCR-RFX-004説明: 「RFIの内容（タイトル・質問項目・回答期限・添付資料）を
+      入力し、参加サプライヤへ一斉送信する画面。送信後は内容の変更ができないことを確認するアラートを表示する
+      （BR-RFX-005）」
+    - 02_要件定義書.md BR-RFX-001: RFIは任意フェーズ・スキップ可（本画面はRFI実施を選んだ場合の遷移先）
+    - 02_要件定義書.md BR-RFX-005: 一度送信したRFI内容は変更不可（再作成が必要な場合はキャンセルして作り直す）
+    - 02_要件定義書.md RD-RFX-002: 送信対象は「参加確定」済みサプライヤ（招待中・不参加は対象外）
+
+  ※ 注意: 03_基本設計書.md §3.3「主要画面の項目定義」に記載があるのは SCR-RFX-002／006／009 のみで、
+  SCR-RFX-004 の項目定義表は存在しない。そのため本モックアップの入力項目（質問項目の複数追加UI・
+  添付資料UI・送信対象サプライヤのチェック選択・下書き保存・プレビュー等）は RD-RFX-003 の入力/処理/
+  受入基準と rfx_event テーブル定義から逆算した【TỰ ĐỀ XUẤT】であり、詳細設計時に確認が必要。
+
+  Demo data: 新規案件 RFX2607000008「オフィス什器・什装一式調達（新オフィス移転に伴う）」（TỰ ĐỀ XUẤT・
+  他モックアップ未使用の案件番号）。参加確定サプライヤ4社は eProcurement_RFX_ProjectDetail.html の
+  answerData と同じ4社（NSKシステムズ／東都情報サービス／クラウドパートナーズ／日本ITソリューション）を
+  再利用し、サプライヤ名の一貫性を保持。案件担当者・カテゴリ選択肢は eProcurement_RFX_ProjectCreate.html
+  と同じマスタ値を使用。hôm nay = 2026-07-05（他RFXモックアップと同じ demo 基準日）。
+
+  SUB-FEATURE HOẠT ĐỘNG THẬT（MOCKUP_GENERATION_PROMPT.md mục4 tier2 chuẩn）:
+    1. 質問項目：＋追加／削除が実際にDOM操作される。最低1件必須（空欄は無効カウント）。
+    2. 回答期限：assets/datepicker.js のカレンダーで選択。TODAY以降のみ有効、blur時に即バリデーション。
+    3. 添付資料：実際の<input type=file multiple>でローカル選択→ファイル名・サイズをchip表示、chip単位で削除可
+       （実アップロードはservice-file連携のため対象外・ファイル名保持のみ）。
+    4. 送信対象サプライヤ：チェックボックスで選択・全選択／全解除ボタンが実際に動作。1社以上必須。
+    5. 「送信する」ボタンは全必須項目（タイトル・質問項目1件以上・回答期限有効・サプライヤ1社以上）が
+       揃うまで活性化しない。live hint で不足項目を表示（ProjectCreate.htmlと同じUXパターン）。
+    6. プレビュー：現在入力中の内容（タイトル・質問項目・期限・添付・宛先）をその場で組み立てて表示する
+       実データ連動モーダル（ハードコードではない）。
+    7. 送信：確認モーダルでBR-RFX-005（送信後変更不可）の警告文を表示 → OK後、画面が実際に「送信済み」
+       ロック状態へ遷移する状態遷移（フォーム全項目disabled化・ステータスバッジ変化・送信日時表示・
+       回答状況テーブル0/4件で表示）。ステータス遷移は画面内のみ（実際のrfx_projectステータス200遷移は
+       SCR-RFX-003側で表現済み・本画面では送信直後の画面自体の状態を再現）。
+    8. 送信完了後「案件詳細へ戻る」、送信前「キャンセル」いずれも実際に eProcurement_RFX_ProjectDetail.html
+       （SCR-RFX-003）へ遷移する（§3.2画面遷移図どおり）。
+
+  Design style: J2デザインシステム（MOCKUP_GENERATION_PROMPT.md mục3）。フォームレイアウトは
+  eProcurement_RFX_ProjectCreate.html（SCR-RFX-002）と同じ .form-section / .f-row / .rfx-overlay 規約を再利用。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFI作成・送信</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; max-width: 1100px; }
+
+  /* ===== Breadcrumb + Page title ===== */
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+
+  /* ===== 案件情報 read-only box ===== */
+  .project-info-box { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 4px; padding: 1rem 1.3rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .project-info-box .pi-left { flex: 1; min-width: 280px; }
+  .project-info-box .pi-no { font-size: .85rem; color: #555; margin-bottom: .3rem; }
+  .project-info-box .pi-name { font-size: 1.15rem; font-weight: bold; margin-bottom: .5rem; }
+  .project-info-box .pi-line { font-size: .88rem; color: #333; margin-bottom: .15rem; }
+  .project-info-box .pi-line label { color: #777; display: inline-block; min-width: 100px; }
+  .project-info-box .pi-right { text-align: right; flex-shrink: 0; }
+  .back-link { font-size: .85rem; color: #4169e1; text-decoration: underline; display: inline-block; margin-top: .5rem; }
+  .status-badge { min-width: 150px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 8px; font-size: .92rem; background: #fff; border-radius: 2px; }
+  .st-draft { color: #808080; border-color: #808080; }
+  .st-sent  { color: #0074c1; border-color: #0074c1; }
+
+  /* ===== Section (giống SCR-RFX-002) ===== */
+  .form-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.4rem; }
+  .form-section-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; }
+  .form-section-body { padding: 1.3rem 1.5rem; }
+
+  .f-row { display: flex; align-items: flex-start; margin-bottom: 1.2rem; }
+  .f-row:last-child { margin-bottom: .2rem; }
+  .f-label { width: 180px; flex-shrink: 0; padding-top: .5rem; font-size: .95rem; display: flex; align-items: center; gap: .5rem; }
+  .req-chip { background: #d9534f; color: #fff; font-size: .7rem; padding: 1px 6px; border-radius: 2px; flex-shrink: 0; }
+  .opt-chip { background: #999999; color: #fff; font-size: .7rem; padding: 1px 6px; border-radius: 2px; flex-shrink: 0; }
+  .f-input { flex: 1; min-width: 0; }
+  .f-input input[type="text"], .f-input select, .f-input textarea {
+    width: 100%; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .95rem; background: #fff;
+    font-family: inherit;
+  }
+  .f-input input:disabled, .f-input textarea:disabled, .f-input select:disabled { background: #f2f2f2; color: #666; }
+  .f-input textarea { resize: vertical; }
+  .f-input .note { font-size: .8rem; color: #777; margin-top: .3rem; }
+  .f-input .char-count { float: right; font-size: .78rem; color: #999; }
+  .f-input .char-count.over { color: #dc3545; font-weight: bold; }
+  .f-input.has-error input, .f-input.has-error textarea { border-color: #dc3545; }
+  .err-msg { color: #dc3545; font-size: .82rem; margin-top: .3rem; display: none; }
+  .err-msg.show { display: block; }
+  .date-input { max-width: 220px; }
+
+  /* ===== 質問項目 ===== */
+  .q-item { display: flex; gap: .6rem; align-items: flex-start; margin-bottom: .7rem; }
+  .q-item .q-no { width: 26px; flex-shrink: 0; padding-top: .6rem; font-weight: bold; color: #4169e1; }
+  .q-item textarea { flex: 1; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .93rem; font-family: inherit; resize: vertical; min-height: 42px; }
+  .q-item textarea.q-error { border-color: #dc3545; }
+  .q-item .q-remove { background: none; border: none; color: #999; font-size: 1.2rem; cursor: pointer; padding-top: .35rem; }
+  .q-item .q-remove:hover { color: #dc3545; }
+  .add-row-line { margin-top: .3rem; display: flex; gap: 1.6rem; align-items: center; }
+  .add-row-line button { background: none; border: none; color: #4169e1; cursor: pointer; font-size: .95rem; font-weight: bold; }
+
+  /* ===== 添付資料 ===== */
+  .file-btn { background: #fff; border: 1px solid #4169e1; color: #4169e1; padding: .5rem 1.1rem; border-radius: 4px; cursor: pointer; font-size: .9rem; font-weight: bold; }
+  .file-chip-list { margin-top: .7rem; display: flex; flex-direction: column; gap: .4rem; }
+  .file-chip { display: flex; align-items: center; gap: .6rem; background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 4px; padding: .4rem .7rem; font-size: .87rem; }
+  .file-chip .fc-name { flex: 1; }
+  .file-chip .fc-size { color: #888; }
+  .file-chip .fc-remove { background: none; border: none; color: #999; cursor: pointer; font-size: 1rem; }
+  .file-chip .fc-remove:hover { color: #dc3545; }
+
+  /* ===== 送信対象サプライヤ table ===== */
+  .sup-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .sup-table th { background: #eef1f7; border: 1px solid #e3e3e6; padding: .55rem .8rem; font-weight: bold; text-align: left; }
+  .sup-table td { border: 1px solid #e3e3e6; padding: .5rem .8rem; background: #fff; }
+  .sup-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4169e1; }
+  .sup-toolbar { margin-bottom: .6rem; display: flex; gap: 1.2rem; }
+  .sup-toolbar button { background: none; border: none; color: #4169e1; cursor: pointer; font-size: .88rem; font-weight: bold; }
+  .status-chip { font-size: .78rem; padding: 2px 8px; border-radius: 10px; border: 1px solid; }
+  .status-chip.wait { color: #808080; border-color: #808080; background: #f5f5f5; }
+
+  .reminder-note { background: #fff8e6; border: 1px solid #ffd680; border-radius: 4px; padding: .8rem 1.1rem; font-size: .88rem; color: #7a5b00; margin-bottom: 1.4rem; }
+  .reminder-note b { color: #a06a00; }
+
+  /* ===== Buttons ===== */
+  .form-buttons { display: flex; align-items: center; justify-content: center; gap: 1.2rem; margin: 2rem 0 1rem; flex-wrap: wrap; }
+  .btn-send {
+    background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%);
+    border: 1px solid #4169e1; color: #fff; font-size: 1.05rem; padding: .75rem 2rem;
+    border-radius: 4px; cursor: pointer; min-width: 200px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5); font-weight: bold;
+  }
+  .btn-send:disabled { background: #c9c9c9; border-color: #c9c9c9; cursor: not-allowed; box-shadow: none; }
+  .btn-draft {
+    background: #fff; border: 1px solid #4169e1; color: #4169e1; font-size: 1rem; padding: .75rem 1.6rem;
+    border-radius: 4px; cursor: pointer; min-width: 160px; font-weight: bold;
+  }
+  .btn-cancel {
+    background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1rem; padding: .75rem 1.6rem;
+    border-radius: 4px; cursor: pointer; min-width: 160px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+  }
+  .req-hint { text-align: center; font-size: .85rem; color: #777; margin-top: -.6rem; margin-bottom: 1rem; }
+  .req-hint .ng { color: #dc3545; }
+  .req-hint .ok { color: #437643; font-weight: bold; }
+
+  /* ===== 送信完了バナー ===== */
+  .sent-banner { background: #eef7ff; border: 1px solid #0074c1; border-radius: 4px; padding: 1.2rem 1.4rem; margin-bottom: 1.4rem; }
+  .sent-banner .sb-title { font-size: 1.1rem; font-weight: bold; color: #0074c1; margin-bottom: .5rem; }
+  .sent-banner .sb-line { font-size: .9rem; color: #333; margin-bottom: .2rem; }
+  .answer-table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: .5rem; }
+  .answer-table th { background: #eef1f7; border: 1px solid #e3e3e6; padding: .5rem .8rem; text-align: left; }
+  .answer-table td { border: 1px solid #e3e3e6; padding: .5rem .8rem; }
+  .back-hub-btn { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-weight: bold; padding: .7rem 1.8rem; border-radius: 4px; cursor: pointer; display: inline-block; margin-top: 1rem; }
+
+  /* ===== Modal ===== */
+  .rfx-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; align-items: center; justify-content: center; }
+  .rfx-overlay.show { display: flex; }
+  .rfx-modal { background: #fff; width: 560px; max-width: 94%; max-height: 88vh; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+  .rfx-modal.wide { width: 720px; }
+  .rfx-modal-header { padding: 1rem 1.3rem; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .rfx-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #888; }
+  .rfx-modal-body { padding: 1.2rem 1.3rem; font-size: .95rem; line-height: 1.7; overflow-y: auto; }
+  .rfx-modal-footer { padding: .8rem 1.3rem 1.2rem; display: flex; gap: 1rem; justify-content: center; flex-shrink: 0; border-top: 1px solid #f0f0f0; }
+  .rfx-modal-footer .ok { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-weight: bold; padding: .6rem 2.2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal-footer .ok:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
+  .rfx-modal-footer .ng { background: #fff; border: 1px solid #ccc; color: #111; padding: .6rem 2.2rem; border-radius: 4px; cursor: pointer; }
+  .warn-box { background: #fff5f5; border: 1px solid #f5c2c2; color: #c0392b; border-radius: 4px; padding: .8rem 1rem; font-size: .88rem; margin-top: .8rem; }
+  .preview-doc { border: 1px solid #e3e3e3; border-radius: 4px; padding: 1rem 1.2rem; background: #fafafa; }
+  .preview-doc h4 { margin: 0 0 .6rem; font-size: 1.05rem; }
+  .preview-doc ol { margin: .3rem 0; padding-left: 1.3rem; }
+  .preview-doc .pd-label { color: #777; font-size: .82rem; margin-top: .8rem; }
+
+  #Notification { display: none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達案件一覧</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail.html">案件詳細</a></li>
+      <li class="active">RFI作成・送信</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="page-title"><h3>RFI作成・送信</h3></div>
+
+      <!-- ===== 案件情報（読み取り専用） ===== -->
+      <div class="project-info-box">
+        <div class="pi-left">
+          <div class="pi-no">案件番号：RFX2607000008</div>
+          <div class="pi-name">オフィス什器・什装一式調達（新オフィス移転に伴う）</div>
+          <div class="pi-line"><label>案件担当者</label>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</div>
+          <div class="pi-line"><label>対象カテゴリ</label>事務用機器、付属品および供給品</div>
+          <div class="pi-line"><label>参加サプライヤ</label>4社（参加確定 4社）</div>
+          <a class="back-link" href="eProcurement_RFX_ProjectDetail.html">&lsaquo; 案件詳細画面へ戻る</a>
+        </div>
+        <div class="pi-right">
+          <span>ステータス：</span><br>
+          <span class="status-badge st-draft" id="rfiStatusBadge" style="margin-top:.4rem;">作成中</span>
+        </div>
+      </div>
+
+      <div class="reminder-note">
+        <b>ご案内：</b>回答期限の3日前に対象サプライヤへリマインド通知を自動送信します。
+        （■未確定：送信タイミングは今後変更の可能性あり／Q-RD-RFX-004参照・TỰ ĐỀ XUẤT表示文言）
+      </div>
+
+      <!-- ===== 送信完了バナー（送信後に表示） ===== -->
+      <div class="sent-banner" id="sentBanner" style="display:none;">
+        <div class="sb-title">✓ RFIを送信しました</div>
+        <div class="sb-line">送信日時：<span id="sentAtText">-</span></div>
+        <div class="sb-line">回答期限：<span id="sentDeadlineText">-</span>　｜　送信後は内容の変更ができません（BR-RFX-005）</div>
+        <table class="answer-table">
+          <thead><tr><th>サプライヤ名</th><th style="width:140px;">回答状況</th></tr></thead>
+          <tbody id="answerStatusBody"></tbody>
+        </table>
+        <a class="back-hub-btn" href="eProcurement_RFX_ProjectDetail.html">案件詳細へ戻る</a>
+      </div>
+
+      <form id="rfiForm" novalidate>
+
+        <!-- ===== RFI基本情報 ===== -->
+        <div class="form-section">
+          <div class="form-section-header">RFI基本情報</div>
+          <div class="form-section-body">
+            <div class="f-row">
+              <div class="f-label">RFIタイトル<span class="req-chip">必須</span></div>
+              <div class="f-input" id="fTitle">
+                <input type="text" id="titleInput" maxlength="200" placeholder="例：新オフィス什器・什装に関する情報提供依頼（RFI）">
+                <div class="note">最大200文字（rfx_event.タイトル）<span class="char-count" id="titleCount">0 / 200</span></div>
+                <div class="err-msg">RFIタイトルを入力してください。</div>
+              </div>
+            </div>
+            <div class="f-row">
+              <div class="f-label">回答期限<span class="req-chip">必須</span></div>
+              <div class="f-input date-input">
+                <input type="text" id="deadlineInput" placeholder="YYYY-MM-DD">
+                <div class="note">本日（2026-07-05）以降の日付を選択してください</div>
+                <div class="err-msg" id="deadlineErr">回答期限は本日以降の日付を選択してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 質問項目 ===== -->
+        <div class="form-section">
+          <div class="form-section-header">質問項目<span class="req-chip" style="margin-left:.6rem;">必須・1件以上</span></div>
+          <div class="form-section-body">
+            <div id="questionList"></div>
+            <div class="err-msg" id="questionErr">質問項目を1件以上入力してください（空欄は無効です）。</div>
+            <div class="add-row-line">
+              <button type="button" id="addQuestionBtn">＋ 質問項目を追加</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 添付資料 ===== -->
+        <div class="form-section">
+          <div class="form-section-header">添付資料<span class="opt-chip" style="margin-left:.6rem;">任意</span></div>
+          <div class="form-section-body">
+            <button type="button" class="file-btn" id="fileSelectBtn">ファイルを選択</button>
+            <input type="file" id="fileInput" multiple style="display:none;">
+            <div class="note" style="margin-top:.5rem;">添付ファイルの実体は service-file で管理されます（本モックアップではファイル名のみ保持）</div>
+            <div class="file-chip-list" id="fileChipList"></div>
+          </div>
+        </div>
+
+        <!-- ===== 送信対象サプライヤ ===== -->
+        <div class="form-section">
+          <div class="form-section-header">送信対象サプライヤ<span class="req-chip" style="margin-left:.6rem;">必須・1社以上</span></div>
+          <div class="form-section-body">
+            <div class="note" style="margin-bottom:.8rem;">RFIは「参加確定」済みの全サプライヤが対象です（招待中・不参加のサプライヤは対象外・RD-RFX-002）。</div>
+            <div class="sup-toolbar">
+              <button type="button" id="supSelectAll">全選択</button>
+              <button type="button" id="supDeselectAll">全解除</button>
+            </div>
+            <table class="sup-table">
+              <thead><tr><th style="width:40px;"></th><th>サプライヤ名</th><th>参加状態</th></tr></thead>
+              <tbody id="supplierBody"></tbody>
+            </table>
+            <div class="err-msg" id="supplierErr">送信対象サプライヤを1社以上選択してください。</div>
+          </div>
+        </div>
+
+        <div class="req-hint" id="reqHint"></div>
+
+        <div class="form-buttons">
+          <button type="button" class="btn-draft" id="draftBtn">下書き保存</button>
+          <button type="button" class="btn-draft" id="previewBtn">プレビュー</button>
+          <button type="button" class="btn-send" id="sendBtn" disabled>送信する</button>
+          <button type="button" class="btn-cancel" id="cancelBtn">キャンセル</button>
+        </div>
+
+      </form>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== プレビュー modal ===== -->
+<div class="rfx-overlay" id="previewOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">プレビュー（サプライヤ表示イメージ）<button type="button" class="rfx-modal-close" data-close="previewOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div class="preview-doc" id="previewBody"></div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ng" data-close="previewOverlay">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 送信確認 modal ===== -->
+<div class="rfx-overlay" id="sendConfirmOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">RFI送信確認<button type="button" class="rfx-modal-close" data-close="sendConfirmOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div id="sendConfirmSummary"></div>
+      <div class="warn-box">
+        <b>注意（BR-RFX-005）：</b>一度送信したRFIの内容は変更できません。変更が必要な場合は本フェーズを
+        キャンセルして再作成する必要があります。よろしいですか？
+      </div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="sendConfirmOk">送信する</button>
+      <button type="button" class="ng" data-close="sendConfirmOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== キャンセル確認 modal ===== -->
+<div class="rfx-overlay" id="cancelConfirmOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">キャンセル確認<button type="button" class="rfx-modal-close" data-close="cancelConfirmOverlay">&times;</button></div>
+    <div class="rfx-modal-body">入力内容は破棄され、案件詳細画面へ戻ります。よろしいですか？</div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="cancelConfirmOk">案件詳細へ戻る</button>
+      <button type="button" class="ng" data-close="cancelConfirmOverlay">入力を続ける</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+JienieLayout.init();
+JienieDatepicker.init('#deadlineInput');
+(function () {
+  var toast = JienieLayout.toast;
+  var TODAY = '2026-07-05'; // hôm nay giả định (nhất quán demo data với SCR-RFX-001/002)
+
+  function open(id) { document.getElementById(id).classList.add('show'); }
+  function close(id) { document.getElementById(id).classList.remove('show'); }
+  document.querySelectorAll('[data-close]').forEach(function (b) {
+    b.addEventListener('click', function () { close(b.getAttribute('data-close')); });
+  });
+  document.querySelectorAll('.rfx-overlay').forEach(function (ov) {
+    ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
+  });
+
+  // ===== Master data: 4社（ProjectDetailのanswerDataと同一サプライヤで一貫性を保持） =====
+  var SUPPLIERS = [
+    { id: 'nsk', name: '株式会社NSKシステムズ', state: '参加確定' },
+    { id: 'touto', name: '東都情報サービス株式会社', state: '参加確定' },
+    { id: 'cloud', name: '株式会社クラウドパートナーズ', state: '参加確定' },
+    { id: 'nihonit', name: '日本ITソリューション株式会社', state: '参加確定' }
+  ];
+
+  var sent = false;
+  var attachedFiles = []; // { name, size }
+  var qCount = 0;
+
+  // ===== 文字数カウント =====
+  function bindCounter(inputId, counterId, max) {
+    var el = document.getElementById(inputId);
+    var counter = document.getElementById(counterId);
+    function update() {
+      var len = el.value.length;
+      counter.textContent = len + ' / ' + max;
+      counter.classList.toggle('over', len > max);
+    }
+    el.addEventListener('input', function () { update(); refreshSendButton(); });
+    update();
+  }
+  bindCounter('titleInput', 'titleCount', 200);
+
+  // ===== 質問項目 =====
+  var qList = document.getElementById('questionList');
+  function addQuestionItem(text) {
+    qCount++;
+    var row = document.createElement('div');
+    row.className = 'q-item';
+    row.innerHTML =
+      '<div class="q-no">Q' + qCount + '</div>' +
+      '<textarea rows="2" placeholder="質問項目を入力してください（例：導入実績・対応可能な納期・概算費用感 等）"></textarea>' +
+      '<button type="button" class="q-remove" title="削除">&times;</button>';
+    qList.appendChild(row);
+    var ta = row.querySelector('textarea');
+    if (text) ta.value = text;
+    ta.addEventListener('input', function () { ta.classList.remove('q-error'); refreshSendButton(); });
+    row.querySelector('.q-remove').addEventListener('click', function () {
+      row.remove();
+      renumberQuestions();
+      refreshSendButton();
+    });
+  }
+  function renumberQuestions() {
+    var rows = qList.querySelectorAll('.q-item');
+    rows.forEach(function (row, i) { row.querySelector('.q-no').textContent = 'Q' + (i + 1); });
+  }
+  document.getElementById('addQuestionBtn').addEventListener('click', function () { addQuestionItem(''); });
+  // Demo初期値（TỰ ĐỀ XUẤT）
+  addQuestionItem('貴社での同種案件（オフィス什器一式調達）の導入実績をご教示ください。');
+  addQuestionItem('概算のリードタイム（発注から納品まで）をご教示ください。');
+
+  function getQuestions() {
+    return Array.prototype.slice.call(qList.querySelectorAll('textarea')).map(function (t) { return t.value.trim(); });
+  }
+  function checkQuestions() {
+    var texts = getQuestions();
+    var valid = texts.filter(function (t) { return t.length > 0; });
+    return { total: texts.length, valid: valid.length };
+  }
+
+  // ===== 添付資料 =====
+  document.getElementById('fileSelectBtn').addEventListener('click', function () {
+    document.getElementById('fileInput').click();
+  });
+  document.getElementById('fileInput').addEventListener('change', function (e) {
+    Array.prototype.forEach.call(e.target.files, function (f) {
+      attachedFiles.push({ name: f.name, size: f.size });
+    });
+    renderFileChips();
+    e.target.value = '';
+  });
+  function renderFileChips() {
+    var box = document.getElementById('fileChipList');
+    box.innerHTML = '';
+    attachedFiles.forEach(function (f, i) {
+      var kb = (f.size / 1024).toFixed(1);
+      var chip = document.createElement('div');
+      chip.className = 'file-chip';
+      chip.innerHTML = '<span class="fc-name">📎 ' + f.name + '</span><span class="fc-size">' + kb + ' KB</span><button type="button" class="fc-remove">&times;</button>';
+      chip.querySelector('.fc-remove').addEventListener('click', function () { attachedFiles.splice(i, 1); renderFileChips(); });
+      box.appendChild(chip);
+    });
+  }
+
+  // ===== 送信対象サプライヤ =====
+  var supBody = document.getElementById('supplierBody');
+  SUPPLIERS.forEach(function (s) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="checkbox" class="sup-chk" checked data-id="' + s.id + '"></td>' +
+      '<td>' + s.name + '</td>' +
+      '<td><span class="status-chip wait">' + s.state + '</span></td>';
+    supBody.appendChild(tr);
+  });
+  supBody.addEventListener('change', function () { refreshSendButton(); });
+  document.getElementById('supSelectAll').addEventListener('click', function () {
+    supBody.querySelectorAll('.sup-chk').forEach(function (c) { c.checked = true; });
+    refreshSendButton();
+  });
+  document.getElementById('supDeselectAll').addEventListener('click', function () {
+    supBody.querySelectorAll('.sup-chk').forEach(function (c) { c.checked = false; });
+    refreshSendButton();
+  });
+  function getSelectedSuppliers() {
+    return Array.prototype.slice.call(supBody.querySelectorAll('.sup-chk')).filter(function (c) { return c.checked; })
+      .map(function (c) { return SUPPLIERS.filter(function (s) { return s.id === c.getAttribute('data-id'); })[0]; });
+  }
+
+  // ===== 回答期限バリデーション =====
+  function validateDeadline(showErr) {
+    var v = document.getElementById('deadlineInput').value.trim();
+    var errEl = document.getElementById('deadlineErr');
+    var wrap = document.getElementById('deadlineInput').closest('.f-input') || document.getElementById('deadlineInput').parentElement;
+    var ok = /^\d{4}-\d{2}-\d{2}$/.test(v) && v >= TODAY;
+    if (showErr) {
+      errEl.classList.toggle('show', !ok);
+      wrap.classList.toggle('has-error', !ok);
+    }
+    return ok;
+  }
+  document.getElementById('deadlineInput').addEventListener('blur', function () { validateDeadline(true); refreshSendButton(); });
+  document.getElementById('deadlineInput').addEventListener('change', function () { refreshSendButton(); });
+
+  // ===== 必須項目チェック・送信ボタン活性化 =====
+  function missingList() {
+    var missing = [];
+    if (!document.getElementById('titleInput').value.trim()) missing.push('RFIタイトル');
+    if (checkQuestions().valid === 0) missing.push('質問項目（1件以上）');
+    if (!validateDeadline(false)) missing.push('回答期限（本日以降）');
+    if (getSelectedSuppliers().length === 0) missing.push('送信対象サプライヤ（1社以上）');
+    return missing;
+  }
+  function refreshSendButton() {
+    if (sent) return;
+    var missing = missingList();
+    var btn = document.getElementById('sendBtn');
+    var hint = document.getElementById('reqHint');
+    btn.disabled = missing.length > 0;
+    hint.innerHTML = missing.length ? '<span class="ng">未入力の必須項目：' + missing.join('、') + '</span>' : '<span class="ok">✓ 全必須項目が入力済みです</span>';
+  }
+  refreshSendButton();
+
+  // ===== プレビュー =====
+  document.getElementById('previewBtn').addEventListener('click', function () {
+    var title = document.getElementById('titleInput').value.trim() || '（未入力）';
+    var deadline = document.getElementById('deadlineInput').value.trim() || '（未設定）';
+    var qs = checkQuestions();
+    var qHtml = getQuestions().filter(function (t) { return t; }).map(function (t) { return '<li>' + t.replace(/</g, '&lt;') + '</li>'; }).join('') || '<li>（質問項目未入力）</li>';
+    var files = attachedFiles.length ? attachedFiles.map(function (f) { return f.name; }).join('、') : 'なし';
+    var sups = getSelectedSuppliers().map(function (s) { return s.name; }).join('、') || '（未選択）';
+    document.getElementById('previewBody').innerHTML =
+      '<h4>' + title.replace(/</g, '&lt;') + '</h4>' +
+      '<div class="pd-label">依頼元：ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</div>' +
+      '<div class="pd-label">回答期限</div><div>' + deadline + '</div>' +
+      '<div class="pd-label">質問項目（' + qs.valid + '件）</div><ol>' + qHtml + '</ol>' +
+      '<div class="pd-label">添付資料</div><div>' + files + '</div>' +
+      '<div class="pd-label">送信先サプライヤ（' + getSelectedSuppliers().length + '社）</div><div>' + sups + '</div>';
+    open('previewOverlay');
+  });
+
+  // ===== 下書き保存 =====
+  document.getElementById('draftBtn').addEventListener('click', function () {
+    toast('下書きを保存しました（作成中のまま・未送信）');
+  });
+
+  // ===== キャンセル =====
+  document.getElementById('cancelBtn').addEventListener('click', function () { open('cancelConfirmOverlay'); });
+  document.getElementById('cancelConfirmOk').addEventListener('click', function () {
+    toast('入力内容を破棄しました');
+    setTimeout(function () { window.location.href = 'eProcurement_RFX_ProjectDetail.html'; }, 500);
+  });
+
+  // ===== 送信 =====
+  document.getElementById('sendBtn').addEventListener('click', function () {
+    validateDeadline(true);
+    if (missingList().length > 0) { refreshSendButton(); return; }
+    var sups = getSelectedSuppliers();
+    document.getElementById('sendConfirmSummary').innerHTML =
+      '<div class="pi-line"><label style="min-width:110px;display:inline-block;color:#777;">タイトル</label>' + document.getElementById('titleInput').value.trim() + '</div>' +
+      '<div class="pi-line"><label style="min-width:110px;display:inline-block;color:#777;">質問項目</label>' + checkQuestions().valid + '件</div>' +
+      '<div class="pi-line"><label style="min-width:110px;display:inline-block;color:#777;">回答期限</label>' + document.getElementById('deadlineInput').value.trim() + '</div>' +
+      '<div class="pi-line"><label style="min-width:110px;display:inline-block;color:#777;">送信先</label>' + sups.length + '社（' + sups.map(function (s) { return s.name; }).join('、') + '）</div>';
+    open('sendConfirmOverlay');
+  });
+
+  document.getElementById('sendConfirmOk').addEventListener('click', function () {
+    sent = true;
+    close('sendConfirmOverlay');
+
+    // フォームロック（BR-RFX-005：送信後は変更不可）
+    document.querySelectorAll('#rfiForm input, #rfiForm textarea, #rfiForm select, #rfiForm button').forEach(function (el) {
+      if (el.id !== 'previewBtn') el.disabled = true;
+    });
+    document.querySelectorAll('.q-remove, #addQuestionBtn, #fileSelectBtn, #supSelectAll, #supDeselectAll').forEach(function (el) { el.disabled = true; });
+
+    // ステータスバッジ更新
+    var badge = document.getElementById('rfiStatusBadge');
+    badge.textContent = '送信済（回答受付中）';
+    badge.className = 'status-badge st-sent';
+
+    // 送信完了バナー
+    var sentAt = TODAY + ' 15:40';
+    document.getElementById('sentAtText').textContent = sentAt;
+    document.getElementById('sentDeadlineText').textContent = document.getElementById('deadlineInput').value.trim();
+    var body = document.getElementById('answerStatusBody');
+    body.innerHTML = '';
+    getSelectedSuppliers().forEach(function (s) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + s.name + '</td><td><span class="status-chip wait">未提出</span></td>';
+      body.appendChild(tr);
+    });
+    document.getElementById('sentBanner').style.display = 'block';
+    document.getElementById('reqHint').textContent = '';
+    document.getElementById('sentBanner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    toast('RFIを送信しました。参加サプライヤへ通知が送信されます');
+  });
+})();
+</script>
+</body>
+</html>

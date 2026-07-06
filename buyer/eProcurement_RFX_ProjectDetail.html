@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: 案件詳細・進行状況画面（画面ID：SCR-RFX-003）— RFX機能（新規開発・Buyer Portal）
+  Dùng chung header/sidebar qua assets/layout.css + assets/layout.js.
+
+  Nguồn yêu cầu (projects/standard/documents/features/RFX機能/):
+    - 02_要件定義書.md §4.2 SCR-RFX-003: ハブ画面。現在のフェーズ・ステータス・参加サプライヤ状況・
+      RFI/RFP提出状況・Q&A件数等を一覧で確認。各フェーズへの操作ボタンもこの画面から起動する。
+    - 03_基本設計書.md §3.2 画面遷移（SCR-RFX-003 から）: RFI作成→004 / RFP作成→005 / Q&A管理→006 /
+      評価シート入力（評価者のみ）→009 / 評価結果確認→010 / 落札確定申請（担当者のみ）→011 /
+      承認タスク（承認者のみ）→012
+    - 03_基本設計書.md §8.2 ステータス遷移: 300 RFP実施中 →(評価開始・手動)→ 400 評価中
+      →(落札確定申請)→ 450 落札承認待ち →(承認)→ 500 落札完了 ／ →(差し戻し)→ 400 評価中
+    - 02_要件定義書.md RD-RFX-002/003/005/007/008/009/010/011、BR-RFX-001/002/003/005/006、
+      03_基本設計書.md §8.1 権限マトリクス
+
+  FEEDBACK ĐÃ PHẢN ÁNH:
+    - 2026-07-05: 「Award」→「落札」toàn bộ text hiển thị.
+    - 2026-07-05: sub-feature hoạt động thật đợt 1: 案件キャンセル／版一覧／回答内容確認／
+      サプライヤを追加招待／Q&A管理／もっと見る.
+    - 2026-07-05: HOÀN THIỆN sub-feature đợt 2 — VÒNG ĐỜI CHUYỂN TRẠNG THÁI THẬT trên trang:
+      1. 評価開始 (300→400): status badge→評価中, flow strip RFP✓→評価 current, RFP event→終了,
+         supplier 未提出→評価対象外, hub buttons 評価シート入力/評価結果確認/落札確定申請 activate,
+         対応履歴 tự ghi thêm dòng.
+      2. 評価シート入力 (SCR-RFX-009 lite): bảng score theo評価者 (validate 0〜100, 総合 tự tính
+         技術60%+価格40%, trạng thái 入力中/入力済), lưu độc lập (RD-RFX-008).
+      3. 評価結果確認 (SCR-RFX-010 lite): tổng hợp score 2評価者 (score mình nhập được phản ánh),
+         xếp hạng + 総合1位 highlight, nút 落札確定申請へ.
+      4. 落札確定申請 (SCR-RFX-011 lite): chọn 落札候補 (radio, default top), 申請コメント bắt buộc
+         → 400→450: badge/flow/hub/履歴 cập nhật, nút 承認タスクへ xuất hiện (承認者のみ).
+      5. 承認タスク (SCR-RFX-012 lite): 承認する → 450→500 落札完了 (flow ✓ hết, dòng 落札サプライヤ
+         thêm vào header card, supplier table gắn nhãn 落札, PO連携 toast) ／ 差し戻す (comment必須)
+         → 450→400 quay về 評価中.
+      6. RFI/RFP 内容確認: modal nội dung RFI (質問項目・回答状況) / RFP (要求仕様・提出状況)
+         — BR-RFX-005 変更不可 nên chỉ tham chiếu.
+
+  Demo data nhất quán với SCR-RFX-001/002: case RFX2607000006「新基幹サーバ更改…」bắt đầu ở 300.
+  §3.3 基本設計 KHÔNG có 項目定義 cho SCR-RFX-003 → bố cục & nút shortcut là ĐỀ XUẤT (confirm khi 詳細設計).
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件詳細・進行状況</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+
+  /* ===== Breadcrumb + Page title ===== */
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+
+  /* ===== Header card案件 ===== */
+  .anken-card { background: #f5f5f5; border: 1px solid #ededed; border-radius: 5px; padding: 1rem 1.4rem; margin-bottom: 1.4rem; }
+  .anken-header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+  .anken-header-left { display: flex; align-items: center; }
+  .badge-rfx { padding: 4px 14px; font-size: .9rem; display: inline-block; background: #fff; border: 1px solid #7654b4; color: #7654b4; }
+  .anken-no { margin-left: .8rem; padding-left: .8rem; border-left: 1px solid #cccccc; font-size: .95rem; }
+  .anken-header-right { display: flex; align-items: center; gap: .6rem; }
+  .status-badge { min-width: 140px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 5px; font-size: .95rem; background: #fff; }
+  .st-rfp { color: #008000; border-color: #008000; }
+  .st-eval { color: #ff9933; border-color: #ff9933; }
+  .st-award-w { color: #ff6699; border-color: #ff6699; }
+  .st-award { color: #437643; border-color: #437643; }
+  .st-cancel { color: #808080; border-color: #808080; }
+  .anken-hr { border: none; border-top: 1px solid #dddddd; margin: .8rem 0 0; }
+  .anken-body-row { display: flex; }
+  .anken-body-left { flex: 2; min-width: 0; padding: .6rem 0 .4rem; }
+  .anken-body-right { flex: 1; border-left: 1px solid #dddddd; padding: 2rem 0 .4rem 1.2rem; }
+  .anken-title { font-size: 1.4rem; font-weight: bold; word-break: break-all; margin: .2rem 0 .4rem; }
+  .info-line { font-size: .95rem; display: flex; align-items: flex-start; margin-bottom: .1rem; }
+  .info-line > label { width: 130px; flex-shrink: 0; border-right: 1px solid #cccccc; margin-right: 1rem; }
+  .amount-line { margin-bottom: .5rem; font-size: .95rem; display: flex; align-items: center; }
+  .amount-line > label { width: 110px; flex-shrink: 0; border-right: 1px solid #cccccc; margin-right: 1rem; font-weight: bold; }
+  .amount-line .val { font-weight: bold; font-size: 1.05rem; }
+  .head-actions { text-align: right; margin-top: .6rem; }
+  .head-actions button { background: #fff; border: 1px solid #dadbde; color: #111; padding: .5rem 1.2rem; border-radius: 4px; cursor: pointer; font-size: .9rem; margin-left: .6rem; }
+  .head-actions .ico { color: #4169e1; }
+  .head-actions button:disabled { color: #aaa; border-color: #ddd; cursor: not-allowed; }
+  .win-label { display: inline-block; background: #e6b422; color: #fff; font-size: .75rem; font-weight: bold; padding: 2px 8px; border-radius: 2px; margin-left: .5rem; }
+
+  /* ===== Section ===== */
+  .detail-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.4rem; }
+  .detail-section-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; display: flex; justify-content: space-between; align-items: center; }
+  .detail-section-header .hdr-note { font-size: .8rem; font-weight: normal; }
+  .detail-section-body { padding: 1.2rem 1.4rem; }
+
+  /* ===== 進行状況 flow ===== */
+  .flow-steps { display: flex; align-items: flex-start; justify-content: space-between; padding: .6rem 1rem 0; }
+  .flow-step { flex: 1; text-align: center; position: relative; }
+  .flow-step::after { content: ""; position: absolute; top: 44px; left: 50%; width: 100%; height: 3px; background: #d9d9d9; z-index: 0; }
+  .flow-step:last-child::after { display: none; }
+  .flow-step .fs-label { font-size: .9rem; margin-bottom: .5rem; min-height: 1.3em; }
+  .flow-step .fs-icon {
+    width: 44px; height: 44px; border-radius: 50%; margin: 0 auto; position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1rem;
+  }
+  .fs-icon.done { background: #5cb85c; }
+  .fs-icon.current { background: #4169e1; width: 52px; height: 52px; }
+  .fs-icon.future { background: #c9c9c9; }
+  .flow-step .fs-date { display: inline-block; background: #e8e8e8; font-size: .82rem; padding: .3rem .8rem; margin-top: .8rem; }
+  .flow-step.current-step .fs-label { color: #4169e1; font-weight: bold; }
+
+  /* ===== 操作ボタン hub ===== */
+  .hub-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
+  .hub-btn {
+    flex: 1; min-width: 190px; max-width: 240px; background: #fff; border: 1px solid #4169e1; color: #4169e1;
+    border-radius: 6px; padding: .9rem .8rem; cursor: pointer; text-align: center; font-size: .95rem; font-weight: bold;
+  }
+  .hub-btn .sub { display: block; font-size: .72rem; font-weight: normal; color: #777; margin-top: .35rem; }
+  .hub-btn.primary { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); color: #fff; border-color: #4169e1; }
+  .hub-btn.primary .sub { color: #dfe7ff; }
+  .hub-btn.done-state { border-color: #5cb85c; color: #5cb85c; cursor: default; }
+  .hub-btn:disabled { border-color: #cccccc; color: #aaaaaa; background: #f7f7f7; cursor: not-allowed; }
+  .hub-btn:disabled .sub { color: #bbbbbb; }
+
+  /* ===== Tables ===== */
+  .rfx-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .rfx-table th { background: #eef1f7; border: 1px solid #e3e3e6; padding: .6rem .8rem; font-weight: bold; text-align: left; white-space: nowrap; }
+  .rfx-table td { border: 1px solid #e3e3e6; padding: .6rem .8rem; background: #fff; vertical-align: middle; }
+  .rfx-table a { color: #045eb4; text-decoration: underline; cursor: pointer; }
+  .rfx-table input.score-in { width: 70px; padding: .4rem .5rem; border: 1px solid #ccc; border-radius: 4px; text-align: right; font-size: .92rem; }
+  .rfx-table input.score-in.has-error { border-color: #dc3545; background: #fff5f5; }
+  .rfx-table input.cmt-in { width: 100%; padding: .4rem .5rem; border: 1px solid #ccc; border-radius: 4px; font-size: .88rem; }
+  .rfx-table .total-cell { font-weight: bold; color: #4169e1; text-align: right; }
+  .rfx-table tr.top-rank td { background: #fffbe8; }
+  .rank-label { display: inline-block; background: #e6b422; color: #fff; font-size: .75rem; font-weight: bold; padding: 2px 8px; border-radius: 2px; margin-left: .5rem; }
+  .pill { display: inline-block; min-width: 90px; text-align: center; border: 1px solid; padding: 2px 8px; font-size: .85rem; background: #fff; }
+  .pill-green { color: #008000; border-color: #008000; }
+  .pill-blue { color: #0074c1; border-color: #0074c1; }
+  .pill-pink { color: #ff6699; border-color: #ff6699; }
+  .pill-gray { color: #808080; border-color: #808080; }
+  .pill-orange { color: #ff9933; border-color: #ff9933; }
+  .ver-label { font-size: 12px; font-weight: bold; padding: 2px 5px; border-radius: 2px; color: #fff; background: #7654b4; margin-left: .4rem; }
+  .table-note { font-size: .82rem; color: #777; margin-top: .6rem; }
+  .table-actions { margin-top: .8rem; }
+  .table-actions button { background: #fff; border: 1px solid #dadbde; color: #111; padding: .5rem 1.2rem; border-radius: 4px; cursor: pointer; font-size: .9rem; margin-right: .6rem; }
+  .table-actions .ico { color: #4169e1; }
+  .table-actions button:disabled { color: #aaa; border-color: #ddd; cursor: not-allowed; }
+
+  /* Q&A summary */
+  .qa-summary { display: flex; align-items: center; gap: 2.5rem; flex-wrap: wrap; }
+  .qa-stat { font-size: .95rem; }
+  .qa-stat b { font-size: 1.6rem; color: #4169e1; margin-right: .2rem; }
+  .qa-stat.warn b { color: #ff4500; }
+  .qa-goto { margin-left: auto; }
+  .qa-goto button { background: #fff; border: 1px solid #4169e1; color: #4169e1; padding: .6rem 1.6rem; border-radius: 4px; cursor: pointer; font-size: .95rem; font-weight: bold; }
+
+  /* 対応履歴 */
+  .history-log { font-size: .95rem; }
+  .history-log div { margin-bottom: .4rem; }
+  .history-log div.new-entry { color: #4169e1; }
+  .history-extra { display: none; }
+  .history-extra.show { display: block; }
+  .history-more { text-align: center; margin-top: .4rem; }
+  .history-more a { color: #045eb4; font-weight: bold; cursor: pointer; }
+
+  .back-line { text-align: center; margin: 2rem 0 1rem; }
+  .back-line a {
+    display: inline-block; background: #fff; border: 1px solid #cccccc; color: #111;
+    padding: .7rem 2.4rem; border-radius: 4px; font-size: 1rem; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+  }
+
+  /* ===== Modals ===== */
+  .rfx-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; align-items: center; justify-content: center; }
+  .rfx-overlay.show { display: flex; }
+  .rfx-modal { background: #fff; width: 560px; max-width: 94%; max-height: 88vh; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+  .rfx-modal.wide { width: 880px; }
+  .rfx-modal-header { padding: 1rem 1.3rem; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .rfx-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #888; }
+  .rfx-modal-body { padding: 1.2rem 1.3rem; font-size: .95rem; line-height: 1.7; overflow-y: auto; }
+  .rfx-modal-footer { padding: .8rem 1.3rem 1.2rem; display: flex; gap: 1rem; justify-content: center; flex-shrink: 0; border-top: 1px solid #f0f0f0; }
+  .rfx-modal-footer .ok { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-weight: bold; padding: .6rem 2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal-footer .ok:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
+  .rfx-modal-footer .warn { background: #fff; border: 1px solid #d9534f; color: #d9534f; font-weight: bold; padding: .6rem 2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal-footer .ng { background: #fff; border: 1px solid #ccc; color: #111; padding: .6rem 2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal textarea { width: 100%; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .92rem; font-family: inherit; resize: vertical; }
+  .err-line { color: #dc3545; font-size: .85rem; margin-top: .5rem; display: none; }
+  .err-line.show { display: block; }
+  .modal-note { font-size: .82rem; color: #777; margin-top: .6rem; }
+  .cand-box { border: 1px solid #e3e3e6; border-radius: 4px; background: #fafbfd; padding: .9rem 1.1rem; margin-bottom: .9rem; }
+  .cand-box .kv { display: flex; margin-bottom: .3rem; }
+  .cand-box .kv label { width: 150px; flex-shrink: 0; font-weight: bold; }
+  .cand-radio-line { display: flex; align-items: center; gap: .7rem; padding: .5rem .3rem; border-bottom: 1px dashed #eee; font-size: .95rem; }
+  .cand-radio-line input { width: 16px; height: 16px; accent-color: #4169e1; }
+  .cand-radio-line .score { margin-left: auto; font-weight: bold; color: #4169e1; }
+
+  /* Q&A modal */
+  .qa-filter { display: flex; align-items: center; gap: .8rem; margin-bottom: .8rem; }
+  .qa-filter select { padding: .4rem .6rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; }
+  #qaTable tbody tr { cursor: pointer; }
+  #qaTable tbody tr:hover td { background: #f2f6ff; }
+  #qaTable tbody tr.selected td { background: #e5edff; }
+  .qa-detail-panel { border: 1px solid #e3e3e6; border-radius: 4px; padding: 1rem 1.2rem; margin-top: 1rem; background: #fafbfd; }
+  .qa-detail-panel .qd-meta { font-size: .82rem; color: #777; margin-bottom: .4rem; }
+  .qa-detail-panel .qd-q { margin-bottom: .8rem; white-space: pre-line; }
+  .qa-detail-panel .qd-a { background: #fff; border-left: 4px solid #4169e1; padding: .6rem 1rem; margin-bottom: .8rem; white-space: pre-line; }
+  .toggle-line { display: flex; align-items: center; gap: .8rem; margin: .6rem 0; }
+  .toggle-switch { position: relative; width: 46px; height: 24px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-switch .slider { position: absolute; inset: 0; background: #ccc; border-radius: 24px; cursor: pointer; transition: .2s; }
+  .toggle-switch .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .toggle-switch input:checked + .slider { background: #4169e1; }
+  .toggle-switch input:checked + .slider::before { transform: translateX(22px); }
+  .qa-register-line { text-align: center; margin-top: .8rem; }
+  .qa-register-line button { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-weight: bold; padding: .55rem 2rem; border-radius: 4px; cursor: pointer; }
+  .qa-register-line button:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
+
+  /* 追加招待 modal */
+  .invite-list label { display: flex; align-items: center; gap: 8px; padding: .45rem .2rem; font-size: .92rem; border-bottom: 1px dashed #eee; }
+  .invite-list input { width: 16px; height: 16px; accent-color: #4169e1; }
+
+  /* 回答内容 / RFI/RFP内容 modal */
+  .ans-block { margin-bottom: 1.2rem; }
+  .ans-block h5 { margin: 0 0 .5rem; font-size: .95rem; border-left: 4px solid #4169e1; padding-left: .6rem; }
+  .ans-block .ans-text { background: #fafbfd; border: 1px solid #eee; border-radius: 4px; padding: .7rem 1rem; white-space: pre-line; margin-bottom: .5rem; }
+  .ans-block a { color: #045eb4; text-decoration: underline; cursor: pointer; }
+
+  #Notification { display: none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達案件一覧</a></li>
+      <li class="active">案件詳細・進行状況</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="page-title"><h3>案件詳細・進行状況</h3></div>
+
+      <!-- ===== 案件ヘッダー ===== -->
+      <div class="anken-card">
+        <div class="anken-header-row">
+          <div class="anken-header-left">
+            <span class="badge-rfx">調達案件</span>
+            <span class="anken-no">案件番号：RFX2607000006</span>
+          </div>
+          <div class="anken-header-right">
+            <span>ステータス：</span>
+            <span class="status-badge st-rfp" id="projectStatusBadge">RFP実施中</span>
+          </div>
+        </div>
+        <hr class="anken-hr">
+        <div class="anken-body-row">
+          <div class="anken-body-left" id="headerLeft">
+            <div class="anken-title">新基幹サーバ更改に伴う機器・構築役務調達</div>
+            <div class="info-line"><label>案件担当者</label><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+            <div class="info-line"><label>対象カテゴリ</label><span>システム関連調達</span></div>
+            <div class="info-line"><label>案件概要</label><span>2027年3月保守期限切れの基幹サーバ（AP／DB）更改。機器調達・構築役務・移行支援を含む一括調達。</span></div>
+            <div class="info-line"><label>作成日</label><span>2026-06-24</span></div>
+          </div>
+          <div class="anken-body-right">
+            <div class="amount-line"><label>RFI回答期限</label><span class="val">2026-07-08（終了）</span></div>
+            <div class="amount-line"><label>RFP提出期限</label><span class="val">2026-07-24</span></div>
+            <div class="amount-line"><label>評価期限</label><span class="val">2026-08-07</span></div>
+          </div>
+        </div>
+        <div class="head-actions">
+          <button type="button" id="editProjectBtn" onclick="window.location.href='eProcurement_RFX_ProjectCreate.html'" title="案件担当者のみ表示"><span class="ico">✎</span>　案件設定変更</button>
+          <button type="button" id="cancelProjectBtn" title="案件担当者のみ表示"><span class="ico">✕</span>　案件キャンセル</button>
+        </div>
+      </div>
+
+      <!-- ===== 進行状況（RD-RFX-010） ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">進行状況</div>
+        <div class="detail-section-body">
+          <div class="flow-steps" id="flowSteps">
+            <div class="flow-step" data-step="create">
+              <div class="fs-label">案件作成</div>
+              <div class="fs-icon done">✓</div>
+              <div><span class="fs-date">2026-06-24</span></div>
+            </div>
+            <div class="flow-step" data-step="rfi">
+              <div class="fs-label">RFI（情報収集）</div>
+              <div class="fs-icon done">✓</div>
+              <div><span class="fs-date">〜2026-07-08 終了</span></div>
+            </div>
+            <div class="flow-step current-step" data-step="rfp">
+              <div class="fs-label">RFP（提案依頼）</div>
+              <div class="fs-icon current">RFP</div>
+              <div><span class="fs-date">提出期限 2026-07-24</span></div>
+            </div>
+            <div class="flow-step" data-step="eval">
+              <div class="fs-label">評価</div>
+              <div class="fs-icon future"></div>
+              <div><span class="fs-date">期限 2026-08-07</span></div>
+            </div>
+            <div class="flow-step" data-step="awardw">
+              <div class="fs-label">落札承認</div>
+              <div class="fs-icon future"></div>
+            </div>
+            <div class="flow-step" data-step="award">
+              <div class="fs-label">落札完了</div>
+              <div class="fs-icon future"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 操作（ハブ） ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">操作<span class="hdr-note">※ボタンの表示・活性はロールと案件ステータスに依存します</span></div>
+        <div class="detail-section-body">
+          <div class="hub-actions" id="hubActions">
+            <button type="button" class="hub-btn done-state" id="hubRfi">RFI作成・送信<span class="sub">送信済・終了（2026-07-08）</span></button>
+            <button type="button" class="hub-btn done-state" id="hubRfp">RFP作成・送信<span class="sub">送信済（2026-07-10）・受付中</span></button>
+            <button type="button" class="hub-btn qa-open-btn" id="hubQa">Q&A管理<span class="sub" id="hubQaNote">未回答 2件あり</span></button>
+            <button type="button" class="hub-btn primary" id="startEvalBtn">評価開始<span class="sub">RFP終了後に評価フェーズへ移行（担当者のみ）</span></button>
+            <button type="button" class="hub-btn" id="hubScore" disabled title="評価フェーズ開始後に活性化">評価シート入力<span class="sub">評価者のみ・評価中のみ</span></button>
+            <button type="button" class="hub-btn" id="hubResult" disabled title="評価フェーズ開始後に活性化">評価結果確認<span class="sub">評価中〜</span></button>
+            <button type="button" class="hub-btn" id="hubAwardReq" disabled title="評価フェーズ開始後に活性化">落札確定申請<span class="sub">案件担当者のみ</span></button>
+            <button type="button" class="hub-btn" id="hubApproval" style="display:none;">承認タスクへ<span class="sub">落札承認（承認者のみ）</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 参加サプライヤ状況 ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">参加サプライヤ状況<span class="hdr-note" id="supplierHdrNote">5社（参加確定 4社 ／ 招待中 1社）・ショートリスト済 3社</span></div>
+        <div class="detail-section-body">
+          <table class="rfx-table" id="supplierTable">
+            <thead>
+              <tr>
+                <th>サプライヤ</th>
+                <th style="text-align:center;">招待状態</th>
+                <th style="text-align:center;">ショートリスト</th>
+                <th style="text-align:center;">RFI回答</th>
+                <th>RFP提案書</th>
+                <th style="text-align:center;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-sup-name="株式会社NSKシステムズ">
+                <td class="sup-name-cell">[SUP-000045] 株式会社NSKシステムズ</td>
+                <td style="text-align:center;"><span class="pill pill-green">参加確定</span></td>
+                <td style="text-align:center;"><span class="pill pill-green">ショートリスト済</span></td>
+                <td style="text-align:center;"><span class="pill pill-green">提出済</span></td>
+                <td><span class="pill pill-green">提出済</span>　<a data-nav="提案書ダウンロード（service-file）">提案書_NSK.pdf</a><span class="ver-label">v2</span>　<a class="ver-open" data-file="提案書_NSK.pdf" style="font-size:.8rem;">版一覧</a></td>
+                <td style="text-align:center;"><a class="ans-open" data-sup="nsk">回答内容確認</a></td>
+              </tr>
+              <tr data-sup-name="東都情報サービス株式会社">
+                <td class="sup-name-cell">[SUP-000112] 東都情報サービス株式会社</td>
+                <td style="text-align:center;"><span class="pill pill-green">参加確定</span></td>
+                <td style="text-align:center;"><span class="pill pill-green">ショートリスト済</span></td>
+                <td style="text-align:center;"><span class="pill pill-green">提出済</span></td>
+                <td><span class="pill pill-green">提出済</span>　<a data-nav="提案書ダウンロード（service-file）">提案書_ToutoIS.pdf</a><span class="ver-label">v1</span>　<a class="ver-open" data-file="提案書_ToutoIS.pdf" style="font-size:.8rem;">版一覧</a></td>
+                <td style="text-align:center;"><a class="ans-open" data-sup="touto">回答内容確認</a></td>
+              </tr>
+              <tr data-sup-name="株式会社クラウドパートナーズ">
+                <td class="sup-name-cell">[SUP-000178] 株式会社クラウドパートナーズ</td>
+                <td style="text-align:center;"><span class="pill pill-green">参加確定</span></td>
+                <td style="text-align:center;"><span class="pill pill-green">ショートリスト済</span></td>
+                <td style="text-align:center;"><span class="pill pill-green">提出済</span></td>
+                <td id="cloudRfpCell"><span class="pill pill-pink">未提出</span>　<span style="font-size:.82rem;color:#777;">（期限 2026-07-24・リマインド送信済）</span></td>
+                <td style="text-align:center;"><a class="ans-open" data-sup="cloud">回答内容確認</a></td>
+              </tr>
+              <tr data-sup-name="日本ITソリューション株式会社">
+                <td class="sup-name-cell">[SUP-000091] 日本ITソリューション株式会社</td>
+                <td style="text-align:center;"><span class="pill pill-green">参加確定</span></td>
+                <td style="text-align:center;"><span class="pill pill-gray">選外</span></td>
+                <td style="text-align:center;"><span class="pill pill-green">提出済</span></td>
+                <td>－</td>
+                <td style="text-align:center;"><a class="ans-open" data-sup="nihonit">回答内容確認</a></td>
+              </tr>
+              <tr data-sup-name="株式会社テックウェーブ">
+                <td class="sup-name-cell">[SUP-000230] 株式会社テックウェーブ</td>
+                <td style="text-align:center;"><span class="pill pill-blue">招待中</span></td>
+                <td style="text-align:center;">－</td>
+                <td style="text-align:center;">－</td>
+                <td>－</td>
+                <td style="text-align:center;">－</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="table-note">※ 選外＝RFI評価後にRFP招待対象から除外（BR-RFX-001）。招待中のサプライヤは参加回答後にRFP対象へ追加できます。</div>
+          <div class="table-actions">
+            <button type="button" id="inviteBtn" title="案件担当者のみ表示"><span class="ico">＋</span>　サプライヤを追加招待</button>
+            <button type="button" disabled title="RFI終了後・RFP送信前のみ活性">ショートリスト選定（選定済）</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== RFI/RFP実施状況 ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">RFI／RFP実施状況</div>
+        <div class="detail-section-body">
+          <table class="rfx-table">
+            <thead>
+              <tr>
+                <th style="width:80px;text-align:center;">種別</th>
+                <th>タイトル</th>
+                <th style="text-align:center;">ステータス</th>
+                <th style="text-align:center;">送信日時</th>
+                <th style="text-align:center;">回答期限</th>
+                <th style="text-align:center;">回答／提出状況</th>
+                <th style="text-align:center;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;font-weight:bold;">RFI</td>
+                <td>基幹サーバ更改に関する情報提供依頼（体制・実績・概算）</td>
+                <td style="text-align:center;"><span class="pill pill-gray">終了</span></td>
+                <td style="text-align:center;">2026-06-26 10:12</td>
+                <td style="text-align:center;">2026-07-08</td>
+                <td style="text-align:center;">4／4社 提出</td>
+                <td style="text-align:center;"><a id="rfiContentLink">内容確認</a></td>
+              </tr>
+              <tr>
+                <td style="text-align:center;font-weight:bold;">RFP</td>
+                <td>基幹サーバ更改 提案依頼書（機器構成・構築役務・移行支援）</td>
+                <td style="text-align:center;" id="rfpEventStatus"><span class="pill pill-orange">送信済</span></td>
+                <td style="text-align:center;">2026-07-10 09:30</td>
+                <td style="text-align:center;">2026-07-24</td>
+                <td style="text-align:center;">2／3社 提出</td>
+                <td style="text-align:center;"><a id="rfpContentLink">内容確認</a></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="table-note">※ 一度送信したRFI/RFPの内容は変更できません（BR-RFX-005）。回答期限の3日前・1日前に未提出サプライヤへリマインド通知が自動送信されます（リマインド日数はProvider管理画面で変更可）。</div>
+        </div>
+      </div>
+
+      <!-- ===== Q&A状況 ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">Q&A状況</div>
+        <div class="detail-section-body">
+          <div class="qa-summary">
+            <div class="qa-stat"><b id="qaTotal">8</b>件　質問合計</div>
+            <div class="qa-stat warn"><b id="qaUnanswered">2</b>件　未回答</div>
+            <div class="qa-stat"><b id="qaAnswered">6</b>件　回答済（公開中 <span id="qaPublic">5</span>件 ／ 非公開 <span id="qaPrivate">1</span>件）</div>
+            <div class="qa-goto"><button type="button" class="qa-open-btn">Q&A管理へ　›</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 対応履歴 ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">対応履歴</div>
+        <div class="detail-section-body">
+          <div class="history-log" id="historyLog">
+            <div>2026-07-12 14:05　株式会社NSKシステムズ　RFP提案書を提出しました。（v2に更新）</div>
+            <div>2026-07-11 09:48　東都情報サービス株式会社　RFP提案書を提出しました。</div>
+            <div>2026-07-10 09:30　本社 総務部　依頼裕三　RFPを送信しました。（対象：ショートリスト済 3社）</div>
+            <div>2026-07-09 17:20　本社 総務部　依頼裕三　ショートリストを選定しました。（3社選定・1社選外）</div>
+            <div>2026-07-08 00:00　RFI回答期限が到来し、RFIが終了しました。</div>
+            <div class="history-extra">2026-07-07 15:02　株式会社クラウドパートナーズ　RFI回答を提出しました。</div>
+            <div class="history-extra">2026-07-05 11:26　株式会社NSKシステムズ　RFI回答を提出しました。</div>
+            <div class="history-extra">2026-07-04 18:44　東都情報サービス株式会社　RFI回答を提出しました。</div>
+            <div class="history-extra">2026-07-03 09:15　日本ITソリューション株式会社　RFI回答を提出しました。</div>
+            <div class="history-extra">2026-06-26 10:12　本社 総務部　依頼裕三　RFIを送信しました。（対象：参加確定 4社）</div>
+            <div class="history-extra">2026-06-25 14:30　株式会社テックウェーブへ招待を送信しました。</div>
+            <div class="history-extra">2026-06-24 16:05　本社 総務部　依頼裕三　案件を作成し、サプライヤ4社へ招待を送信しました。</div>
+          </div>
+          <div class="history-more"><a id="historyMoreBtn">∨ もっと見る</a></div>
+        </div>
+      </div>
+
+      <div class="back-line"><a href="eProcurement_RFX_ProjectList.html">‹　調達案件一覧へ戻る</a></div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- ===== 評価開始 確認（300→400・§8.2） ===== -->
+<div class="rfx-overlay" id="evalOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">評価フェーズ開始の確認<button class="rfx-modal-close" data-close="evalOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      評価フェーズを開始します。よろしいですか？<br>
+      開始後、案件ステータスは「評価中」となり、RFPは終了・評価者へ通知が送信されます。<br>
+      <span style="color:#dc3545;font-size:.85rem;">※未提出のサプライヤ（株式会社クラウドパートナーズ）は評価対象外となります。</span>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="evalOk">評価を開始する</button>
+      <button type="button" class="ng" data-close="evalOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 案件キャンセル ===== -->
+<div class="rfx-overlay" id="cancelOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">案件キャンセルの確認<button class="rfx-modal-close" data-close="cancelOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      本案件をキャンセルします。よろしいですか？<br>
+      キャンセル後は元に戻せません。参加サプライヤ全社へ中止通知が送信されます。<br><br>
+      <div style="font-size:.9rem;">キャンセル理由（任意）</div>
+      <textarea rows="3" id="cancelReason" placeholder="例：予算凍結のため本年度の調達を見送り"></textarea>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="warn" id="cancelOk">案件をキャンセルする</button>
+      <button type="button" class="ng" data-close="cancelOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 版一覧（RD-RFX-011） ===== -->
+<div class="rfx-overlay" id="versionOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header"><span>バージョン一覧：<span id="versionFileName"></span></span><button class="rfx-modal-close" data-close="versionOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <table class="rfx-table">
+        <thead><tr><th>版番号</th><th>更新日時</th><th>更新者</th><th>操作</th></tr></thead>
+        <tbody id="versionTbody"></tbody>
+      </table>
+      <div class="table-note">※ 同一ファイル名での再アップロード時に版番号が自動インクリメントされます。旧版もダウンロード可能です（RD-RFX-011）。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ng" data-close="versionOverlay">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 回答内容確認 ===== -->
+<div class="rfx-overlay" id="answerOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header"><span>回答内容確認：<span id="answerSupName"></span></span><button class="rfx-modal-close" data-close="answerOverlay">&times;</button></div>
+    <div class="rfx-modal-body" id="answerBody"></div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ng" data-close="answerOverlay">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RFI内容確認（BR-RFX-005: 送信後変更不可・参照のみ） ===== -->
+<div class="rfx-overlay" id="rfiContentOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">RFI内容確認：基幹サーバ更改に関する情報提供依頼<button class="rfx-modal-close" data-close="rfiContentOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div class="ans-block">
+        <h5>基本情報</h5>
+        <div class="ans-text">送信日時：2026-06-26 10:12（対象：参加確定 4社）　回答期限：2026-07-08　ステータス：終了</div>
+      </div>
+      <div class="ans-block">
+        <h5>質問項目</h5>
+        <div class="ans-text">1. 基幹サーバ更改の導入実績（直近5年・業種別件数）をご提示ください。
+2. 本件を担当する場合の想定体制（PM/SE/インフラ人数）をご提示ください。
+3. 概算規模感（ハードウェア＋構築役務）をご提示ください。
+4. 対応可能な移行方式（並行稼働・段階移行等）をご記載ください。</div>
+      </div>
+      <div class="ans-block">
+        <h5>添付資料</h5>
+        <div><a data-nav="添付ファイルのダウンロード（service-file）">📎 現行システム概要_開示版.pdf</a>　<a data-nav="添付ファイルのダウンロード（service-file）">📎 RFI回答フォーマット.xlsx</a></div>
+      </div>
+      <div class="ans-block">
+        <h5>回答状況（4／4社 提出）</h5>
+        <table class="rfx-table">
+          <thead><tr><th style="text-align:left;">サプライヤ</th><th>提出状況</th><th>提出日時</th></tr></thead>
+          <tbody>
+            <tr><td>株式会社NSKシステムズ</td><td style="text-align:center;"><span class="pill pill-green">提出済</span></td><td style="text-align:center;">2026-07-05 11:26</td></tr>
+            <tr><td>東都情報サービス株式会社</td><td style="text-align:center;"><span class="pill pill-green">提出済</span></td><td style="text-align:center;">2026-07-04 18:44</td></tr>
+            <tr><td>株式会社クラウドパートナーズ</td><td style="text-align:center;"><span class="pill pill-green">提出済</span></td><td style="text-align:center;">2026-07-07 15:02</td></tr>
+            <tr><td>日本ITソリューション株式会社</td><td style="text-align:center;"><span class="pill pill-green">提出済</span></td><td style="text-align:center;">2026-07-03 09:15</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-note">※ 送信済みのRFI内容は変更できません（BR-RFX-005）。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ng" data-close="rfiContentOverlay">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RFP内容確認 ===== -->
+<div class="rfx-overlay" id="rfpContentOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">RFP内容確認：基幹サーバ更改 提案依頼書<button class="rfx-modal-close" data-close="rfpContentOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div class="ans-block">
+        <h5>基本情報</h5>
+        <div class="ans-text">送信日時：2026-07-10 09:30（対象：ショートリスト済 3社）　提出期限：2026-07-24　提出フォーマット：テキスト＋ファイルアップロード（固定フォーマット・J2標準準拠）</div>
+      </div>
+      <div class="ans-block">
+        <h5>要求仕様（概要）</h5>
+        <div class="ans-text">・APサーバ2台／DBサーバ2台（HA構成）・ストレージ・バックアップ機器一式
+・構築役務：設計／構築／移行／テスト・移行方式は停止時間最小化を重視
+・保守：5年間・24時間365日・オンサイト4時間以内
+・提案書には機器構成・体制・スケジュール・金額内訳（税抜）を含めること</div>
+      </div>
+      <div class="ans-block">
+        <h5>添付資料</h5>
+        <div><a data-nav="添付ファイルのダウンロード（service-file）">📎 提案依頼書_本文.pdf</a>　<a data-nav="添付ファイルのダウンロード（service-file）">📎 要求仕様書_別紙1.xlsx</a>　<a data-nav="添付ファイルのダウンロード（service-file）">📎 現行構成一覧_別紙3.xlsx</a></div>
+      </div>
+      <div class="ans-block">
+        <h5>提出状況（2／3社 提出）</h5>
+        <table class="rfx-table">
+          <thead><tr><th style="text-align:left;">サプライヤ</th><th>提出状況</th><th>提出日時</th></tr></thead>
+          <tbody>
+            <tr><td>株式会社NSKシステムズ</td><td style="text-align:center;"><span class="pill pill-green">提出済</span></td><td style="text-align:center;">2026-07-12 14:05（v2）</td></tr>
+            <tr><td>東都情報サービス株式会社</td><td style="text-align:center;"><span class="pill pill-green">提出済</span></td><td style="text-align:center;">2026-07-11 09:48</td></tr>
+            <tr><td>株式会社クラウドパートナーズ</td><td style="text-align:center;"><span class="pill pill-pink">未提出</span></td><td style="text-align:center;">－</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-note">※ 送信済みのRFP内容は変更できません（BR-RFX-005）。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ng" data-close="rfpContentOverlay">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== サプライヤ追加招待 ===== -->
+<div class="rfx-overlay" id="inviteOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">サプライヤを追加招待<button class="rfx-modal-close" data-close="inviteOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div style="font-size:.9rem;margin-bottom:.4rem;">既存サプライヤマスタから招待するサプライヤを選択してください。</div>
+      <div class="invite-list" id="inviteList">
+        <label><input type="checkbox" value="[SUP-000305] 株式会社ゼンリンテック">[SUP-000305] 株式会社ゼンリンテック</label>
+        <label><input type="checkbox" value="[SUP-000318] ビットシステム株式会社">[SUP-000318] ビットシステム株式会社</label>
+        <label><input type="checkbox" value="[SUP-000322] 株式会社アークネット">[SUP-000322] 株式会社アークネット</label>
+      </div>
+      <div style="font-size:.9rem;margin:1rem 0 .4rem;">招待文言（任意）</div>
+      <textarea rows="3" id="inviteMessage" placeholder="招待メールに記載する文言を入力してください（未入力の場合は標準文面で送信されます）"></textarea>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="inviteOk" disabled>招待を送信する</button>
+      <button type="button" class="ng" data-close="inviteOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Q&A管理（SCR-RFX-006 lite） ===== -->
+<div class="rfx-overlay" id="qaOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">Q&A管理（Q&A掲示板）<button class="rfx-modal-close" data-close="qaOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div class="qa-filter">
+        <span>絞り込み：</span>
+        <select id="qaFilter">
+          <option value="all">全件</option>
+          <option value="open">未回答のみ</option>
+          <option value="done">回答済のみ</option>
+        </select>
+        <span style="font-size:.8rem;color:#777;">※最新投稿順。回答登録後は全参加サプライヤへ自動公開されます（BR-RFX-002）</span>
+      </div>
+      <table class="rfx-table" id="qaTable">
+        <thead>
+          <tr>
+            <th style="width:60px;text-align:center;">No.</th>
+            <th style="width:26%;">投稿サプライヤ</th>
+            <th>質問内容（先頭100文字）</th>
+            <th style="width:130px;text-align:center;">状態</th>
+            <th style="width:130px;text-align:center;">投稿日時</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="qa-detail-panel" id="qaDetailPanel" style="display:none;">
+        <div class="qd-meta" id="qdMeta"></div>
+        <div class="qd-q" id="qdQuestion"></div>
+        <div id="qdAnswerView"></div>
+        <div id="qdAnswerInputWrap">
+          <div style="font-size:.9rem;margin-bottom:.3rem;">回答入力（最大2,000文字）</div>
+          <textarea rows="3" id="qdAnswerInput" maxlength="2000" placeholder="回答を入力してください"></textarea>
+          <div class="toggle-line">
+            <span style="font-size:.9rem;">公開設定：</span>
+            <label class="toggle-switch"><input type="checkbox" id="qdPublicToggle" checked><span class="slider"></span></label>
+            <span id="qdPublicLabel" style="font-size:.9rem;font-weight:bold;color:#4169e1;">公開（全参加サプライヤへ通知）</span>
+          </div>
+          <div class="qa-register-line"><button type="button" id="qdRegisterBtn" disabled>回答を登録する</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ng" data-close="qaOverlay">案件詳細へ戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 評価シート入力（SCR-RFX-009 lite・評価者のみ） ===== -->
+<div class="rfx-overlay" id="scoreOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">評価シート入力：新基幹サーバ更改に伴う機器・構築役務調達<button class="rfx-modal-close" data-close="scoreOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div style="margin-bottom:.8rem;font-size:.9rem;">
+        評価者：<b>依頼裕三</b>（評価者ウェイト 50%）　｜　評価軸重み：技術 <b>60%</b> ／ 価格 <b>40%</b>　｜　スコアは 0〜100 の整数
+      </div>
+      <table class="rfx-table" id="scoreTable">
+        <thead>
+          <tr>
+            <th style="text-align:left;">評価対象サプライヤ</th>
+            <th style="width:110px;">技術スコア</th>
+            <th style="width:110px;">価格スコア</th>
+            <th style="width:110px;">総合スコア<br><span style="font-weight:normal;font-size:.75rem;">（自動計算）</span></th>
+            <th>コメント（任意・500文字）</th>
+            <th style="width:90px;">入力状態</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-sup="株式会社NSKシステムズ">
+            <td>[SUP-000045] 株式会社NSKシステムズ</td>
+            <td style="text-align:center;"><input type="text" class="score-in tech" value="88"></td>
+            <td style="text-align:center;"><input type="text" class="score-in price" value="76"></td>
+            <td class="total-cell">83.2</td>
+            <td><input type="text" class="cmt-in" maxlength="500" value="移行方式・体制とも優位。"></td>
+            <td style="text-align:center;"><span class="pill-state" style="color:#437643;font-weight:bold;">入力済</span></td>
+          </tr>
+          <tr data-sup="東都情報サービス株式会社">
+            <td>[SUP-000112] 東都情報サービス株式会社</td>
+            <td style="text-align:center;"><input type="text" class="score-in tech" value=""></td>
+            <td style="text-align:center;"><input type="text" class="score-in price" value=""></td>
+            <td class="total-cell">－</td>
+            <td><input type="text" class="cmt-in" maxlength="500" value=""></td>
+            <td style="text-align:center;"><span class="pill-state" style="color:#ff9933;font-weight:bold;">入力中</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="err-line" id="scoreErr">スコアは 0〜100 の整数で入力してください。</div>
+      <div class="modal-note">未提出のサプライヤ（株式会社クラウドパートナーズ）は評価対象外です。他の評価者のスコア・コメントは表示されません。各評価者が独立して入力します（RD-RFX-008）。入力途中でも保存できます。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="scoreSaveBtn">保存する</button>
+      <button type="button" class="ng" data-close="scoreOverlay">案件詳細へ戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 評価結果・比較（SCR-RFX-010 lite） ===== -->
+<div class="rfx-overlay" id="resultOverlay">
+  <div class="rfx-modal wide">
+    <div class="rfx-modal-header">評価結果・比較：新基幹サーバ更改に伴う機器・構築役務調達<button class="rfx-modal-close" data-close="resultOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <table class="rfx-table" id="resultTable">
+        <thead>
+          <tr>
+            <th style="text-align:left;">サプライヤ</th>
+            <th>依頼裕三<br><span style="font-weight:normal;font-size:.75rem;">（ウェイト50%）</span></th>
+            <th>経理雄之助<br><span style="font-weight:normal;font-size:.75rem;">（ウェイト50%）</span></th>
+            <th>総合スコア</th>
+            <th style="text-align:left;">評価コメント（抜粋）</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="modal-note">
+        総合スコア＝各評価者の（技術×60%＋価格×40%）を評価者ウェイトで加重平均（BR-RFX-003）。
+        評価者全員が全スコア・コメントを閲覧できます（BR-RFX-006）。未入力のスコアは「－」表示で集計対象外です。
+      </div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="toAwardReqBtn">落札確定申請へ</button>
+      <button type="button" class="ng" data-close="resultOverlay">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 落札確定申請（SCR-RFX-011 lite・案件担当者のみ） ===== -->
+<div class="rfx-overlay" id="awardReqOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">落札確定申請<button class="rfx-modal-close" data-close="awardReqOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div style="font-size:.9rem;margin-bottom:.4rem;">落札候補のサプライヤを選択してください（評価結果から選択）。</div>
+      <div id="awardCandList"><!-- render bằng JS --></div>
+      <div style="font-size:.9rem;margin:1rem 0 .3rem;">申請コメント<span style="color:#d9534f;font-size:.75rem;">　必須</span></div>
+      <textarea rows="3" id="awardReqComment" placeholder="例：総合スコア1位。納期・保守体制とも要件充足のため落札を申請します。"></textarea>
+      <div class="err-line" id="awardReqErr">申請コメントを入力してください。</div>
+      <div class="modal-note">申請後、案件ステータスは「落札承認待ち」となり、承認者（経理雄之助）へ承認依頼が送信されます（BD-RFX-008・承認ワークフロー必須）。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="awardReqOk">申請する</button>
+      <button type="button" class="ng" data-close="awardReqOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 落札承認（SCR-RFX-012 lite・承認者のみ） ===== -->
+<div class="rfx-overlay" id="approvalOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">落札承認<button class="rfx-modal-close" data-close="approvalOverlay">&times;</button></div>
+    <div class="rfx-modal-body">
+      <div class="cand-box" id="approvalCandBox"><!-- render bằng JS --></div>
+      <div style="font-size:.9rem;margin-bottom:.3rem;">承認コメント（差し戻し時は必須）</div>
+      <textarea rows="3" id="approvalComment" placeholder="コメントを入力してください"></textarea>
+      <div class="err-line" id="approvalErr">差し戻し時はコメントを入力してください。</div>
+      <div class="modal-note">承認すると案件ステータスは「落札完了」となり、全参加サプライヤへ結果通知・発注管理サービスへのPO連携が行われます。差し戻すと案件は「評価中」へ戻ります（§8.2 遷移図）。</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="approveOk">承認する</button>
+      <button type="button" class="warn" id="remandOk">差し戻す</button>
+      <button type="button" class="ng" data-close="approvalOverlay">戻る</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var toast = JienieLayout.toast;
+  var NOW = '2026-07-05';
+
+  // ===== Modal chung =====
+  function open(id) { document.getElementById(id).classList.add('show'); }
+  function close(id) { document.getElementById(id).classList.remove('show'); }
+  document.querySelectorAll('[data-close]').forEach(function (b) {
+    b.addEventListener('click', function () { close(b.getAttribute('data-close')); });
+  });
+  document.querySelectorAll('.rfx-overlay').forEach(function (ov) {
+    ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
+  });
+
+  // ===== 対応履歴 helper =====
+  var histTime = 10; // phút giả lập tăng dần
+  function addHistory(text) {
+    var div = document.createElement('div');
+    div.className = 'new-entry';
+    div.textContent = NOW + ' ' + ('0' + (9 + Math.floor(histTime / 60))).slice(-2) + ':' + ('0' + (histTime % 60)).slice(-2) + '　' + text;
+    histTime += 7;
+    var log = document.getElementById('historyLog');
+    log.insertBefore(div, log.firstChild);
+  }
+
+  // ===== VÒNG ĐỜI TRẠNG THÁI (300→400→450→500 / 450→400 / →900) =====
+  var badge = document.getElementById('projectStatusBadge');
+  var awardCandidate = null; // { name, total }
+
+  function setFlow(currentStep, doneUpTo) {
+    // doneUpTo: mảng step done; currentStep: step hiện tại (null = không có current)
+    var labels = { rfi: 'RFI（情報収集）', rfp: 'RFP（提案依頼）', eval: '評価', awardw: '落札承認', award: '落札完了' };
+    document.querySelectorAll('#flowSteps .flow-step').forEach(function (st) {
+      var key = st.dataset.step;
+      if (key === 'create') return;
+      var icon = st.querySelector('.fs-icon');
+      st.classList.remove('current-step');
+      if (doneUpTo.indexOf(key) > -1) {
+        icon.className = 'fs-icon done';
+        icon.textContent = '✓';
+      } else if (key === currentStep) {
+        icon.className = 'fs-icon current';
+        icon.textContent = { rfp: 'RFP', eval: '評価', awardw: '承', award: '完' }[key] || '';
+        st.classList.add('current-step');
+      } else {
+        icon.className = 'fs-icon future';
+        icon.textContent = '';
+      }
+    });
+  }
+
+  function transitionTo(code) {
+    var hubScore = document.getElementById('hubScore');
+    var hubResult = document.getElementById('hubResult');
+    var hubAwardReq = document.getElementById('hubAwardReq');
+    var hubApproval = document.getElementById('hubApproval');
+    var startEval = document.getElementById('startEvalBtn');
+
+    if (code === 400) {
+      badge.textContent = '評価中';
+      badge.className = 'status-badge st-eval';
+      setFlow('eval', ['rfi', 'rfp']);
+      // RFP event → 終了
+      document.getElementById('rfpEventStatus').innerHTML = '<span class="pill pill-gray">終了</span>';
+      // 未提出サプライヤ → 評価対象外
+      document.getElementById('cloudRfpCell').innerHTML = '<span class="pill pill-pink">未提出</span>　<span style="font-size:.82rem;color:#777;">（評価対象外）</span>';
+      // Hub
+      startEval.className = 'hub-btn done-state';
+      startEval.disabled = true;
+      startEval.innerHTML = '評価開始<span class="sub">開始済（' + NOW + '）</span>';
+      hubScore.disabled = false; hubScore.title = '';
+      hubResult.disabled = false; hubResult.title = '';
+      hubAwardReq.disabled = false; hubAwardReq.title = '';
+      hubAwardReq.classList.add('primary');
+    }
+    if (code === 450) {
+      badge.textContent = '落札承認待ち';
+      badge.className = 'status-badge st-award-w';
+      setFlow('awardw', ['rfi', 'rfp', 'eval']);
+      hubScore.disabled = true; hubScore.title = '評価フェーズ終了のため入力不可';
+      hubAwardReq.classList.remove('primary');
+      hubAwardReq.disabled = true;
+      hubAwardReq.innerHTML = '落札確定申請<span class="sub">申請済（' + NOW + '）・承認待ち</span>';
+      hubApproval.style.display = '';
+      hubApproval.classList.add('primary');
+    }
+    if (code === 500) {
+      badge.textContent = '落札完了';
+      badge.className = 'status-badge st-award';
+      setFlow(null, ['rfi', 'rfp', 'eval', 'awardw', 'award']);
+      hubApproval.classList.remove('primary');
+      hubApproval.disabled = true;
+      hubApproval.innerHTML = '承認タスクへ<span class="sub">承認済（' + NOW + '）</span>';
+      hubResult.disabled = false;
+      // Header: thêm dòng 落札サプライヤ
+      var left = document.getElementById('headerLeft');
+      var line = document.createElement('div');
+      line.className = 'info-line';
+      line.innerHTML = '<label>落札サプライヤ</label><span>' + awardCandidate.name + '（PO連携中）</span>';
+      left.appendChild(line);
+      // Supplier table: gắn nhãn 落札
+      document.querySelectorAll('#supplierTable tbody tr').forEach(function (tr) {
+        if (tr.dataset.supName === awardCandidate.name) {
+          tr.querySelector('.sup-name-cell').innerHTML += '<span class="win-label">落札</span>';
+        }
+      });
+      // Khóa thao tác担当者
+      document.getElementById('cancelProjectBtn').disabled = true;
+      document.getElementById('editProjectBtn').disabled = true;
+      document.getElementById('inviteBtn').disabled = true;
+    }
+    if (code === 400.5) { // 差し戻し từ 450 về 400
+      badge.textContent = '評価中';
+      badge.className = 'status-badge st-eval';
+      setFlow('eval', ['rfi', 'rfp']);
+      hubScore.disabled = false; hubScore.title = '';
+      hubAwardReq.disabled = false;
+      hubAwardReq.classList.add('primary');
+      hubAwardReq.innerHTML = '落札確定申請<span class="sub">差し戻しあり・再申請可（案件担当者のみ）</span>';
+      hubApproval.style.display = 'none';
+      hubApproval.classList.remove('primary');
+    }
+  }
+
+  // ===== 評価開始（300→400） =====
+  document.getElementById('startEvalBtn').addEventListener('click', function () {
+    if (this.disabled) return;
+    open('evalOverlay');
+  });
+  document.getElementById('evalOk').addEventListener('click', function () {
+    close('evalOverlay');
+    transitionTo(400);
+    addHistory('本社 総務部　依頼裕三　評価フェーズを開始しました。（評価者2名へ通知・未提出1社は評価対象外）');
+    toast('ステータスが「評価中」へ遷移しました。評価者へ通知が送信されます');
+  });
+
+  // ===== 案件キャンセル（→900） =====
+  document.getElementById('cancelProjectBtn').addEventListener('click', function () {
+    if (this.disabled) return;
+    open('cancelOverlay');
+  });
+  document.getElementById('cancelOk').addEventListener('click', function () {
+    close('cancelOverlay');
+    badge.textContent = 'キャンセル';
+    badge.className = 'status-badge st-cancel';
+    document.querySelectorAll('#hubActions .hub-btn').forEach(function (b) { b.disabled = true; b.classList.remove('primary', 'done-state'); });
+    document.getElementById('editProjectBtn').disabled = true;
+    document.getElementById('cancelProjectBtn').disabled = true;
+    document.getElementById('inviteBtn').disabled = true;
+    addHistory('本社 総務部　依頼裕三　案件をキャンセルしました。（参加サプライヤ全社へ中止通知）');
+    toast('案件をキャンセルしました。参加サプライヤ全社へ中止通知が送信されます');
+  });
+
+  // ===== 評価シート入力（SCR-RFX-009 lite） =====
+  document.getElementById('hubScore').addEventListener('click', function () {
+    if (this.disabled) return;
+    open('scoreOverlay');
+  });
+  function recalcRow(tr) {
+    var t = tr.querySelector('.tech').value.trim();
+    var p = tr.querySelector('.price').value.trim();
+    var totalCell = tr.querySelector('.total-cell');
+    var state = tr.querySelector('.pill-state');
+    var tOk = /^\d+$/.test(t) && +t >= 0 && +t <= 100;
+    var pOk = /^\d+$/.test(p) && +p >= 0 && +p <= 100;
+    tr.querySelector('.tech').classList.toggle('has-error', t !== '' && !tOk);
+    tr.querySelector('.price').classList.toggle('has-error', p !== '' && !pOk);
+    if (tOk && pOk) {
+      totalCell.textContent = (+t * 0.6 + +p * 0.4).toFixed(1); // BR-RFX-003
+      state.textContent = '入力済'; state.style.color = '#437643';
+    } else {
+      totalCell.textContent = '－';
+      state.textContent = '入力中'; state.style.color = '#ff9933';
+    }
+  }
+  document.querySelectorAll('#scoreTable tbody tr').forEach(function (tr) {
+    tr.querySelectorAll('.score-in').forEach(function (inp) {
+      inp.addEventListener('input', function () { recalcRow(tr); });
+    });
+    recalcRow(tr);
+  });
+  document.getElementById('scoreSaveBtn').addEventListener('click', function () {
+    var anyError = document.querySelectorAll('#scoreTable .score-in.has-error').length > 0;
+    document.getElementById('scoreErr').classList.toggle('show', anyError);
+    if (anyError) return;
+    close('scoreOverlay');
+    addHistory('本社 総務部　依頼裕三　評価スコアを保存しました。');
+    toast('評価スコアを保存しました（他の評価者へは非公開のまま保存されます・RD-RFX-008）');
+  });
+
+  // ===== 評価結果・比較（SCR-RFX-010 lite） =====
+  var evaluator2 = {
+    '株式会社NSKシステムズ': { total: 87.2, cmt: '技術提案が具体的。' },
+    '東都情報サービス株式会社': { total: 84.0, cmt: 'DR構成の提案が良い。' }
+  };
+  var lastResultRows = [];
+  function buildResult() {
+    var tbody = document.querySelector('#resultTable tbody');
+    tbody.innerHTML = '';
+    lastResultRows = [];
+    document.querySelectorAll('#scoreTable tbody tr').forEach(function (tr) {
+      var sup = tr.dataset.sup;
+      var mine = tr.querySelector('.total-cell').textContent;
+      var other = evaluator2[sup];
+      var total = '－';
+      if (mine !== '－') total = ((parseFloat(mine) + other.total) / 2).toFixed(1);
+      var myCmt = tr.querySelector('.cmt-in').value.trim();
+      lastResultRows.push({ label: tr.querySelector('td').textContent, name: sup, mine: mine, other: other.total.toFixed(1), total: total, cmt: (myCmt ? '依頼：' + myCmt + '　' : '') + '経理：' + other.cmt });
+    });
+    lastResultRows.sort(function (a, b) {
+      if (a.total === '－') return 1;
+      if (b.total === '－') return -1;
+      return parseFloat(b.total) - parseFloat(a.total);
+    });
+    lastResultRows.forEach(function (r, i) {
+      var tr = document.createElement('tr');
+      var isTop = i === 0 && r.total !== '－';
+      if (isTop) tr.className = 'top-rank';
+      tr.innerHTML =
+        '<td>' + r.label + (isTop ? '<span class="rank-label">総合1位</span>' : '') + '</td>' +
+        '<td style="text-align:right;">' + r.mine + '</td>' +
+        '<td style="text-align:right;">' + r.other + '</td>' +
+        '<td class="total-cell">' + r.total + '</td>' +
+        '<td style="font-size:.85rem;">' + r.cmt + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+  document.getElementById('hubResult').addEventListener('click', function () {
+    if (this.disabled) return;
+    buildResult();
+    open('resultOverlay');
+  });
+
+  // ===== 落札確定申請（SCR-RFX-011 lite・400→450） =====
+  function openAwardReq() {
+    buildResult();
+    var list = document.getElementById('awardCandList');
+    list.innerHTML = '';
+    lastResultRows.forEach(function (r, i) {
+      if (r.total === '－') return;
+      var line = document.createElement('label');
+      line.className = 'cand-radio-line';
+      line.innerHTML = '<input type="radio" name="awardCand" value="' + r.name + '" data-total="' + r.total + '"' + (i === 0 ? ' checked' : '') + '>' +
+        '<span>' + r.label + (i === 0 ? '<span class="rank-label">総合1位</span>' : '') + '</span>' +
+        '<span class="score">' + r.total + '</span>';
+      list.appendChild(line);
+    });
+    if (!list.children.length) {
+      toast('評価スコアが未入力のため落札候補を選択できません。先に評価シートを入力してください');
+      return;
+    }
+    open('awardReqOverlay');
+  }
+  document.getElementById('hubAwardReq').addEventListener('click', function () {
+    if (this.disabled) return;
+    openAwardReq();
+  });
+  document.getElementById('toAwardReqBtn').addEventListener('click', function () {
+    close('resultOverlay');
+    openAwardReq();
+  });
+  document.getElementById('awardReqOk').addEventListener('click', function () {
+    var cmt = document.getElementById('awardReqComment').value.trim();
+    if (!cmt) {
+      document.getElementById('awardReqErr').classList.add('show');
+      return;
+    }
+    document.getElementById('awardReqErr').classList.remove('show');
+    var sel = document.querySelector('input[name="awardCand"]:checked');
+    awardCandidate = { name: sel.value, total: sel.dataset.total, comment: cmt };
+    close('awardReqOverlay');
+    transitionTo(450);
+    addHistory('本社 総務部　依頼裕三　落札確定を申請しました。（落札候補：' + awardCandidate.name + '・承認者：経理雄之助）');
+    toast('落札確定を申請しました。承認者（経理雄之助）へ承認依頼が送信されます');
+  });
+
+  // ===== 落札承認（SCR-RFX-012 lite・450→500 / →400） =====
+  document.getElementById('hubApproval').addEventListener('click', function () {
+    if (this.disabled) return;
+    document.getElementById('approvalCandBox').innerHTML =
+      '<div class="kv"><label>落札候補</label><span>' + awardCandidate.name + '</span></div>' +
+      '<div class="kv"><label>総合スコア</label><span><b style="color:#4169e1;font-size:1.1rem;">' + awardCandidate.total + '</b></span></div>' +
+      '<div class="kv"><label>申請者</label><span>本社 総務部　依頼裕三（' + NOW + ' 申請）</span></div>' +
+      '<div class="kv"><label>申請コメント</label><span>' + awardCandidate.comment + '</span></div>';
+    open('approvalOverlay');
+  });
+  document.getElementById('approveOk').addEventListener('click', function () {
+    document.getElementById('approvalErr').classList.remove('show');
+    close('approvalOverlay');
+    transitionTo(500);
+    addHistory('本社 総務部　経理雄之助　落札を承認しました。（落札：' + awardCandidate.name + '・全参加サプライヤへ結果通知・PO連携開始）');
+    toast('落札を承認しました。全参加サプライヤへ結果通知・発注管理サービスへPO連携を行います（BD-RFX-008）');
+  });
+  document.getElementById('remandOk').addEventListener('click', function () {
+    if (!document.getElementById('approvalComment').value.trim()) {
+      document.getElementById('approvalErr').classList.add('show');
+      return;
+    }
+    document.getElementById('approvalErr').classList.remove('show');
+    close('approvalOverlay');
+    transitionTo(400.5);
+    addHistory('本社 総務部　経理雄之助　落札申請を差し戻しました。（案件は「評価中」へ・担当者へ通知）');
+    toast('落札申請を差し戻しました。案件は「評価中」へ戻り、担当者へ通知されます');
+  });
+
+  // ===== RFI/RFP内容確認 =====
+  document.getElementById('rfiContentLink').addEventListener('click', function () { open('rfiContentOverlay'); });
+  document.getElementById('rfpContentLink').addEventListener('click', function () { open('rfpContentOverlay'); });
+
+  // ===== 版一覧（RD-RFX-011） =====
+  var versionData = {
+    '提案書_NSK.pdf': [
+      { v: 'v2', latest: true,  dt: '2026-07-12 14:05', by: '株式会社NSKシステムズ　佐々木 健' },
+      { v: 'v1', latest: false, dt: '2026-07-11 16:40', by: '株式会社NSKシステムズ　佐々木 健' }
+    ],
+    '提案書_ToutoIS.pdf': [
+      { v: 'v1', latest: true,  dt: '2026-07-11 09:48', by: '東都情報サービス株式会社　川口 誠' }
+    ]
+  };
+  document.querySelectorAll('.ver-open').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var file = a.getAttribute('data-file');
+      document.getElementById('versionFileName').textContent = file;
+      var tbody = document.getElementById('versionTbody');
+      tbody.innerHTML = '';
+      (versionData[file] || []).forEach(function (row) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td style="text-align:center;font-weight:bold;">' + row.v + (row.latest ? '<span class="ver-label">最新</span>' : '') + '</td>' +
+          '<td style="text-align:center;">' + row.dt + '</td>' +
+          '<td>' + row.by + '</td>' +
+          '<td style="text-align:center;"><a data-dl="1">ダウンロード</a></td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('a[data-dl]').forEach(function (dl) {
+        dl.addEventListener('click', function () { toast('実際の画面では選択した版のファイルをダウンロードします（service-file）'); });
+      });
+      open('versionOverlay');
+    });
+  });
+
+  // ===== 回答内容確認 =====
+  var answerData = {
+    nsk: {
+      name: '株式会社NSKシステムズ',
+      blocks: [
+        { title: 'RFI回答（提出：2026-07-05 11:26）', text: '・導入実績：基幹サーバ更改 直近5年で42件（金融・製造中心）\n・提案体制：PM1名／SE4名／インフラ2名\n・概算規模感：ハードウェア＋構築役務で 68,000千円〜', files: ['会社概要_NSK.pdf', 'RFI回答書_NSK.xlsx'] },
+        { title: 'RFP提案書（提出：2026-07-12 14:05・v2）', text: '仮想化基盤＋HAクラスタ構成による提案。移行はブルーグリーン方式で停止時間を最小化。\n5年間の保守（24/365）を含む総額 74,800千円（税抜）。', files: ['提案書_NSK.pdf（v2）', '見積書_NSK.xlsx'] }
+      ]
+    },
+    touto: {
+      name: '東都情報サービス株式会社',
+      blocks: [
+        { title: 'RFI回答（提出：2026-07-04 18:44）', text: '・導入実績：官公庁・自治体系を中心に31件\n・提案体制：PM1名／SE3名\n・概算規模感：72,000千円前後', files: ['RFI回答書_ToutoIS.pdf'] },
+        { title: 'RFP提案書（提出：2026-07-11 09:48・v1）', text: 'オンプレ＋クラウドDRのハイブリッド構成。段階移行方式（3フェーズ）。\n5年間保守込み総額 79,500千円（税抜）。', files: ['提案書_ToutoIS.pdf（v1）'] }
+      ]
+    },
+    cloud: {
+      name: '株式会社クラウドパートナーズ',
+      blocks: [
+        { title: 'RFI回答（提出：2026-07-07 15:02）', text: '・導入実績：クラウド移行案件 58件（AWS/Azure）\n・提案体制：PM1名／クラウドアーキテクト2名／SE2名\n・概算規模感：フルクラウド化で 61,000千円〜', files: ['RFI回答書_CloudPartners.pdf'] },
+        { title: 'RFP提案書', text: '未提出（提出期限：2026-07-24）', files: [] }
+      ]
+    },
+    nihonit: {
+      name: '日本ITソリューション株式会社',
+      blocks: [
+        { title: 'RFI回答（提出：2026-07-03 09:15）', text: '・導入実績：中堅企業向け基幹システム 12件\n・提案体制：PM兼SE1名／SE2名\n・概算規模感：83,000千円前後', files: ['RFI回答書_NihonIT.pdf'] },
+        { title: 'ショートリスト結果', text: '選外（RFI評価により RFP招待対象から除外・BR-RFX-001）', files: [] }
+      ]
+    }
+  };
+  document.querySelectorAll('.ans-open').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var d = answerData[a.getAttribute('data-sup')];
+      if (!d) return;
+      document.getElementById('answerSupName').textContent = d.name;
+      var body = document.getElementById('answerBody');
+      body.innerHTML = '';
+      d.blocks.forEach(function (bl) {
+        var div = document.createElement('div');
+        div.className = 'ans-block';
+        var filesHtml = bl.files.map(function (f) { return '<a data-dl="1">📎 ' + f + '</a>'; }).join('　');
+        div.innerHTML = '<h5>' + bl.title + '</h5><div class="ans-text">' + bl.text + '</div>' + (filesHtml ? '<div>' + filesHtml + '</div>' : '');
+        body.appendChild(div);
+      });
+      body.querySelectorAll('a[data-dl]').forEach(function (dl) {
+        dl.addEventListener('click', function () { toast('実際の画面では添付ファイルをダウンロードします（service-file）'); });
+      });
+      open('answerOverlay');
+    });
+  });
+
+  // ===== サプライヤ追加招待 =====
+  var inviteOk = document.getElementById('inviteOk');
+  document.getElementById('inviteBtn').addEventListener('click', function () {
+    if (this.disabled) return;
+    open('inviteOverlay');
+  });
+  document.querySelectorAll('#inviteList input').forEach(function (c) {
+    c.addEventListener('change', function () {
+      inviteOk.disabled = !document.querySelector('#inviteList input:checked');
+    });
+  });
+  inviteOk.addEventListener('click', function () {
+    var checked = Array.prototype.slice.call(document.querySelectorAll('#inviteList input:checked'));
+    var tbody = document.querySelector('#supplierTable tbody');
+    checked.forEach(function (c) {
+      var tr = document.createElement('tr');
+      tr.dataset.supName = c.value.replace(/^\[.*\]\s*/, '');
+      tr.innerHTML =
+        '<td class="sup-name-cell">' + c.value + '</td>' +
+        '<td style="text-align:center;"><span class="pill pill-blue">招待中</span></td>' +
+        '<td style="text-align:center;">－</td>' +
+        '<td style="text-align:center;">－</td>' +
+        '<td>－</td>' +
+        '<td style="text-align:center;">－</td>';
+      tbody.appendChild(tr);
+      c.checked = false;
+      c.closest('label').style.display = 'none';
+    });
+    inviteOk.disabled = true;
+    close('inviteOverlay');
+    var invited = document.querySelectorAll('#supplierTable tbody tr').length;
+    document.getElementById('supplierHdrNote').textContent =
+      invited + '社（参加確定 4社 ／ 招待中 ' + (invited - 4) + '社）・ショートリスト済 3社';
+    addHistory('本社 総務部　依頼裕三　サプライヤを追加招待しました。（' + checked.length + '社）');
+    toast('選択したサプライヤへ招待通知を送信しました（service-notification経由）');
+  });
+
+  // ===== Q&A管理（SCR-RFX-006 lite） =====
+  var qaData = [
+    { no: 8, sup: '東都情報サービス株式会社', q: 'RFP提出期限の延長予定はありますか。社内承認の関係で2〜3営業日の猶予をいただけると助かります。', state: 'open', dt: '2026-07-13 16:20', a: '', pub: true },
+    { no: 7, sup: '株式会社NSKシステムズ', q: '現行環境のデモ・見学は可能でしょうか。移行方式の検討のため、現地確認を希望します。', state: 'open', dt: '2026-07-13 10:05', a: '', pub: true },
+    { no: 6, sup: '株式会社クラウドパートナーズ', q: '価格提示は税抜・税込どちらで記載すべきでしょうか。', state: 'private', dt: '2026-07-12 13:40', a: '税抜価格でご記載ください。消費税は別途内訳としてご提示ください。', pub: false },
+    { no: 5, sup: '東都情報サービス株式会社', q: '既存ベンダーとの並行稼働期間は想定されていますか。', state: 'public', dt: '2026-07-12 09:18', a: '切替後1ヶ月間の並行稼働を想定しています。詳細はRFP別紙2をご参照ください。', pub: true },
+    { no: 4, sup: '株式会社NSKシステムズ', q: '保守サポートの必須対応時間（SLA）をご提示ください。', state: 'public', dt: '2026-07-11 17:55', a: '24時間365日・オンサイト4時間以内の駆けつけを必須要件とします。', pub: true },
+    { no: 3, sup: '株式会社クラウドパートナーズ', q: '提案書のページ数に上限はありますか。', state: 'public', dt: '2026-07-11 11:02', a: '上限はありませんが、要約（エグゼクティブサマリー）を2ページ以内で添付してください。', pub: true },
+    { no: 2, sup: '東都情報サービス株式会社', q: '移行作業の実施時間帯に制約はありますか（夜間・休日等）。', state: 'public', dt: '2026-07-10 15:33', a: '平日夜間（22時以降）および休日の作業を基本とします。', pub: true },
+    { no: 1, sup: '株式会社NSKシステムズ', q: '現行機器の構成情報（型番・台数）の開示は可能でしょうか。', state: 'public', dt: '2026-07-10 11:47', a: '参加確定サプライヤ限定で構成一覧（別紙3）を共有済みです。ダウンロード資料をご確認ください。', pub: true }
+  ];
+  var selectedQa = null;
+
+  function stateBadge(item) {
+    if (item.state === 'open') return '<span class="pill pill-pink">未回答</span>';
+    if (item.state === 'private') return '<span class="pill pill-gray">回答済・非公開</span>';
+    return '<span class="pill pill-green">回答済・公開中</span>';
+  }
+  function refreshQaCounts() {
+    var open_ = qaData.filter(function (x) { return x.state === 'open'; }).length;
+    var pub = qaData.filter(function (x) { return x.state === 'public'; }).length;
+    var priv = qaData.filter(function (x) { return x.state === 'private'; }).length;
+    document.getElementById('qaTotal').textContent = qaData.length;
+    document.getElementById('qaUnanswered').textContent = open_;
+    document.getElementById('qaAnswered').textContent = pub + priv;
+    document.getElementById('qaPublic').textContent = pub;
+    document.getElementById('qaPrivate').textContent = priv;
+    document.getElementById('hubQaNote').textContent = open_ > 0 ? '未回答 ' + open_ + '件あり' : '未回答なし';
+  }
+  function renderQaTable() {
+    var filter = document.getElementById('qaFilter').value;
+    var tbody = document.querySelector('#qaTable tbody');
+    tbody.innerHTML = '';
+    qaData.forEach(function (item) {
+      if (filter === 'open' && item.state !== 'open') return;
+      if (filter === 'done' && item.state === 'open') return;
+      var tr = document.createElement('tr');
+      if (selectedQa === item) tr.className = 'selected';
+      tr.innerHTML =
+        '<td style="text-align:center;">Q' + item.no + '</td>' +
+        '<td>' + item.sup + '</td>' +
+        '<td>' + item.q.slice(0, 100) + '</td>' +
+        '<td style="text-align:center;">' + stateBadge(item) + '</td>' +
+        '<td style="text-align:center;">' + item.dt + '</td>';
+      tr.addEventListener('click', function () { selectQa(item); });
+      tbody.appendChild(tr);
+    });
+  }
+  function selectQa(item) {
+    selectedQa = item;
+    renderQaTable();
+    var panel = document.getElementById('qaDetailPanel');
+    panel.style.display = 'block';
+    document.getElementById('qdMeta').textContent = 'Q' + item.no + '　' + item.sup + '　投稿日時：' + item.dt;
+    document.getElementById('qdQuestion').textContent = item.q;
+    var view = document.getElementById('qdAnswerView');
+    var inputWrap = document.getElementById('qdAnswerInputWrap');
+    if (item.state === 'open') {
+      view.innerHTML = '';
+      inputWrap.style.display = 'block';
+      document.getElementById('qdAnswerInput').value = '';
+      document.getElementById('qdRegisterBtn').disabled = true;
+      document.getElementById('qdPublicToggle').checked = true;
+      updatePublicLabel();
+    } else {
+      view.innerHTML = '<div class="qd-a"><b>回答：</b>' + item.a + '</div>' +
+        '<div style="font-size:.82rem;color:#777;">公開設定：' + (item.pub ? '公開（全参加サプライヤへ通知済み）' : '非公開') + '　※回答済みのQ&Aは編集できません</div>';
+      inputWrap.style.display = 'none';
+    }
+  }
+  function updatePublicLabel() {
+    var on = document.getElementById('qdPublicToggle').checked;
+    var lb = document.getElementById('qdPublicLabel');
+    lb.textContent = on ? '公開（全参加サプライヤへ通知）' : '非公開（通知を送信しない）';
+    lb.style.color = on ? '#4169e1' : '#808080';
+  }
+  document.getElementById('qaFilter').addEventListener('change', renderQaTable);
+  document.getElementById('qdPublicToggle').addEventListener('change', updatePublicLabel);
+  document.getElementById('qdAnswerInput').addEventListener('input', function () {
+    document.getElementById('qdRegisterBtn').disabled = !this.value.trim();
+  });
+  document.getElementById('qdRegisterBtn').addEventListener('click', function () {
+    if (!selectedQa) return;
+    var pub = document.getElementById('qdPublicToggle').checked;
+    selectedQa.a = document.getElementById('qdAnswerInput').value.trim();
+    selectedQa.state = pub ? 'public' : 'private';
+    selectedQa.pub = pub;
+    refreshQaCounts();
+    selectQa(selectedQa);
+    toast(pub ? '回答を登録し、全参加サプライヤへ公開通知を送信しました（BR-RFX-002）' : '回答を登録しました（非公開・通知は送信されません）');
+  });
+  document.querySelectorAll('.qa-open-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.disabled) return;
+      renderQaTable();
+      open('qaOverlay');
+    });
+  });
+
+  // ===== 対応履歴 もっと見る／閉じる =====
+  var moreBtn = document.getElementById('historyMoreBtn');
+  var historyOpen = false;
+  moreBtn.addEventListener('click', function () {
+    historyOpen = !historyOpen;
+    document.querySelectorAll('#historyLog .history-extra').forEach(function (d) {
+      d.classList.toggle('show', historyOpen);
+    });
+    moreBtn.textContent = historyOpen ? '∧ 閉じる' : '∨ もっと見る';
+  });
+
+  refreshQaCounts();
+})();
+</script>
+
+</body>
+</html>
