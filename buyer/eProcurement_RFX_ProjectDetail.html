@@ -1333,11 +1333,12 @@ JienieLayout.init();
     selectQa(selectedQa);
     toast(pub ? '回答を登録し、全参加サプライヤへ公開通知を送信しました（BR-RFX-002）' : '回答を登録しました（非公開・通知は送信されません）');
   });
+  // SUB-FEATURE更新: eProcurement_RFX_QA.html（SCR-RFX-006フル画面）が作成済みのため、
+  // MOCKUP_GENERATION_PROMPT.md tier1（実href遷移を優先）に従いモーダルではなく実遷移に変更。
   document.querySelectorAll('.qa-open-btn').forEach(function (b) {
     b.addEventListener('click', function () {
       if (b.disabled) return;
-      renderQaTable();
-      open('qaOverlay');
+      window.location.href = 'eProcurement_RFX_QA.html';
     });
   });
 
