@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: Award確定申請画面（担当者）（画面ID：SCR-RFX-011）— RFX機能（新規開発・Buyer Portal）
+  Dùng chung header/sidebar qua assets/layout.css + assets/layout.js。
+
+  Nguồn yêu cầu (projects/standard/documents/features/RFX機能/02_要件定義書.md):
+    - §544-546 SCR-RFX-011説明（旧文言・review_20260706.md R-05/R-17で指摘済みの陳腐化箇所）は承認ワーク
+      フロー導入前の記述のため、より新しい下記の確定仕様を優先して採用：
+    - §248 BR-RFX-009: Award確定は担当者単独では行えず、指定された承認者による承認ワークフローが必須。
+      担当者はAward承認申請を行い、承認者が承認した時点でAwardが正式確定。差し戻し時は評価フェーズへ戻り
+      再申請可能（Q-RD-RFX-004確定・Ariba同様の設計）
+    - §245 BR-RFX-006: 案件担当者（購買部門リード）が議長役として、評価者のスコア・コメント・推薦意見を
+      総括して最終的なAward候補（1社または複数社）を決定する
+    - §410-424 RD-RFX-009（Award・発注連携）: 入力＝評価結果画面からのAward候補選択（1社or複数社）／
+      処理＝担当者が承認申請→承認者へ通知／出力＝SCR-RFX-011・承認依頼通知
+    - 03_基本設計書.md 画面一覧: SCR-RFX-011＝Award確定申請画面（担当者）／BD-RFX-008／RD-RFX-009
+    - 03_基本設計書.md §3.2画面遷移図: SCR010 -「Award申請ボタン」→ SCR011 -「申請完了／キャンセル」→ SCR003
+
+  ※ 注意: 03_基本設計書.md §3.3にSCR-RFX-011の項目定義表は無い（項目定義があるのは002／006／009のみ）。
+  候補選択UI・コメント必須などはRD-RFX-009/BR-RFX-006/009から逆算した【TỰ ĐỀ XUẤT】。
+
+  ※ 経緯: 同機能はeProcurement_RFX_ProjectDetail.htmlの「落札確定申請」ハブボタンからawardReqOverlay
+  lite版として先に実装済み（400→450のプロジェクト状態遷移と連動）。ProjectDetail側のライフサイクル
+  デモを壊さないため、ProjectDetailのボタンは既存モーダルのまま維持し、本ファイルは項目定義に忠実な
+  「独立フル画面」として別途作成（ユーザー依頼「バイヤー側未作成画面を一括作成」に対応）。
+
+  Demo data: 案件RFX2607000006。eProcurement_RFX_ScoreResult.html（SCR-RFX-010）と同一の評価結果
+  （NSKシステムズ85.2＝総合1位／東都情報サービス80.6）を再利用し、候補として選択可能にする。
+
+  SUB-FEATURE HOẠT ĐỘNG THẬT（MOCKUP_GENERATION_PROMPT.md mục4 tier2 chuẩn）:
+    1. 評価結果からのAward候補ラジオ選択（総合1位をデフォルト選択、複数候補から選び直し可能）。
+    2. 申請コメントは必須。未入力で申請するとエラー表示（実バリデーション）。
+    3. 「申請する」→確認モーダルでBR-RFX-009（承認ワークフロー必須）を明示 → OK後、画面が実際に
+       「申請済み」状態へロック遷移（フォーム無効化・申請内容サマリ表示）。
+    4. 申請完了後は実際に eProcurement_RFX_ProjectDetail.html（SCR-RFX-003）へ遷移する
+       （§3.2画面遷移図どおり）。あわせて、承認者（経理雄之助）が確認する画面（SCR-RFX-012）への
+       参考リンクも表示する（デモ用ショートカット・TỰ ĐỀ XUẤT）。
+    5. 「キャンセル」も実際にSCR-RFX-003へ遷移する。
+
+  Design style: J2デザインシステム。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Award確定申請</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+  .page-content { padding: 0 1.5rem 3rem; max-width: 900px; }
+
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1.5rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+
+  .project-info-box { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 4px; padding: 1rem 1.3rem; margin-bottom: 1.3rem; }
+  .project-info-box .pi-no { font-size: .85rem; color: #555; margin-bottom: .3rem; }
+  .project-info-box .pi-name { font-size: 1.15rem; font-weight: bold; margin-bottom: .3rem; }
+
+  .form-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.4rem; }
+  .form-section-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; }
+  .form-section-body { padding: 1.3rem 1.5rem; }
+
+  .cand-radio-line { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; border: 1px solid #e3e3e6; border-radius: 4px; margin-bottom: .7rem; cursor: pointer; }
+  .cand-radio-line:hover { background: #f7f9fd; }
+  .cand-radio-line input { width: 17px; height: 17px; accent-color: #4169e1; }
+  .cand-radio-line .cand-name { flex: 1; font-size: .95rem; }
+  .rank-label { background: #ff9933; color: #fff; font-size: .7rem; padding: 1px 6px; border-radius: 2px; margin-left: .5rem; }
+  .cand-radio-line .cand-score { font-weight: bold; color: #4169e1; font-size: 1.05rem; }
+
+  textarea#reqComment { width: 100%; padding: .6rem .9rem; border: 1px solid #ccc; border-radius: 4px; font-size: .93rem; font-family: inherit; resize: vertical; }
+  .err-msg { color: #dc3545; font-size: .85rem; margin-top: .5rem; display: none; }
+  .err-msg.show { display: block; }
+  .rule-note { background: #eef4ff; border: 1px solid #b9cdfa; border-radius: 4px; padding: .8rem 1.1rem; font-size: .88rem; color: #29497a; margin-top: 1rem; }
+
+  .sent-banner { background: #eefbf1; border: 1px solid #008000; border-radius: 4px; padding: 1.2rem 1.4rem; margin-bottom: 1.4rem; display: none; }
+  .sent-banner .sb-title { font-size: 1.1rem; font-weight: bold; color: #008000; margin-bottom: .5rem; }
+  .sent-banner .sb-line { font-size: .9rem; color: #333; margin-bottom: .2rem; }
+  .sent-banner a.approver-link { color: #4169e1; text-decoration: underline; font-size: .88rem; }
+
+  .form-buttons { display: flex; align-items: center; justify-content: center; gap: 1.2rem; margin: 1.6rem 0 1rem; flex-wrap: wrap; }
+  .btn-primary { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-size: 1.05rem; padding: .75rem 2.2rem; border-radius: 4px; cursor: pointer; min-width: 200px; font-weight: bold; }
+  .btn-primary:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
+  .btn-back { background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1rem; padding: .75rem 1.8rem; border-radius: 4px; cursor: pointer; min-width: 160px; }
+
+  .rfx-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; align-items: center; justify-content: center; }
+  .rfx-overlay.show { display: flex; }
+  .rfx-modal { background: #fff; width: 520px; max-width: 94%; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .rfx-modal-header { padding: 1rem 1.3rem; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1rem; }
+  .rfx-modal-body { padding: 1.2rem 1.3rem; font-size: .95rem; line-height: 1.7; }
+  .rfx-modal-footer { padding: .8rem 1.3rem 1.2rem; display: flex; gap: 1rem; justify-content: center; border-top: 1px solid #f0f0f0; }
+  .rfx-modal-footer .ok { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-weight: bold; padding: .6rem 2.2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal-footer .ng { background: #fff; border: 1px solid #ccc; color: #111; padding: .6rem 2.2rem; border-radius: 4px; cursor: pointer; }
+  .warn-box { background: #fff5f5; border: 1px solid #f5c2c2; color: #c0392b; border-radius: 4px; padding: .8rem 1rem; font-size: .88rem; margin-top: .8rem; }
+
+  #Notification { display: none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達案件一覧</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail.html">案件詳細</a></li>
+      <li class="active">Award確定申請</li>
+    </ul>
+
+    <div class="page-content">
+      <div class="page-title"><h3>Award（落札）確定申請</h3></div>
+
+      <div class="project-info-box">
+        <div class="pi-no">案件番号：RFX2607000006</div>
+        <div class="pi-name">新基幹サーバ更改に伴う機器・構築役務調達</div>
+      </div>
+
+      <div class="sent-banner" id="sentBanner">
+        <div class="sb-title">✓ Award確定申請を送信しました</div>
+        <div class="sb-line">申請日時：<span id="sentAtText"></span>　｜　承認者：経理雄之助</div>
+        <div class="sb-line">案件ステータスは「落札承認待ち」になりました。承認者の承認後、正式にAwardが確定します。</div>
+        <div class="sb-line" style="margin-top:.6rem;"><a class="approver-link" href="eProcurement_RFX_AwardApproval.html">→ 承認者画面（SCR-RFX-012）を確認する（デモ用リンク）</a></div>
+        <div class="form-buttons" style="margin-top:1.2rem;">
+          <a href="eProcurement_RFX_ProjectDetail.html"><button type="button" class="btn-primary">案件詳細へ戻る</button></a>
+        </div>
+      </div>
+
+      <form id="reqForm">
+        <div class="form-section">
+          <div class="form-section-header">Award候補の選択</div>
+          <div class="form-section-body">
+            <div style="font-size:.9rem;margin-bottom:.9rem;">評価結果・比較画面（SCR-RFX-010）の総合スコアをもとに、Award候補のサプライヤを選択してください（BR-RFX-006：案件担当者が総括して決定）。</div>
+            <div id="candList"></div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-header">申請コメント<span style="font-size:.75rem;background:#d9534f;padding:1px 6px;border-radius:2px;margin-left:.6rem;">必須</span></div>
+          <div class="form-section-body">
+            <textarea id="reqComment" rows="4" placeholder="例：総合スコア1位。移行方式・体制とも優位のため落札を申請します。"></textarea>
+            <div class="err-msg" id="reqErr">申請コメントを入力してください。</div>
+            <div class="rule-note"><b>ご案内（BR-RFX-009）：</b>Award確定は担当者単独では行えません。申請後、承認者（経理雄之助）へ承認依頼が送信され、承認された時点でAwardが正式確定します。差し戻された場合は評価フェーズへ戻り、再申請できます。</div>
+          </div>
+        </div>
+
+        <div class="form-buttons">
+          <button type="button" class="btn-primary" id="submitBtn">申請する</button>
+          <button type="button" class="btn-back" id="cancelBtn">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- ===== 申請確認 modal ===== -->
+<div class="rfx-overlay" id="confirmOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">Award確定申請の確認</div>
+    <div class="rfx-modal-body">
+      <div id="confirmSummary"></div>
+      <div class="warn-box"><b>注意（BR-RFX-009）：</b>申請後は承認者の承認が必要です。承認されるまでAward候補の変更はできません。よろしいですか？</div>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ok" id="confirmOk">申請する</button>
+      <button type="button" class="ng" id="confirmNg">戻る</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var toast = JienieLayout.toast;
+  var TODAY = '2026-07-05';
+
+  // ===== Demo data：eProcurement_RFX_ScoreResult.htmlと同一の評価結果 =====
+  var CANDIDATES = [
+    { name: '株式会社NSKシステムズ', total: 85.2, top: true },
+    { name: '東都情報サービス株式会社', total: 80.6, top: false }
+  ];
+
+  var list = document.getElementById('candList');
+  CANDIDATES.forEach(function (c, i) {
+    var line = document.createElement('label');
+    line.className = 'cand-radio-line';
+    line.innerHTML =
+      '<input type="radio" name="cand" value="' + c.name + '" data-total="' + c.total + '"' + (i === 0 ? ' checked' : '') + '>' +
+      '<span class="cand-name">' + c.name + (c.top ? '<span class="rank-label">総合1位</span>' : '') + '</span>' +
+      '<span class="cand-score">' + c.total.toFixed(1) + '</span>';
+    list.appendChild(line);
+  });
+
+  function open(id) { document.getElementById(id).classList.add('show'); }
+  function close(id) { document.getElementById(id).classList.remove('show'); }
+  document.getElementById('confirmNg').addEventListener('click', function () { close('confirmOverlay'); });
+  document.getElementById('confirmOverlay').addEventListener('click', function (e) { if (e.target === this) close('confirmOverlay'); });
+
+  document.getElementById('submitBtn').addEventListener('click', function () {
+    var cmt = document.getElementById('reqComment').value.trim();
+    document.getElementById('reqErr').classList.toggle('show', !cmt);
+    if (!cmt) return;
+    var sel = document.querySelector('input[name="cand"]:checked');
+    document.getElementById('confirmSummary').innerHTML =
+      '<div style="margin-bottom:.5rem;"><b>Award候補：</b>' + sel.value + '（総合スコア ' + sel.dataset.total + '）</div>' +
+      '<div><b>申請コメント：</b>' + cmt.replace(/</g, '&lt;') + '</div>';
+    open('confirmOverlay');
+  });
+
+  document.getElementById('confirmOk').addEventListener('click', function () {
+    close('confirmOverlay');
+    document.querySelectorAll('#reqForm input, #reqForm textarea, #reqForm button').forEach(function (el) { el.disabled = true; });
+    document.getElementById('sentAtText').textContent = TODAY + ' 17:30';
+    document.getElementById('sentBanner').style.display = 'block';
+    document.getElementById('sentBanner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    toast('Award確定申請を送信しました。承認者（経理雄之助）へ承認依頼が送信されます');
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', function () {
+    toast('入力内容を破棄しました');
+    setTimeout(function () { window.location.href = 'eProcurement_RFX_ProjectDetail.html'; }, 400);
+  });
+})();
+</script>
+</body>
+</html>

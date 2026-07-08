@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: 評価シート入力画面（画面ID：SCR-RFX-009）— RFX機能（新規開発・Buyer Portal）
+  Dùng chung header/sidebar qua assets/layout.css + assets/layout.js.
+
+  Nguồn yêu cầu (projects/standard/documents/features/RFX機能/):
+    - 03_基本設計書.md §3.3 SCR-RFX-009 項目定義（formal 項目定義がある3画面＝002／006／009の1つ）:
+        評価対象サプライヤ一覧（テーブル・入力状態＝入力中/入力済を表示）
+        評価対象サプライヤ（選択中）を画面上部に表示
+        評価軸重み付けスライダー（Integer 0-100・必須・合計100%・システムデフォルトあり／Q-RFX-005確定）
+        評価者ウェイト（表示のみ・案件設定で決定／Q-RFX-006確定）
+        技術スコア・価格スコア（各必須・0〜100の整数・評価フェーズ中のみ入力可）
+        総合スコア（自動計算・小数点1桁・重み付きスコアの合計／BR-RFX-003）
+        コメント（任意・最大500文字）
+        「保存する」ボタン: 技術・価格スコア入力済で活性化。他評価者のスコアには影響しない
+        「次のサプライヤへ」ボタン: 一覧内の次のサプライヤへ切替
+        「案件詳細へ戻る」ボタン: 入力中のスコアは自動保存後、SCR-RFX-003へ戻る
+    - 02_要件定義書.md RD-RFX-007（評価シート）§376-391、RD-RFX-008（複数評価者スコアリング）§394-406
+    - 02_要件定義書.md BR-RFX-003: 評価スコアの集計は重み付きスコアの合計（技術×評価軸重み＋価格×評価軸重み）
+    - 02_要件定義書.md BR-RFX-006: 評価者は案件作成時に指定。スコア・コメント・推薦意見は評価者全員と案件
+      担当者で共有（他評価者からの隠蔽はスコア確定前のみ・RD-RFX-008の「評価スコアの隔離」注記§692参照）
+    - §692: 評価フェーズ中は各評価者は自身のスコアのみ参照・編集可、他評価者スコアは評価完了後まで非表示
+
+  ※ 経緯: eProcurement_RFX_ProjectDetail.html の「評価シート入力」ハブボタンは、状態遷移（評価開始→
+  400遷移等）と密接に連動する自己完結モーダル（scoreOverlay lite版）として先に実装済み。プロジェクト
+  全体のライフサイクル状態遷移デモ（400→450→500）を壊さないよう、ProjectDetail側の申請・承認系ボタン
+  （落札確定申請／承認タスク）はモーダルのまま維持し、本ファイルは項目定義に忠実な「独立フル画面」として
+  別途作成した（ユーザー依頼「バイヤー側未作成画面を一括作成」に対応）。評価シート自体は状態遷移を伴わない
+  データ入力画面のため、ProjectDetailの「評価シート入力」ボタンは本ファイルへの実遷移に更新する。
+
+  Demo data: 案件 RFX2607000006（ProjectDetailと同一）。評価対象はRFP提出済み かつ ショートリスト済の
+  2社（株式会社NSKシステムズ／東都情報サービス株式会社）。株式会社クラウドパートナーズは未提出のため
+  評価対象外（ProjectDetailの説明文と一致）。NSKは依頼裕三が入力済（技術88・価格76）、東都は未入力（入力中）
+  ―― lite版と同一の初期値を再利用し一貫性を保持。評価者ウェイト50%・評価軸重み技術60%/価格40%もlite版と一致。
+
+  SUB-FEATURE HOẠT ĐỘNG THẬT（MOCKUP_GENERATION_PROMPT.md mục4 tier2 chuẩn）:
+    1. サプライヤ一覧クリックで選択切替、選択中サプライヤが画面上部・フォームに反映される実際のDOM切替。
+    2. 評価軸重み付けスライダー：技術/価格の2本が連動し合計は常に100%（片方を動かすと他方が自動調整）。
+    3. 技術・価格スコア入力→総合スコアがBR-RFX-003（技術×重み＋価格×重み）でリアルタイム自動計算・
+       0〜100範囲外はエラー表示。
+    4. 推薦意見（TỰ ĐỀ XUẤT・BR-RFX-006「推薦意見」入力欄）：推薦する/推薦しない/条件付き推薦を選択可。
+    5. 「保存する」は技術・価格が有効値の場合のみ活性化。保存すると入力状態バッジが「入力中」→「入力済」
+       に実際に切り替わり、一覧・進捗表示が更新される。
+    6. 「次のサプライヤへ」は評価対象サプライヤを実際に巡回する。
+    7. 「案件詳細へ戻る」は入力中の有効なスコアを自動保存してから実際に eProcurement_RFX_ProjectDetail.html
+       （SCR-RFX-003）へ遷移する。
+    8. 全サプライヤ入力済になると「評価結果を確認する」導線（eProcurement_RFX_ScoreResult.html＝SCR-RFX-010）
+       が実際に活性化する。
+
+  Design style: J2デザインシステム（MOCKUP_GENERATION_PROMPT.md mục3）。テーブル/バッジは既存RFXモックアップ
+  の .rfx-table / .pill を再利用。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>評価シート入力</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+  .page-content { padding: 0 1.5rem 3rem; max-width: 1150px; }
+
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1.5rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+
+  .project-info-box { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 4px; padding: 1rem 1.3rem; margin-bottom: 1.3rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .project-info-box .pi-left { flex: 1; min-width: 280px; }
+  .project-info-box .pi-no { font-size: .85rem; color: #555; margin-bottom: .3rem; }
+  .project-info-box .pi-name { font-size: 1.15rem; font-weight: bold; margin-bottom: .5rem; }
+  .project-info-box .pi-line { font-size: .88rem; color: #333; margin-bottom: .15rem; }
+  .project-info-box .pi-line label { color: #777; display: inline-block; min-width: 110px; }
+  .back-link { font-size: .85rem; color: #4169e1; text-decoration: underline; display: inline-block; margin-top: .5rem; }
+  .status-badge { min-width: 130px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 8px; font-size: .92rem; background: #fff; border-radius: 2px; }
+  .st-eval { color: #ff9933; border-color: #ff9933; }
+
+  .layout-grid { display: flex; gap: 1.4rem; align-items: flex-start; }
+  .sup-list-panel { width: 300px; flex-shrink: 0; background: #fff; border: 1px solid #ededed; border-radius: 4px; overflow: hidden; }
+  .sup-list-panel .panel-header { background: #4169e1; color: #fff; font-weight: bold; padding: .8rem 1rem; font-size: .98rem; }
+  .sup-list-item { padding: .8rem 1rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+  .sup-list-item:hover { background: #f7f9fd; }
+  .sup-list-item.selected { background: #eef4ff; border-left: 4px solid #4169e1; }
+  .sup-list-item.excluded { color: #999; cursor: not-allowed; background: #fafafa; }
+  .sup-list-item .sl-name { font-size: .92rem; margin-bottom: .3rem; }
+  .pill { display: inline-block; min-width: 68px; text-align: center; border: 1px solid; padding: 2px 8px; font-size: .78rem; background: #fff; }
+  .pill-green { color: #008000; border-color: #008000; }
+  .pill-orange { color: #ff9933; border-color: #ff9933; }
+  .pill-gray { color: #808080; border-color: #808080; }
+  .pill-pink { color: #ff6699; border-color: #ff6699; }
+
+  .main-panel { flex: 1; min-width: 0; }
+  .form-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.2rem; }
+  .form-section-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; }
+  .form-section-body { padding: 1.3rem 1.5rem; }
+  .selected-sup-title { font-size: 1.2rem; font-weight: bold; margin-bottom: .3rem; }
+  .selected-sup-sub { font-size: .85rem; color: #777; margin-bottom: 1.1rem; }
+
+  .weight-row { display: flex; align-items: center; gap: 1.2rem; margin-bottom: 1rem; }
+  .weight-row .w-lbl { width: 90px; font-size: .92rem; font-weight: bold; }
+  .weight-row input[type="range"] { flex: 1; accent-color: #4169e1; }
+  .weight-row .w-val { width: 60px; text-align: right; font-weight: bold; color: #4169e1; }
+
+  .score-inputs { display: flex; gap: 1.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .score-field { flex: 1; min-width: 160px; }
+  .score-field label { display: block; font-size: .9rem; margin-bottom: .3rem; }
+  .score-field input[type="text"] { width: 100%; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; text-align: center; }
+  .score-field input.has-error { border-color: #dc3545; background: #fff5f5; }
+  .total-box { background: #eef4ff; border: 1px solid #b9cdfa; border-radius: 4px; padding: .8rem 1.2rem; text-align: center; min-width: 160px; }
+  .total-box .t-val { font-size: 1.6rem; font-weight: bold; color: #4169e1; }
+  .total-box .t-lbl { font-size: .8rem; color: #555; }
+
+  .rec-row { margin-bottom: 1rem; }
+  .rec-row select { padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; }
+  textarea#cmtInput { width: 100%; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .92rem; font-family: inherit; resize: vertical; }
+  .char-count { float: right; font-size: .78rem; color: #999; }
+  .err-msg { color: #dc3545; font-size: .85rem; margin-top: .5rem; display: none; }
+  .err-msg.show { display: block; }
+  .weight-evaluator-note { font-size: .85rem; color: #555; background: #f7f9fd; border: 1px solid #e3e3e6; border-radius: 4px; padding: .6rem .9rem; margin-bottom: 1.1rem; }
+
+  .form-buttons { display: flex; align-items: center; justify-content: center; gap: 1.2rem; margin: 1.4rem 0; flex-wrap: wrap; }
+  .btn-save { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-size: 1rem; padding: .7rem 2rem; border-radius: 4px; cursor: pointer; min-width: 170px; font-weight: bold; }
+  .btn-save:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
+  .btn-next { background: #fff; border: 1px solid #4169e1; color: #4169e1; font-size: 1rem; padding: .7rem 1.6rem; border-radius: 4px; cursor: pointer; min-width: 170px; font-weight: bold; }
+  .btn-back { background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1rem; padding: .7rem 1.6rem; border-radius: 4px; cursor: pointer; min-width: 170px; }
+  .progress-note { text-align: center; font-size: .88rem; color: #555; margin-bottom: 1rem; }
+  .progress-note b { color: #4169e1; }
+  .goto-result { text-align: center; margin-top: .6rem; }
+  .goto-result a { color: #4169e1; text-decoration: underline; font-size: .9rem; }
+  .goto-result a.disabled { color: #aaa; text-decoration: none; pointer-events: none; }
+
+  #Notification { display: none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達案件一覧</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail.html">案件詳細</a></li>
+      <li class="active">評価シート入力</li>
+    </ul>
+
+    <div class="page-content">
+      <div class="page-title"><h3>評価シート入力</h3></div>
+
+      <div class="project-info-box">
+        <div class="pi-left">
+          <div class="pi-no">案件番号：RFX2607000006</div>
+          <div class="pi-name">新基幹サーバ更改に伴う機器・構築役務調達</div>
+          <div class="pi-line"><label>評価者</label>依頼裕三（評価者ウェイト 50%）</div>
+          <div class="pi-line"><label>評価対象</label>ショートリスト済・RFP提出済の2社（未提出の株式会社クラウドパートナーズは評価対象外）</div>
+          <a class="back-link" href="eProcurement_RFX_ProjectDetail.html">&lsaquo; 案件詳細画面へ戻る</a>
+        </div>
+        <div class="pi-right" style="text-align:right;">
+          <span>ステータス：</span><br>
+          <span class="status-badge st-eval" style="margin-top:.4rem;">評価中</span>
+        </div>
+      </div>
+
+      <div class="progress-note">評価対象サプライヤ　<b id="progressText">1 / 2 社 入力済</b></div>
+
+      <div class="layout-grid">
+        <div class="sup-list-panel">
+          <div class="panel-header">評価対象サプライヤ一覧</div>
+          <div id="supListBody"></div>
+        </div>
+
+        <div class="main-panel">
+          <div class="form-section">
+            <div class="form-section-header">評価入力</div>
+            <div class="form-section-body">
+              <div class="selected-sup-title" id="selSupName">-</div>
+              <div class="selected-sup-sub" id="selSupSub">-</div>
+
+              <div class="weight-evaluator-note">評価者ウェイト：<b>50%</b>（案件設定で決定・本画面では変更不可）</div>
+
+              <div class="weight-row">
+                <div class="w-lbl">技術重み</div>
+                <input type="range" id="wTech" min="0" max="100" value="60">
+                <div class="w-val" id="wTechVal">60%</div>
+              </div>
+              <div class="weight-row">
+                <div class="w-lbl">価格重み</div>
+                <input type="range" id="wPrice" min="0" max="100" value="40">
+                <div class="w-val" id="wPriceVal">40%</div>
+              </div>
+              <div class="note" style="font-size:.8rem;color:#777;margin-bottom:1.1rem;">評価軸重みの合計は常に100%になるよう自動調整されます（システムデフォルト：技術60%／価格40%）。</div>
+
+              <div class="score-inputs">
+                <div class="score-field">
+                  <label>技術スコア（0〜100）<span style="color:#d9534f;">必須</span></label>
+                  <input type="text" id="techInput" maxlength="3">
+                </div>
+                <div class="score-field">
+                  <label>価格スコア（0〜100）<span style="color:#d9534f;">必須</span></label>
+                  <input type="text" id="priceInput" maxlength="3">
+                </div>
+                <div class="total-box">
+                  <div class="t-val" id="totalVal">－</div>
+                  <div class="t-lbl">総合スコア（自動計算）</div>
+                </div>
+              </div>
+              <div class="err-msg" id="scoreErr">技術・価格スコアは0〜100の整数で入力してください。</div>
+
+              <div class="rec-row">
+                <label style="display:block;font-size:.9rem;margin-bottom:.3rem;">推薦意見<span class="opt-chip" style="background:#999;color:#fff;font-size:.7rem;padding:1px 6px;border-radius:2px;margin-left:.4rem;">任意・BR-RFX-006</span></label>
+                <select id="recInput">
+                  <option value="">-</option>
+                  <option value="recommend">推薦する</option>
+                  <option value="conditional">条件付き推薦</option>
+                  <option value="not">推薦しない</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display:block;font-size:.9rem;margin-bottom:.3rem;">コメント<span class="char-count" id="cmtCount">0 / 500</span></label>
+                <textarea id="cmtInput" rows="3" maxlength="500" placeholder="評価コメントを入力してください"></textarea>
+              </div>
+
+              <div class="form-buttons">
+                <button type="button" class="btn-save" id="saveBtn" disabled>保存する</button>
+                <button type="button" class="btn-next" id="nextBtn">次のサプライヤへ</button>
+                <button type="button" class="btn-back" id="backBtn">案件詳細へ戻る</button>
+              </div>
+              <div class="goto-result">
+                <a href="eProcurement_RFX_ScoreResult.html" id="gotoResultLink" class="disabled">全員の入力が完了したら評価結果・比較画面（SCR-RFX-010）を確認できます &rsaquo;</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var toast = JienieLayout.toast;
+
+  // ===== Demo data：ProjectDetailのscoreOverlay lite版と同一初期値 =====
+  var SUPPLIERS = [
+    { id: 'nsk', name: '[SUP-000045] 株式会社NSKシステムズ', tech: '88', price: '76', cmt: '移行方式・体制とも優位。', rec: 'recommend', saved: true, excluded: false },
+    { id: 'touto', name: '[SUP-000112] 東都情報サービス株式会社', tech: '', price: '', cmt: '', rec: '', saved: false, excluded: false },
+    { id: 'cloud', name: '[SUP-000178] 株式会社クラウドパートナーズ', tech: '', price: '', cmt: '', rec: '', saved: false, excluded: true }
+  ];
+  var wTech = 60, wPrice = 40;
+  var selectedId = 'nsk';
+
+  function calcTotal(tech, price) {
+    var t = parseInt(tech, 10), p = parseInt(price, 10);
+    if (isNaN(t) || isNaN(p) || t < 0 || t > 100 || p < 0 || p > 100) return null;
+    return (t * (wTech / 100) + p * (wPrice / 100));
+  }
+
+  function renderList() {
+    var box = document.getElementById('supListBody');
+    box.innerHTML = '';
+    SUPPLIERS.forEach(function (s) {
+      var row = document.createElement('div');
+      row.className = 'sup-list-item' + (s.id === selectedId ? ' selected' : '') + (s.excluded ? ' excluded' : '');
+      var total = calcTotal(s.tech, s.price);
+      var badge = s.excluded ? '<span class="pill pill-pink">評価対象外</span>' : (s.saved && total !== null ? '<span class="pill pill-green">入力済</span>' : '<span class="pill pill-orange">入力中</span>');
+      row.innerHTML = '<div class="sl-name">' + s.name + '</div>' + badge;
+      if (!s.excluded) {
+        row.addEventListener('click', function () { selectSupplier(s.id); });
+      }
+      box.appendChild(row);
+    });
+    var evaluable = SUPPLIERS.filter(function (s) { return !s.excluded; });
+    var done = evaluable.filter(function (s) { return s.saved && calcTotal(s.tech, s.price) !== null; }).length;
+    document.getElementById('progressText').textContent = done + ' / ' + evaluable.length + ' 社 入力済';
+    var link = document.getElementById('gotoResultLink');
+    link.classList.toggle('disabled', done < evaluable.length);
+  }
+
+  function selectSupplier(id) {
+    saveCurrentIfValid(true);
+    selectedId = id;
+    var s = SUPPLIERS.filter(function (x) { return x.id === id; })[0];
+    document.getElementById('selSupName').textContent = s.name;
+    document.getElementById('selSupSub').textContent = s.saved ? '入力済（再編集すると上書き保存されます）' : '未入力・入力中';
+    document.getElementById('techInput').value = s.tech;
+    document.getElementById('priceInput').value = s.price;
+    document.getElementById('cmtInput').value = s.cmt;
+    document.getElementById('cmtCount').textContent = s.cmt.length + ' / 500';
+    document.getElementById('recInput').value = s.rec;
+    document.getElementById('scoreErr').classList.remove('show');
+    document.getElementById('techInput').classList.remove('has-error');
+    document.getElementById('priceInput').classList.remove('has-error');
+    refreshTotal();
+    renderList();
+  }
+
+  function refreshTotal() {
+    var tech = document.getElementById('techInput').value.trim();
+    var price = document.getElementById('priceInput').value.trim();
+    var total = (tech === '' && price === '') ? null : calcTotal(tech, price);
+    document.getElementById('totalVal').textContent = total === null ? '－' : total.toFixed(1);
+    document.getElementById('saveBtn').disabled = total === null;
+  }
+
+  // ===== 評価軸重みスライダー（合計常に100%） =====
+  document.getElementById('wTech').addEventListener('input', function () {
+    wTech = parseInt(this.value, 10);
+    wPrice = 100 - wTech;
+    document.getElementById('wPrice').value = wPrice;
+    document.getElementById('wTechVal').textContent = wTech + '%';
+    document.getElementById('wPriceVal').textContent = wPrice + '%';
+    refreshTotal();
+  });
+  document.getElementById('wPrice').addEventListener('input', function () {
+    wPrice = parseInt(this.value, 10);
+    wTech = 100 - wPrice;
+    document.getElementById('wTech').value = wTech;
+    document.getElementById('wTechVal').textContent = wTech + '%';
+    document.getElementById('wPriceVal').textContent = wPrice + '%';
+    refreshTotal();
+  });
+
+  document.getElementById('techInput').addEventListener('input', function () {
+    var v = this.value.trim();
+    var ok = v === '' || (/^\d{1,3}$/.test(v) && +v >= 0 && +v <= 100);
+    this.classList.toggle('has-error', v !== '' && !ok);
+    refreshTotal();
+  });
+  document.getElementById('priceInput').addEventListener('input', function () {
+    var v = this.value.trim();
+    var ok = v === '' || (/^\d{1,3}$/.test(v) && +v >= 0 && +v <= 100);
+    this.classList.toggle('has-error', v !== '' && !ok);
+    refreshTotal();
+  });
+  document.getElementById('cmtInput').addEventListener('input', function () {
+    document.getElementById('cmtCount').textContent = this.value.length + ' / 500';
+  });
+
+  function saveCurrentIfValid(silent) {
+    var s = SUPPLIERS.filter(function (x) { return x.id === selectedId; })[0];
+    var tech = document.getElementById('techInput').value.trim();
+    var price = document.getElementById('priceInput').value.trim();
+    var total = calcTotal(tech, price);
+    if (total === null) {
+      if (!silent && (tech !== '' || price !== '')) document.getElementById('scoreErr').classList.add('show');
+      return false;
+    }
+    s.tech = tech; s.price = price; s.cmt = document.getElementById('cmtInput').value.trim(); s.rec = document.getElementById('recInput').value; s.saved = true;
+    document.getElementById('scoreErr').classList.remove('show');
+    return true;
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', function () {
+    if (!saveCurrentIfValid(false)) return;
+    toast('評価スコアを保存しました（他の評価者へは非公開のまま保存されます・RD-RFX-008）');
+    document.getElementById('selSupSub').textContent = '入力済（再編集すると上書き保存されます）';
+    renderList();
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', function () {
+    saveCurrentIfValid(true);
+    var evaluable = SUPPLIERS.filter(function (s) { return !s.excluded; });
+    var idx = evaluable.findIndex(function (s) { return s.id === selectedId; });
+    var next = evaluable[(idx + 1) % evaluable.length];
+    selectSupplier(next.id);
+  });
+
+  document.getElementById('backBtn').addEventListener('click', function () {
+    saveCurrentIfValid(true);
+    toast('入力中のスコアを保存しました');
+    setTimeout(function () { window.location.href = 'eProcurement_RFX_ProjectDetail.html'; }, 400);
+  });
+
+  document.getElementById('gotoResultLink').addEventListener('click', function (e) {
+    if (this.classList.contains('disabled')) e.preventDefault();
+  });
+
+  selectSupplier(selectedId);
+})();
+</script>
+</body>
+</html>

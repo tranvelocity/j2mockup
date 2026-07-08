@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: 評価結果・比較画面（画面ID：SCR-RFX-010）— RFX機能（新規開発・Buyer Portal）
+  Dùng chung header/sidebar qua assets/layout.css + assets/layout.js.
+
+  Nguồn yêu cầu (projects/standard/documents/features/RFX機能/):
+    - 02_要件定義書.md §538-540 SCR-RFX-010説明: 「Buyer Portal 上の評価集計・比較画面。全評価者のスコアを
+      集計した総合スコアを参加サプライヤ横並びで表示する。案件担当者が落札候補を判断するための意思決定支援
+      画面として機能する」
+    - 02_要件定義書.md RD-RFX-007（評価シート）§383-390: 総合スコア自動計算・複数サプライヤを横並びで比較
+    - 02_要件定義書.md RD-RFX-008（複数評価者スコアリング）§394-406: 全評価者のスコア・コメント・推薦意見が
+      評価者全員および案件担当者から参照可能。案件担当者が総括してAward候補を選定
+    - 02_要件定義書.md BR-RFX-003: 総合スコア＝重み付きスコアの合計（技術×重み＋価格×重み）を評価者ウェイト
+      で加重平均
+    - 02_要件定義書.md BR-RFX-006: 評価者は複数名指定可・スコア/コメント/推薦意見は評価者全員と案件担当者で
+      共有・案件担当者が総括してAward候補（1社または複数社）を決定
+
+  ※ 注意: 03_基本設計書.md §3.3にSCR-RFX-010の項目定義表は無い（項目定義があるのは002／006／009のみ）。
+  本画面のテーブル構成・ランキング表示・推薦意見集約はRD-RFX-007/008の記述から逆算した【TỰ ĐỀ XUẤT】。
+
+  Demo data: 案件 RFX2607000006。eProcurement_RFX_ScoreSheet.html（SCR-RFX-009）とは別スナップショット
+  として「評価が完了した後」の状態を再現（両評価者の入力が揃った状態）。評価者は依頼裕三（ウェイト50%・
+  技術60%/価格40%で算出）と経理雄之助（ウェイト50%）。NSKシステムズ：依頼83.2／経理87.2（平均85.2）、
+  東都情報サービス：依頼77.2／経理84.0（平均80.6）。経理雄之助のスコアはProjectDetail.htmlのevaluator2
+  データ（NSK87.2／東都84.0）と完全一致させ、依頼裕三の東都スコアのみ本画面用に確定値（技術82/価格70=77.2）
+  を新たに設定（ScoreSheet側は未入力の「入力中」デモのため、本画面は別時点の「入力完了後」スナップショット
+  という位置づけ・TỰ ĐỀ XUẤT）。
+
+  SUB-FEATURE HOẠT ĐỘNG THẬT（MOCKUP_GENERATION_PROMPT.md mục4 tier2 chuẩn）:
+    1. 評価者ごとの個別スコア・推薦意見・コメントを実データから組み立てて表示、総合スコア降順で自動ランキング。
+    2. 総合1位のサプライヤ行を自動ハイライト（top-rankバッジ）。
+    3. 「落札確定申請へ」ボタンは実際に eProcurement_RFX_AwardRequest.html（SCR-RFX-011）へ遷移する。
+    4. 「案件詳細へ戻る」は実際に eProcurement_RFX_ProjectDetail.html（SCR-RFX-003）へ遷移する。
+
+  Design style: J2デザインシステム。テーブル/バッジはeProcurement_RFX_ProjectDetail.htmlの.rfx-table/.pillを再利用。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>評価結果・比較</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+  .page-content { padding: 0 1.5rem 3rem; max-width: 1150px; }
+
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1.5rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+
+  .project-info-box { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 4px; padding: 1rem 1.3rem; margin-bottom: 1.3rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .project-info-box .pi-left { flex: 1; min-width: 280px; }
+  .project-info-box .pi-no { font-size: .85rem; color: #555; margin-bottom: .3rem; }
+  .project-info-box .pi-name { font-size: 1.15rem; font-weight: bold; margin-bottom: .5rem; }
+  .project-info-box .pi-line { font-size: .88rem; color: #333; margin-bottom: .15rem; }
+  .project-info-box .pi-line label { color: #777; display: inline-block; min-width: 110px; }
+  .back-link { font-size: .85rem; color: #4169e1; text-decoration: underline; display: inline-block; margin-top: .5rem; }
+  .status-badge { min-width: 130px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 8px; font-size: .92rem; background: #fff; border-radius: 2px; }
+  .st-eval { color: #ff9933; border-color: #ff9933; }
+
+  .form-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.4rem; }
+  .form-section-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; }
+  .form-section-body { padding: 1.3rem 1.5rem; }
+
+  .rfx-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .rfx-table th { background: #eef1f7; border: 1px solid #e3e3e6; padding: .6rem .8rem; font-weight: bold; text-align: left; }
+  .rfx-table td { border: 1px solid #e3e3e6; padding: .6rem .8rem; background: #fff; vertical-align: top; }
+  .rfx-table tr.top-rank td { background: #fffbe8; }
+  .rfx-table .total-cell { font-weight: bold; color: #4169e1; text-align: center; font-size: 1.05rem; }
+  .rank-label { background: #ff9933; color: #fff; font-size: .7rem; padding: 1px 6px; border-radius: 2px; margin-left: .5rem; }
+  .eval-cell .ev-score { font-weight: bold; }
+  .eval-cell .ev-rec { display: block; font-size: .8rem; margin-top: .2rem; }
+  .rec-recommend { color: #008000; }
+  .rec-conditional { color: #ff9933; }
+  .rec-not { color: #dc3545; }
+  .eval-cell .ev-cmt { display: block; font-size: .82rem; color: #555; margin-top: .3rem; }
+
+  .modal-note { font-size: .85rem; color: #666; margin-top: 1rem; background: #f7f9fd; border: 1px solid #e3e3e6; border-radius: 4px; padding: .7rem 1rem; }
+
+  .form-buttons { display: flex; align-items: center; justify-content: center; gap: 1.2rem; margin: 1.6rem 0 1rem; flex-wrap: wrap; }
+  .btn-primary { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-size: 1.05rem; padding: .75rem 2.2rem; border-radius: 4px; cursor: pointer; min-width: 220px; font-weight: bold; }
+  .btn-back { background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1rem; padding: .75rem 1.8rem; border-radius: 4px; cursor: pointer; min-width: 180px; }
+
+  #Notification { display: none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="eProcurement_Home.html">トップページ</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達案件一覧</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail.html">案件詳細</a></li>
+      <li class="active">評価結果・比較</li>
+    </ul>
+
+    <div class="page-content">
+      <div class="page-title"><h3>評価結果・比較</h3></div>
+
+      <div class="project-info-box">
+        <div class="pi-left">
+          <div class="pi-no">案件番号：RFX2607000006</div>
+          <div class="pi-name">新基幹サーバ更改に伴う機器・構築役務調達</div>
+          <div class="pi-line"><label>評価者</label>依頼裕三（ウェイト50%）／経理雄之助（ウェイト50%）</div>
+          <a class="back-link" href="eProcurement_RFX_ProjectDetail.html">&lsaquo; 案件詳細画面へ戻る</a>
+        </div>
+        <div class="pi-right" style="text-align:right;">
+          <span>ステータス：</span><br>
+          <span class="status-badge st-eval" style="margin-top:.4rem;">評価中</span>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-header">評価結果一覧（総合スコア降順）</div>
+        <div class="form-section-body">
+          <table class="rfx-table" id="resultTable">
+            <thead>
+              <tr>
+                <th style="text-align:left;width:22%;">サプライヤ</th>
+                <th style="width:26%;">依頼裕三（ウェイト50%）</th>
+                <th style="width:26%;">経理雄之助（ウェイト50%）</th>
+                <th style="width:110px;">総合スコア</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="modal-note">
+            総合スコア＝各評価者の（技術×60%＋価格×40%）を評価者ウェイトで加重平均（BR-RFX-003）。
+            評価者全員が全スコア・コメント・推薦意見を閲覧できます（BR-RFX-006）。未提出・評価対象外のサプライヤは一覧に含まれません。
+          </div>
+        </div>
+      </div>
+
+      <div class="form-buttons">
+        <button type="button" class="btn-primary" id="toAwardReqBtn">落札確定申請へ</button>
+        <a href="eProcurement_RFX_ProjectDetail.html"><button type="button" class="btn-back">案件詳細へ戻る</button></a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  // ===== Demo data：評価完了後スナップショット（経理雄之助スコアはProjectDetailのevaluator2と一致） =====
+  var recLabel = { recommend: '推薦する', conditional: '条件付き推薦', not: '推薦しない' };
+  var recClass = { recommend: 'rec-recommend', conditional: 'rec-conditional', not: 'rec-not' };
+
+  var rows = [
+    {
+      name: '[SUP-000045] 株式会社NSKシステムズ',
+      e1: { score: 83.2, rec: 'recommend', cmt: '移行方式・体制とも優位。' },
+      e2: { score: 87.2, rec: 'recommend', cmt: '技術提案が具体的。' }
+    },
+    {
+      name: '[SUP-000112] 東都情報サービス株式会社',
+      e1: { score: 77.2, rec: 'conditional', cmt: '価格面はやや高め。保守条件次第。' },
+      e2: { score: 84.0, rec: 'recommend', cmt: 'DR構成の提案が良い。' }
+    }
+  ];
+  rows.forEach(function (r) { r.total = (r.e1.score + r.e2.score) / 2; });
+  rows.sort(function (a, b) { return b.total - a.total; });
+
+  function evalCell(e) {
+    return '<span class="ev-score">' + e.score.toFixed(1) + '</span>' +
+      '<span class="ev-rec ' + recClass[e.rec] + '">' + recLabel[e.rec] + '</span>' +
+      '<span class="ev-cmt">' + e.cmt + '</span>';
+  }
+
+  var tbody = document.querySelector('#resultTable tbody');
+  rows.forEach(function (r, i) {
+    var tr = document.createElement('tr');
+    if (i === 0) tr.className = 'top-rank';
+    tr.innerHTML =
+      '<td>' + r.name + (i === 0 ? '<span class="rank-label">総合1位</span>' : '') + '</td>' +
+      '<td class="eval-cell">' + evalCell(r.e1) + '</td>' +
+      '<td class="eval-cell">' + evalCell(r.e2) + '</td>' +
+      '<td class="total-cell">' + r.total.toFixed(1) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('toAwardReqBtn').addEventListener('click', function () {
+    window.location.href = 'eProcurement_RFX_AwardRequest.html';
+  });
+})();
+</script>
+</body>
+</html>

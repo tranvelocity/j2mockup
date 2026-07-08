@@ -965,10 +965,13 @@ JienieLayout.init();
     toast('案件をキャンセルしました。参加サプライヤ全社へ中止通知が送信されます');
   });
 
-  // ===== 評価シート入力（SCR-RFX-009 lite） =====
+  // ===== 評価シート入力 =====
+  // SUB-FEATURE更新: eProcurement_RFX_ScoreSheet.html（SCR-RFX-009フル画面）が作成済みのため、
+  // MOCKUP_GENERATION_PROMPT.md tier1（実href遷移を優先）に従い実遷移に変更。
+  // （落札確定申請・承認タスクはプロジェクト状態遷移と密接に連動するため、既存モーダルのまま維持）
   document.getElementById('hubScore').addEventListener('click', function () {
     if (this.disabled) return;
-    open('scoreOverlay');
+    window.location.href = 'eProcurement_RFX_ScoreSheet.html';
   });
   function recalcRow(tr) {
     var t = tr.querySelector('.tech').value.trim();
@@ -1039,10 +1042,10 @@ JienieLayout.init();
       tbody.appendChild(tr);
     });
   }
+  // SUB-FEATURE更新: eProcurement_RFX_ScoreResult.html（SCR-RFX-010フル画面）が作成済みのため実遷移に変更。
   document.getElementById('hubResult').addEventListener('click', function () {
     if (this.disabled) return;
-    buildResult();
-    open('resultOverlay');
+    window.location.href = 'eProcurement_RFX_ScoreResult.html';
   });
 
   // ===== 落札確定申請（SCR-RFX-011 lite・400→450） =====
