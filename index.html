@@ -3,37 +3,542 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>J2 Mockup — Andy / Jienielab</title>
+<title>J2 ProcureSuite — Mockup Navigator</title>
 <style>
-  body { margin: 0; padding: 2.5rem 1.5rem; font-family: Meiryo, "Helvetica Neue", Arial, sans-serif; color: #111; background: #fafafa; }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 1.4rem; margin: 0 0 .3rem; }
-  .intro { color: #555; margin: 0 0 2rem; }
-  h2 { font-size: 1.05rem; border-left: 4px solid #4169e1; padding-left: .6rem; margin: 2rem 0 1rem; }
-  ul.mockup-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
-  ul.mockup-list li { background: #fff; border: 1px solid #e3e3e3; border-radius: 6px; }
-  ul.mockup-list a { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; color: #111; text-decoration: none; }
-  ul.mockup-list a:hover { background: #f2f5fb; }
-  .scr-id { font-size: .72rem; font-weight: bold; color: #4169e1; border: 1px solid #4169e1; border-radius: 3px; padding: .1rem .4rem; flex-shrink: 0; }
+:root {
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --ink: #1e293b;
+  --ink-sub: #64748b;
+  --line: #e2e8f0;
+  --brand: #2563eb;
+  --brand-dark: #1d4ed8;
+  --brand-soft: #eff6ff;
+  --brand-border: #bfdbfe;
+  --wip: #94a3b8;
+  --wip-bg: #f1f5f9;
+  --shadow: 0 1px 3px rgba(15,23,42,0.08), 0 4px 14px rgba(15,23,42,0.05);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: Meiryo, "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.6;
+}
+
+/* ===== TOP BAR ===== */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 8px rgba(15,23,42,0.04);
+}
+
+.topbar-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.brand-logo {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(140deg, var(--brand-dark) 0%, #3b82f6 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: #fff; letter-spacing: -0.03em;
+}
+
+.brand-name { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: 0.01em; }
+.brand-name em { color: var(--brand); font-style: normal; }
+
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.topnav::-webkit-scrollbar { display: none; }
+
+.topnav a {
+  white-space: nowrap;
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.topnav a:hover { background: var(--brand-soft); color: var(--brand); }
+.topnav a.wip { color: var(--wip); font-weight: 500; }
+.topnav a.wip:hover { background: var(--wip-bg); color: var(--wip); }
+.topnav a.active { background: var(--brand-soft); color: var(--brand); }
+
+/* ===== HERO ===== */
+.hero {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 52px 24px 24px;
+  text-align: center;
+}
+.hero h1 { font-size: 30px; font-weight: 800; color: var(--ink); letter-spacing: 0.01em; }
+.hero p { margin-top: 12px; font-size: 15px; color: var(--ink-sub); }
+.hero .tags { margin-top: 20px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.hero .tag {
+  font-size: 12px; padding: 4px 13px; border-radius: 20px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink-sub);
+}
+.hero .tag b { color: var(--brand); font-weight: 700; }
+
+/* ===== SECTIONS ===== */
+.sections { max-width: 1240px; margin: 0 auto; padding: 12px 24px 80px; }
+
+.feature {
+  scroll-margin-top: 74px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px 30px;
+  margin-bottom: 26px;
+  box-shadow: var(--shadow);
+}
+.feature.is-wip { background: #fafbfc; }
+
+.feature-head { display: flex; align-items: flex-start; gap: 14px; }
+.feature-icon {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 11px;
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.feature.is-wip .feature-icon { background: var(--wip-bg); border-color: var(--line); filter: grayscale(0.6); opacity: 0.7; }
+.feature-heading { flex: 1; }
+.feature-heading h2 { font-size: 20px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 10px; }
+.feature-heading .desc { margin-top: 5px; font-size: 13.5px; color: var(--ink-sub); }
+
+.badge-wip {
+  font-size: 11px; font-weight: 600; color: var(--wip);
+  background: var(--wip-bg); border: 1px solid var(--line);
+  border-radius: 20px; padding: 2px 10px;
+}
+
+/* Portal sub-sections */
+.portals { margin-top: 22px; display: flex; flex-direction: column; gap: 18px; }
+.portal { }
+.portal-title {
+  font-size: 12.5px; font-weight: 700; color: var(--brand);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.portal-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.portal-title.muted { color: var(--wip); }
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+/* Function button (card) */
+.fn {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+  padding: 14px 15px;
+  min-height: 66px;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  cursor: default;
+}
+.fn:hover { border-color: var(--brand-border); box-shadow: 0 4px 14px rgba(37,99,235,0.12); transform: translateY(-1px); }
+
+.fn-id {
+  font-family: "Consolas", "SF Mono", monospace;
+  font-size: 10px; font-weight: 700; color: var(--brand);
+  letter-spacing: 0.03em; opacity: 0.85;
+}
+.fn-name { margin-top: 3px; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+
+/* hover overlay with 2 actions */
+.fn-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s;
+}
+.fn:hover .fn-actions,
+.fn:focus-within .fn-actions { opacity: 1; visibility: visible; }
+
+.fn-action {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+}
+.fn-action.explain { background: var(--brand-soft); color: var(--brand); border-color: var(--brand-border); }
+.fn-action.explain:hover { background: #dbeafe; }
+.fn-action.view { background: var(--brand); color: #fff; }
+.fn-action.view:hover { background: var(--brand-dark); }
+.fn-action svg { width: 13px; height: 13px; fill: currentColor; }
+
+/* WIP placeholder */
+.wip-placeholder {
+  border: 1px dashed var(--line);
+  border-radius: 11px;
+  padding: 18px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--wip);
+  background: #fcfcfd;
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,0.45);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(15,23,42,0.3);
+  overflow: hidden;
+  animation: pop 0.18s ease;
+}
+@keyframes pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-head {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.modal-head .m-icon {
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 9px;
+  background: var(--brand-soft); border: 1px solid var(--brand-border);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.modal-head .m-meta { flex: 1; }
+.modal-head .m-crumb { font-size: 11.5px; color: var(--ink-sub); }
+.modal-head .m-title { font-size: 16.5px; font-weight: 700; color: var(--ink); margin-top: 2px; }
+.modal-head .m-id { font-family: "Consolas", monospace; font-size: 10.5px; font-weight: 700; color: var(--brand); margin-left: 6px; }
+.modal-close {
+  border: none; background: none; cursor: pointer; font-size: 22px;
+  color: var(--ink-sub); line-height: 1; padding: 2px 4px;
+}
+.modal-close:hover { color: var(--ink); }
+.modal-body { padding: 20px 24px; font-size: 14px; color: #334155; }
+.modal-foot { padding: 14px 24px 20px; display: flex; justify-content: flex-end; gap: 10px; }
+.m-btn {
+  padding: 9px 18px; border-radius: 9px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent;
+}
+.m-btn.secondary { background: #fff; border-color: var(--line); color: var(--ink-sub); }
+.m-btn.secondary:hover { background: var(--bg); }
+.m-btn.primary { background: var(--brand); color: #fff; }
+.m-btn.primary:hover { background: var(--brand-dark); }
+
+/* ===== FOOTER ===== */
+.footer {
+  border-top: 1px solid var(--line);
+  background: #fff;
+  padding: 22px 24px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ink-sub);
+}
+.footer b { color: var(--ink); font-weight: 600; }
+
+/* ===== SCROLL TOP ===== */
+.scroll-top {
+  position: fixed; right: 26px; bottom: 26px;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--brand); color: #fff; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 20px rgba(37,99,235,0.4);
+  opacity: 0; visibility: hidden; transform: translateY(10px);
+  transition: opacity 0.2s, transform 0.2s, background 0.15s;
+  z-index: 150;
+}
+.scroll-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.scroll-top:hover { background: var(--brand-dark); }
+.scroll-top svg { width: 18px; height: 18px; fill: #fff; }
+
+@media (max-width: 640px) {
+  .topbar-inner { gap: 14px; padding: 0 16px; }
+  .brand-name { display: none; }
+  .hero h1 { font-size: 24px; }
+  .feature { padding: 22px 18px; }
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>機能モックアップ置き場</h1>
 
-  <h2>RFX機能（調達ソーシング案件管理・Buyer Portal）</h2>
-  <ul class="mockup-list">
-    <li><a href="buyer/eProcurement_RFX_ProjectList.html"><span class="scr-id">SCR-RFX-001</span> 調達案件一覧</a></li>
-    <li><a href="buyer/eProcurement_RFX_ProjectCreate.html"><span class="scr-id">SCR-RFX-002</span> 調達案件作成・設定</a></li>
-    <li><a href="buyer/eProcurement_RFX_ProjectDetail.html"><span class="scr-id">SCR-RFX-003</span> 案件詳細・進行状況</a></li>
-    <li><a href="buyer/eProcurement_RFX_RFICreate.html"><span class="scr-id">SCR-RFX-004</span> RFI作成・送信</a></li>
-    <li><a href="buyer/eProcurement_RFX_RFPCreate.html"><span class="scr-id">SCR-RFX-005</span> RFP作成・送信</a></li>
-    <li><a href="buyer/eProcurement_RFX_QA.html"><span class="scr-id">SCR-RFX-006</span> Q&A掲示板画面（Buyer側）</a></li>
-    <li><a href="buyer/eProcurement_RFX_ScoreSheet.html"><span class="scr-id">SCR-RFX-009</span> 評価シート入力</a></li>
-    <li><a href="buyer/eProcurement_RFX_ScoreResult.html"><span class="scr-id">SCR-RFX-010</span> 評価結果・比較</a></li>
-    <li><a href="buyer/eProcurement_RFX_AwardRequest.html"><span class="scr-id">SCR-RFX-011</span> Award確定申請（担当者）</a></li>
-    <li><a href="buyer/eProcurement_RFX_AwardApproval.html"><span class="scr-id">SCR-RFX-012</span> Award承認（承認者）</a></li>
-  </ul>
+<!-- ===== TOP BAR ===== -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top">
+      <span class="brand-logo">J2</span>
+      <span class="brand-name">J2 <em>ProcureSuite</em></span>
+    </a>
+    <nav class="topnav" id="topnav"></nav>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <h1>J2 ProcureSuite — Mockup Navigator</h1>
+  <p>各機能のモックアップ画面を一覧できるランディングページです。機能を選んで説明を確認、または画面を閲覧できます。</p>
+  <div class="tags" id="hero-tags"></div>
+</section>
+
+<!-- ===== SECTIONS ===== -->
+<main class="sections" id="sections"></main>
+
+<!-- ===== MODAL ===== -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="m-icon" id="m-icon">📋</div>
+      <div class="m-meta">
+        <div class="m-crumb" id="m-crumb"></div>
+        <div class="m-title"><span id="m-title"></span><span class="m-id" id="m-id"></span></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-foot">
+      <button class="m-btn secondary" onclick="closeModal()">閉じる</button>
+      <button class="m-btn primary" id="m-view">画面を閲覧 →</button>
+    </div>
+  </div>
 </div>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  Designed by <b>Andy Hoc</b>（ジーニーラボ株式会社）
+</footer>
+
+<!-- ===== SCROLL TOP ===== -->
+<button class="scroll-top" id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="トップへ戻る">
+  <svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg>
+</button>
+
+<script>
+/* ============ DATA MODEL ============ */
+const RFX = "buyer/RFX機能/";
+const FEATURES = [
+  {
+    id: "home", nav: "ログイン・ホーム", icon: "🏠",
+    desc: "システムへのアクセスと、各機能への起点となる画面群です。",
+    portals: {
+      buyer: [
+        { name: "ログイン画面", url: "buyer/eProcurement_Login.html", role: "ユーザー認証を行うシステムの入口画面です。ID・パスワードによる本人確認とアクセス制御を担い、権限に応じたポータルへ導きます。" },
+        { name: "ホーム画面", url: "buyer/eProcurement_Home.html", role: "ログイン後の起点となるダッシュボードです。各機能への導線、通知、担当タスクのサマリーを一覧で確認できます。" }
+      ],
+      supplier: [], provider: []
+    }
+  },
+  {
+    id: "rfx", nav: "RFX機能", icon: "📋",
+    desc: "RFI／RFPの作成から評価・Award確定まで、戦略的調達プロセス全体を管理する機能です。",
+    portals: {
+      buyer: [
+        { name: "調達案件一覧", id: "SCR-001", url: RFX+"eProcurement_RFX_ProjectList.html", role: "進行中・完了を含む全ての調達案件を一覧管理する画面です。ステータスや担当者で絞り込み、案件全体を俯瞰できます。" },
+        { name: "調達案件作成・設定", id: "SCR-002", url: RFX+"eProcurement_RFX_ProjectCreate.html", role: "新規調達案件の基本情報・スケジュール・参加サプライヤーを設定する画面です。案件の枠組みをここで定義します。" },
+        { name: "案件詳細・進行状況", id: "SCR-003", url: RFX+"eProcurement_RFX_ProjectDetail.html", role: "個別案件の進捗、関連文書、タイムラインを一元的に確認する画面です。案件のハブとして機能します。" },
+        { name: "RFI作成・送信", id: "SCR-004", url: RFX+"eProcurement_RFX_RFICreate.html", role: "情報提供依頼（RFI）を作成し、対象サプライヤーへ送信する画面です。市場調査や候補選定の初期段階を支援します。" },
+        { name: "RFP作成・送信", id: "SCR-005", url: RFX+"eProcurement_RFX_RFPCreate.html", role: "提案依頼（RFP）を作成し、要件・評価基準とともにサプライヤーへ配信する画面です。" },
+        { name: "Q&A掲示板（Buyer）", id: "SCR-006", url: RFX+"eProcurement_RFX_QA.html", role: "サプライヤーからの質問に回答し、案件全体でQ&Aを共有する掲示板です。公平な情報開示を担保します。" },
+        { name: "評価シート入力", id: "SCR-009", url: RFX+"eProcurement_RFX_ScoreSheet.html", role: "各サプライヤーの提案を評価基準に沿って採点・記録する画面です。定量・定性の両面から評価します。" },
+        { name: "評価結果・比較", id: "SCR-010", url: RFX+"eProcurement_RFX_ScoreResult.html", role: "複数提案のスコアを横並びで比較し、最適なサプライヤーを選定する画面です。" },
+        { name: "Award確定申請", id: "SCR-011", url: RFX+"eProcurement_RFX_AwardRequest.html", role: "落札者の確定を担当者が申請し、承認フローへ回す画面です。選定の根拠とともに上程します。" },
+        { name: "Award承認", id: "SCR-012", url: RFX+"eProcurement_RFX_AwardApproval.html", role: "承認者が落札決定を最終承認し、発注を確定する画面です。承認をもって調達が確定します。" }
+      ],
+      supplier: [], provider: []
+    }
+  },
+  {
+    id: "quote", nav: "見積依頼機能", icon: "💼",
+    desc: "現場からの見積依頼の起票・追跡・検収までを一元管理する機能です。",
+    portals: {
+      buyer: [
+        { name: "依頼一覧（全件）", url: "buyer/eProcurement_Requester_All.html", role: "全ての見積依頼を横断的に一覧・検索する画面です。依頼状況を漏れなく把握できます。" },
+        { name: "申請者別依頼一覧", url: "buyer/eProcurement_Requester_EstimateApplicationApplicantList.html", role: "申請者ごとに見積依頼を分類して管理する画面です。担当単位での進捗確認に適しています。" },
+        { name: "発注済み一覧", url: "buyer/eProcurement_Requester_Ordered.html", role: "発注が完了した依頼のステータスを追跡する画面です。発注後の進行を可視化します。" },
+        { name: "検収待ち一覧", url: "buyer/eProcurement_Requester_WaitingAcceptance.html", role: "納品後の検収待ち案件を管理し、検収処理を促進する画面です。" }
+      ],
+      supplier: [], provider: []
+    }
+  },
+  { id: "catalog", nav: "カタログ購買機能", icon: "🛒", wip: true,
+    desc: "登録カタログから商品を選択し、迅速に購買・発注を行う機能です。", portals: { buyer: [], supplier: [], provider: [] } },
+  { id: "approval", nav: "グループ承認機能", icon: "✅", wip: true,
+    desc: "組織階層に応じた多段階の承認ワークフローを制御する機能です。", portals: { buyer: [], supplier: [], provider: [] } },
+  { id: "return", nav: "返品・返金管理機能", icon: "↩️", wip: true,
+    desc: "納品後の返品申請から返金処理までのプロセスを管理する機能です。", portals: { buyer: [], supplier: [], provider: [] } },
+  { id: "invoice", nav: "Invoice発行機能", icon: "🧾", wip: true,
+    desc: "取引実績に基づく請求書の自動発行・管理を行う機能です。", portals: { buyer: [], supplier: [], provider: [] } },
+  { id: "inventory", nav: "在庫管理機能", icon: "📦", wip: true,
+    desc: "在庫の入出庫・棚卸・適正在庫の可視化を行う機能です。", portals: { buyer: [], supplier: [], provider: [] } }
+];
+
+const PORTAL_LABELS = { buyer: "Buyer Portal", supplier: "Supplier Portal", provider: "Provider Portal" };
+
+/* ============ RENDER ============ */
+const svgInfo = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>';
+const svgEye  = '<svg viewBox="0 0 24 24"><path d="M12 5c-5 0-9 4.5-10 7 1 2.5 5 7 10 7s9-4.5 10-7c-1-2.5-5-7-10-7zm0 11a4 4 0 110-8 4 4 0 010 8zm0-6a2 2 0 100 4 2 2 0 000-4z"/></svg>';
+
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function buildFnCard(f, feat, portalKey) {
+  const idHtml = f.id ? `<div class="fn-id">${esc(f.id)}</div>` : "";
+  const payload = encodeURIComponent(JSON.stringify({
+    icon: feat.icon, feat: feat.nav, portal: PORTAL_LABELS[portalKey],
+    title: f.name, id: f.id || "", role: f.role, url: f.url
+  }));
+  return `
+    <div class="fn" tabindex="0">
+      ${idHtml}
+      <div class="fn-name">${esc(f.name)}</div>
+      <div class="fn-actions">
+        <div class="fn-action explain" onclick="openModal('${payload}')">${svgInfo}説明</div>
+        <div class="fn-action view" onclick="window.open('${esc(f.url)}','_blank')">${svgEye}閲覧</div>
+      </div>
+    </div>`;
+}
+
+function buildPortal(feat, key) {
+  const items = feat.portals[key] || [];
+  const hasItems = items.length > 0;
+  const titleCls = hasItems ? "" : "muted";
+  let inner;
+  if (hasItems) {
+    inner = `<div class="btn-grid">${items.map(f => buildFnCard(f, feat, key)).join("")}</div>`;
+  } else {
+    inner = `<div class="wip-placeholder">準備中 — この Portal の画面は現在準備中です</div>`;
+  }
+  return `
+    <div class="portal">
+      <div class="portal-title ${titleCls}">${PORTAL_LABELS[key]}</div>
+      ${inner}
+    </div>`;
+}
+
+function renderSections() {
+  const nav = document.getElementById("topnav");
+  const sec = document.getElementById("sections");
+  const heroTags = document.getElementById("hero-tags");
+
+  nav.innerHTML = FEATURES.map(f =>
+    `<a href="#sec-${f.id}" class="${f.wip ? "wip" : ""}" data-target="sec-${f.id}">${esc(f.nav)}</a>`
+  ).join("");
+
+  sec.innerHTML = FEATURES.map(f => `
+    <section class="feature ${f.wip ? "is-wip" : ""}" id="sec-${f.id}">
+      <div class="feature-head">
+        <div class="feature-icon">${f.icon}</div>
+        <div class="feature-heading">
+          <h2>${esc(f.nav)} ${f.wip ? '<span class="badge-wip">準備中</span>' : ""}</h2>
+          <div class="desc">${esc(f.desc)}</div>
+        </div>
+      </div>
+      <div class="portals">
+        ${["buyer","supplier","provider"].map(k => buildPortal(f, k)).join("")}
+      </div>
+    </section>
+  `).join("");
+
+  // hero tags: count screens of active features
+  const tags = FEATURES.filter(f => !f.wip).map(f => {
+    const n = Object.values(f.portals).reduce((s,a)=>s+a.length,0);
+    return `<span class="tag">${esc(f.nav)} — <b>${n}画面</b></span>`;
+  });
+  tags.push(`<span class="tag">その他 — <b>準備中</b></span>`);
+  heroTags.innerHTML = tags.join("");
+}
+
+/* ============ MODAL ============ */
+let currentUrl = "";
+function openModal(payload) {
+  const d = JSON.parse(decodeURIComponent(payload));
+  document.getElementById("m-icon").textContent = d.icon;
+  document.getElementById("m-crumb").textContent = d.feat + " › " + d.portal;
+  document.getElementById("m-title").textContent = d.title;
+  document.getElementById("m-id").textContent = d.id ? "  " + d.id : "";
+  document.getElementById("m-body").textContent = d.role;
+  currentUrl = d.url;
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+document.getElementById("m-view").addEventListener("click", () => { if (currentUrl) window.open(currentUrl, "_blank"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+/* ============ SCROLL BEHAVIOR ============ */
+function initScroll() {
+  const btn = document.getElementById("scrollTop");
+  const navLinks = [...document.querySelectorAll("#topnav a")];
+  const sections = FEATURES.map(f => document.getElementById("sec-" + f.id));
+
+  window.addEventListener("scroll", () => {
+    btn.classList.toggle("show", window.scrollY > 400);
+    // active nav highlight
+    let activeId = null;
+    const mid = window.scrollY + 120;
+    sections.forEach(s => { if (s && s.offsetTop <= mid) activeId = s.id; });
+    navLinks.forEach(a => a.classList.toggle("active", a.dataset.target === activeId));
+  });
+}
+
+/* ============ INIT ============ */
+renderSections();
+initScroll();
+</script>
+
 </body>
 </html>
