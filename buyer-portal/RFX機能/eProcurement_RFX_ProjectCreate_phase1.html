@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-002 調達案件作成・設定画面（Phase 1）— Buyer Portal / RFXモジュール
+  新規案件の作成（案件担当者 = 調達花子のみ実行可・RD-RFX-001 受入基準）。作成完了で SCR-RFX-003 へ遷移。
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-002（案件名・対象カテゴリ・スケジュール・評価者・参加サプライヤの選定→SCR-RFX-003）
+    - §3.2 RD-RFX-001（入力: 案件名/カテゴリ/スケジュール(RFI<RFP<評価)/評価者1名以上/概要）, RD-RFX-002（サプライヤをマスタから複数選定・招待）
+    - §3.2 RD-RFX-007 受入基準（評価軸ウェイト合計100%・評価フェーズ開始でロック）
+    - §2.2 BR-RFX-003（評価者ごと貢献度ウェイト）, BR-RFX-010（評価軸ウェイトは作成時設定→評価フェーズでロック）
+    - phase_scope.md: 画面別フェーズ対応表（SCR-RFX-002 Phase 2 差分=評価軸追加UI・エンベロープ方式トグル・BAFOオプション）
+  Nguồn design: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 5社 / 評価者3名: 技術太郎50%・品質次郎25%・現場三郎25% / デフォルトウェイト 技術60・価格40=FB-003）, assets/layout.css|layout.js|datepicker.js
+  Tự đề xuất / ■未確定:
+    - 「今日」= 2026-07-11。RFP提案期限は本日以降・RFI<RFP<評価 の順序を validate（提案）。
+    - 評価者マスタの候補ユーザー・貢献度ウェイトの均等配分ボタンは提案。
+    - デフォルト技術60/価格40 は FB-003（米谷社長 2026-07-07）準拠。Phase 2 で 3軸目追加（Q-BD-RFX-002 保留）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調達案件作成・設定 | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .form-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .form-row > .lbl { width: 190px; flex: 0 0 190px; font-weight: bold; font-size: .84rem; padding-top: 8px; }
+  .form-row > .ctrl { flex: 1; min-width: 0; }
+  .form-row input[type=text], .form-row select { width: 100%; max-width: 540px; }
+  .form-row .date-input { max-width: 220px; }
+  .form-row .note { font-size: .78rem; color: #888; margin-top: 4px; }
+  .char-count { float: right; font-size: .74rem; color: #999; }
+  .char-count.over { color: var(--st-danger); font-weight: bold; }
+  .add-row { margin-top: 10px; display: flex; gap: 20px; align-items: center; }
+  .add-row button { background: none; border: none; color: var(--j2-link); cursor: pointer; font-weight: bold; font-size: .86rem; }
+  table.data select, table.data input[type=text] { width: 100%; }
+  table.data .w-in { width: 90px; text-align: right; }
+  .icon-remove { background: none; border: none; color: var(--st-danger); cursor: pointer; font-size: 1rem; }
+  select.dup-error { border-color: var(--st-danger); background: #fff5f5; }
+  .sup-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 18px; }
+  .sup-list label { display: flex; align-items: center; gap: 8px; font-size: .86rem; padding: 6px 8px; border: 1px solid var(--j2-border); border-radius: 5px; }
+  .sup-list label.dis { opacity: .55; }
+  .form-foot { display: flex; gap: 12px; justify-content: flex-end; margin: 22px 0 10px; }
+  @media(max-width:800px){ .sup-list{ grid-template-columns:1fr;} .form-row{flex-direction:column;} .form-row>.lbl{flex-basis:auto;} }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li>新規案件作成</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">調達案件作成・設定</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ProjectCreate_phase2.html">Phase 2版を見る ⇄</a>
+      </div>
+
+      <div class="alert alert-info">
+        案件担当者（<b>調達花子</b>）が新規調達案件を作成します（RD-RFX-001）。必須項目をすべて入力すると
+        「案件を作成」が有効になります。作成後は <b>案件詳細・進行状況（SCR-RFX-003）</b>へ遷移します。
+      </div>
+
+      <form id="createForm" novalidate>
+
+        <!-- ===== 基本情報 ===== -->
+        <div class="section">
+          <div class="section-head">基本情報</div>
+          <div class="section-body">
+            <div class="form-row">
+              <div class="lbl">案件名 <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fName">
+                <input type="text" id="nameInput" maxlength="100" placeholder="例：社内基幹システム刷新に伴うクラウド基盤調達">
+                <div class="note">最大100文字<span class="char-count" id="nameCount">0 / 100</span></div>
+                <div class="field-error" id="errName">案件名を入力してください。</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">対象カテゴリ <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fCat">
+                <select id="catSel">
+                  <option value="">選択してください</option>
+                  <option>ITインフラ / クラウドサービス</option>
+                  <option>オフィス家具・什器</option>
+                  <option>物流・倉庫システム</option>
+                  <option>給食・フードサービス</option>
+                  <option>OA機器・複合機</option>
+                  <option>MRO・保守用品</option>
+                </select>
+                <div class="note">既存カテゴリマスタから選択</div>
+                <div class="field-error" id="errCat">対象カテゴリを選択してください。</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">案件概要 <span class="chip-opt">任意</span></div>
+              <div class="ctrl">
+                <textarea id="descInput" maxlength="2000" placeholder="調達の背景・目的・特記事項などを入力してください"></textarea>
+                <div class="note">最大2,000文字<span class="char-count" id="descCount">0 / 2000</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== スケジュール ===== -->
+        <div class="section">
+          <div class="section-head">スケジュール</div>
+          <div class="section-body">
+            <div class="alert alert-info" style="margin-bottom:14px;">期限は <b>RFI回答期限 &lt; RFP提案期限 &lt; 評価期限</b> の順序で、かつ本日（2026-07-11）以降で設定してください。</div>
+            <div class="form-row">
+              <div class="lbl">RFI回答期限 <span class="chip-opt">任意</span></div>
+              <div class="ctrl" id="fRfi">
+                <input type="text" class="date-input" id="rfiDate" placeholder="YYYY-MM-DD" value="2026-07-18">
+                <div class="note">RFIは任意フェーズです（BR-RFX-001）。実施しない場合は空欄のままにします。</div>
+                <div class="field-error" id="errRfi">RFI回答期限は本日以降かつRFP提案期限より前の日付を指定してください。</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">RFP提案期限 <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fRfp">
+                <input type="text" class="date-input" id="rfpDate" placeholder="YYYY-MM-DD" value="2026-08-08">
+                <div class="field-error" id="errRfp">RFP提案期限は本日以降かつ評価期限より前の日付を指定してください。</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">評価期限 <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fEval">
+                <input type="text" class="date-input" id="evalDate" placeholder="YYYY-MM-DD" value="2026-08-22">
+                <div class="field-error" id="errEval">評価期限はRFP提案期限より後の日付を指定してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 評価者 ===== -->
+        <div class="section">
+          <div class="section-head">評価者
+            <span class="sec-actions muted" style="color:#dbe6ff;font-weight:normal;">貢献度ウェイトの合計を 100% に設定（BR-RFX-003）</span>
+          </div>
+          <div class="section-body">
+            <table class="data" id="evalTable">
+              <thead><tr><th style="width:52%;">評価者（Buyerユーザー）</th><th>所属</th><th class="center" style="width:150px;">貢献度ウェイト</th><th class="center" style="width:56px;"></th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div class="add-row">
+              <button type="button" id="addEval">＋ 評価者を追加</button>
+              <button type="button" id="eqEval">⇋ ウェイトを均等配分</button>
+              <span style="margin-left:auto;">ウェイト合計：<span class="weight-total ok" id="evalSum">100</span> %</span>
+            </div>
+            <div class="field-error" id="errEvalDup">同じ評価者が重複して選択されています。</div>
+            <div class="field-error" id="errEval2">評価者を1名以上設定し、ウェイト合計を100%にしてください。</div>
+          </div>
+        </div>
+
+        <!-- ===== 評価軸ウェイト ===== -->
+        <div class="section">
+          <div class="section-head">評価軸ウェイト（技術 / 価格）</div>
+          <div class="section-body">
+            <div class="weight-row">
+              <span class="w-name">技術評価</span>
+              <input type="range" id="techSlider" min="0" max="100" step="5" value="60">
+              <span class="w-val" id="techVal">60%</span>
+            </div>
+            <div class="weight-row">
+              <span class="w-name">価格評価</span>
+              <input type="range" id="priceSlider" min="0" max="100" step="5" value="40">
+              <span class="w-val" id="priceVal">40%</span>
+            </div>
+            <div>合計：<span class="weight-total ok" id="axisSum">100</span> %</div>
+            <div class="alert alert-warn" style="margin-top:12px;">
+              評価軸ウェイトは案件作成時に設定します。<b>評価フェーズ開始（ステータス：評価中）でロックされ、以降は変更できません（BR-RFX-010）。</b>
+              変更が必要な場合は案件をキャンセルして再作成します。既定値は 技術60% / 価格40%（FB-003）。
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 参加サプライヤ選定 ===== -->
+        <div class="section">
+          <div class="section-head">参加サプライヤ選定</div>
+          <div class="section-body">
+            <p class="muted" style="margin-top:0;">既存サプライヤマスタから招待するサプライヤを選択します（1社以上・RD-RFX-002）。作成時に招待通知が送信されます（service-notification 経由）。</p>
+            <div class="sup-list" id="supList">
+              <label><input type="checkbox" value="富士クラウド株式会社" checked> 富士クラウド株式会社</label>
+              <label><input type="checkbox" value="日本デジタルソリューションズ株式会社" checked> 日本デジタルソリューションズ株式会社</label>
+              <label><input type="checkbox" value="さくらインフラ株式会社" checked> さくらインフラ株式会社</label>
+              <label><input type="checkbox" value="グローバルテック株式会社" checked> グローバルテック株式会社</label>
+              <label><input type="checkbox" value="みらいネットワークス株式会社" checked> みらいネットワークス株式会社</label>
+            </div>
+            <div class="field-error" id="errSup">参加サプライヤを1社以上選択してください。</div>
+            <div class="note" style="margin-top:8px;font-size:.78rem;color:#888;">選択中：<span id="supCount">5</span> 社</div>
+          </div>
+        </div>
+
+        <div class="form-foot">
+          <button type="button" class="btn" data-nav="調達案件一覧へ戻る（SCR-RFX-001・入力内容は破棄）">キャンセル</button>
+          <button type="submit" class="btn btn-primary btn-lg" id="btnCreate">案件を作成</button>
+        </div>
+        <div class="muted" id="reqHint" style="text-align:right;"></div>
+
+      </form>
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- ===== 確認モーダル ===== -->
+<div class="modal-overlay" id="mConfirm">
+  <div class="modal-box wide">
+    <div class="modal-head">案件作成の確認<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <p>以下の内容で調達案件を作成します。作成と同時に選択したサプライヤへ招待通知が送信されます。よろしいですか？</p>
+      <table class="data" id="confirmSummary"></table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>戻る</button>
+      <button class="btn btn-primary" id="btnConfirmOk">作成する</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+  JienieDatepicker.init('#rfiDate, #rfpDate, #evalDate');
+
+  (function () {
+    var TODAY = '2026-07-11';
+    var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+    // ---- 文字数カウンタ ----
+    function counter(id, cid, max) {
+      var inp = document.getElementById(id), lb = document.getElementById(cid);
+      function upd() { lb.textContent = inp.value.length + ' / ' + max; lb.classList.toggle('over', inp.value.length >= max); }
+      inp.addEventListener('input', upd); upd();
+    }
+    counter('nameInput', 'nameCount', 100);
+    counter('descInput', 'descCount', 2000);
+
+    // ---- 評価軸スライダー（自動バランス 100%）----
+    var tech = document.getElementById('techSlider'), price = document.getElementById('priceSlider');
+    function syncAxis(src) {
+      if (src === 'tech') price.value = 100 - tech.value; else tech.value = 100 - price.value;
+      document.getElementById('techVal').textContent = tech.value + '%';
+      document.getElementById('priceVal').textContent = price.value + '%';
+      var sum = (+tech.value) + (+price.value);
+      var el = document.getElementById('axisSum');
+      el.textContent = sum; el.className = 'weight-total ' + (sum === 100 ? 'ok' : 'bad');
+    }
+    tech.addEventListener('input', function () { syncAxis('tech'); });
+    price.addEventListener('input', function () { syncAxis('price'); });
+    syncAxis('tech');
+
+    // ---- 評価者テーブル ----
+    var USERS = {
+      '技術太郎（技術部長）': '技術部',
+      '品質次郎（品質管理課）': '品質管理課',
+      '現場三郎（利用部門）': '情報システム部',
+      '調達花子（購買部門リード）': '本社 総務部',
+      '経理雄之助（購買担当役員）': '経営管理部'
+    };
+    var tbody = document.querySelector('#evalTable tbody');
+    function userOptions(sel) {
+      return Object.keys(USERS).map(function (u) { return '<option' + (u === sel ? ' selected' : '') + '>' + u + '</option>'; }).join('');
+    }
+    function addEvalRow(user, weight) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><select class="ev-user">' + userOptions(user) + '</select></td>' +
+        '<td class="ev-dept">' + USERS[user] + '</td>' +
+        '<td class="center"><input type="text" class="w-in ev-w" value="' + weight + '"> %</td>' +
+        '<td class="center"><button type="button" class="icon-remove" title="削除">✕</button></td>';
+      tbody.appendChild(tr);
+      tr.querySelector('.ev-user').addEventListener('change', function () { tr.querySelector('.ev-dept').textContent = USERS[this.value]; checkEval(); });
+      tr.querySelector('.ev-w').addEventListener('input', checkEval);
+      tr.querySelector('.icon-remove').addEventListener('click', function () { tr.remove(); checkEval(); });
+      checkEval();
+    }
+    function evalSum() { var s = 0; tbody.querySelectorAll('.ev-w').forEach(function (i) { s += parseInt(i.value, 10) || 0; }); return s; }
+    function evalDup() {
+      var names = Array.prototype.slice.call(tbody.querySelectorAll('.ev-user')).map(function (s) { return s.value; });
+      var dup = false;
+      tbody.querySelectorAll('.ev-user').forEach(function (s) {
+        var d = names.filter(function (n) { return n === s.value; }).length > 1;
+        s.classList.toggle('dup-error', d); if (d) dup = true;
+      });
+      return dup;
+    }
+    function checkEval() {
+      var sum = evalSum(), el = document.getElementById('evalSum');
+      el.textContent = sum; el.className = 'weight-total ' + (sum === 100 ? 'ok' : 'bad');
+      document.getElementById('errEvalDup').classList.toggle('show', evalDup());
+      refreshBtn();
+      return tbody.querySelectorAll('tr').length > 0 && sum === 100 && !evalDup();
+    }
+    document.getElementById('addEval').addEventListener('click', function () {
+      var used = Array.prototype.slice.call(tbody.querySelectorAll('.ev-user')).map(function (s) { return s.value; });
+      var free = Object.keys(USERS).filter(function (u) { return used.indexOf(u) === -1; });
+      addEvalRow(free[0] || Object.keys(USERS)[0], 0);
+    });
+    document.getElementById('eqEval').addEventListener('click', function () {
+      var ins = tbody.querySelectorAll('.ev-w'); if (!ins.length) return;
+      var base = Math.floor(100 / ins.length), rem = 100 - base * ins.length;
+      ins.forEach(function (i, k) { i.value = base + (k === 0 ? rem : 0); });
+      checkEval(); JienieLayout.toast('貢献度ウェイトを均等配分しました');
+    });
+
+    // ---- 参加サプライヤ ----
+    var supList = document.getElementById('supList');
+    function supCount() { return supList.querySelectorAll('input:checked').length; }
+    function checkSup() {
+      var n = supCount();
+      document.getElementById('supCount').textContent = n;
+      document.getElementById('errSup').classList.toggle('show', n === 0);
+      refreshBtn();
+      return n > 0;
+    }
+    supList.addEventListener('change', checkSup);
+
+    // ---- 日付バリデーション（RFI < RFP < 評価・本日以降）----
+    function setErr(wrapId, errId, on) {
+      document.getElementById(wrapId).querySelectorAll('input,select,textarea')[0].classList.toggle('error', on);
+      var e = document.getElementById(errId); if (e) e.classList.toggle('show', on);
+      return !on;
+    }
+    function validateDates(show) {
+      var rfi = document.getElementById('rfiDate').value.trim();
+      var rfp = document.getElementById('rfpDate').value.trim();
+      var ev = document.getElementById('evalDate').value.trim();
+      var rfpBad = !DATE_RE.test(rfp) || rfp < TODAY || (DATE_RE.test(ev) && rfp >= ev);
+      var evBad = !DATE_RE.test(ev) || (DATE_RE.test(rfp) && ev <= rfp);
+      var rfiBad = rfi !== '' && (!DATE_RE.test(rfi) || rfi < TODAY || (DATE_RE.test(rfp) && rfi >= rfp));
+      if (show) { setErr('fRfp', 'errRfp', rfpBad); setErr('fEval', 'errEval', evBad); setErr('fRfi', 'errRfi', rfiBad); }
+      return !rfpBad && !evBad && !rfiBad;
+    }
+    ['rfiDate', 'rfpDate', 'evalDate'].forEach(function (id) {
+      document.getElementById(id).addEventListener('blur', function () { validateDates(true); refreshBtn(); });
+      document.getElementById(id).addEventListener('input', refreshBtn);
+    });
+    document.getElementById('nameInput').addEventListener('input', function () { setErr('fName', 'errName', false); refreshBtn(); });
+    document.getElementById('catSel').addEventListener('change', function () { setErr('fCat', 'errCat', false); refreshBtn(); });
+
+    // ---- 作成ボタン活性制御 ----
+    function missing() {
+      var m = [];
+      if (!document.getElementById('nameInput').value.trim()) m.push('案件名');
+      if (!document.getElementById('catSel').value) m.push('対象カテゴリ');
+      if (!validateDates(false)) m.push('スケジュール（RFI<RFP<評価）');
+      if (!(tbody.querySelectorAll('tr').length > 0 && evalSum() === 100 && !evalDup())) m.push('評価者（ウェイト合計100%）');
+      if (supCount() === 0) m.push('参加サプライヤ');
+      return m;
+    }
+    function refreshBtn() {
+      var m = missing();
+      document.getElementById('btnCreate').disabled = m.length > 0;
+      document.getElementById('reqHint').innerHTML = m.length
+        ? '<span style="color:var(--st-danger);">未入力：' + m.join('・') + '</span>'
+        : '<span style="color:var(--st-green);font-weight:bold;">✓ 全必須項目が入力済みです</span>';
+    }
+
+    // ---- 送信 → validate → 確認モーダル ----
+    document.getElementById('createForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var ok = true;
+      ok = setErr('fName', 'errName', !document.getElementById('nameInput').value.trim()) && ok;
+      ok = setErr('fCat', 'errCat', !document.getElementById('catSel').value) && ok;
+      ok = validateDates(true) && ok;
+      ok = checkEval() && ok;
+      document.getElementById('errEval2').classList.toggle('show', !(tbody.querySelectorAll('tr').length > 0 && evalSum() === 100));
+      ok = checkSup() && ok;
+      if (!ok) { JienieLayout.toast('入力内容にエラーがあります。赤枠の項目を確認してください。'); return; }
+
+      var evs = Array.prototype.slice.call(tbody.querySelectorAll('tr')).map(function (tr) {
+        return tr.querySelector('.ev-user').value + '（' + (parseInt(tr.querySelector('.ev-w').value, 10) || 0) + '%）';
+      });
+      var sups = Array.prototype.slice.call(supList.querySelectorAll('input:checked')).map(function (c) { return c.value; });
+      var rfi = document.getElementById('rfiDate').value.trim();
+      document.getElementById('confirmSummary').innerHTML =
+        '<tr><th style="width:180px;">案件名</th><td>' + document.getElementById('nameInput').value + '</td></tr>' +
+        '<tr><th>対象カテゴリ</th><td>' + document.getElementById('catSel').value + '</td></tr>' +
+        '<tr><th>RFI回答期限</th><td>' + (rfi || '実施しない（RFPから開始）') + '</td></tr>' +
+        '<tr><th>RFP提案期限</th><td>' + document.getElementById('rfpDate').value + '</td></tr>' +
+        '<tr><th>評価期限</th><td>' + document.getElementById('evalDate').value + '</td></tr>' +
+        '<tr><th>評価者（' + evs.length + '名）</th><td>' + evs.join('、') + '</td></tr>' +
+        '<tr><th>評価軸ウェイト</th><td>技術 ' + tech.value + '% / 価格 ' + price.value + '%</td></tr>' +
+        '<tr><th>参加サプライヤ（' + sups.length + '社）</th><td>' + sups.join('、') + '</td></tr>';
+      JienieLayout.openModal('mConfirm');
+    });
+
+    document.getElementById('btnConfirmOk').addEventListener('click', function () {
+      JienieLayout.closeModal('mConfirm');
+      JienieLayout.toast('案件を作成し、参加サプライヤへ招待通知を送信しました。案件詳細画面（SCR-RFX-003）へ遷移します…');
+      setTimeout(function () { window.location.href = 'eProcurement_RFX_ProjectDetail_phase1.html'; }, 1300);
+    });
+
+    // ---- 初期化：評価者3名（技術太郎50 / 品質次郎25 / 現場三郎25）----
+    addEvalRow('技術太郎（技術部長）', 50);
+    addEvalRow('品質次郎（品質管理課）', 25);
+    addEvalRow('現場三郎（利用部門）', 25);
+    checkSup();
+    refreshBtn();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- RFX機能 モックアップ ナビゲーション（Provider Portal）。出典: 02_要件定義書.md §4.1/§4.2 SCR-RFX-P01。 -->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFX機能 モックアップ一覧（Provider Portal）</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style> .scr{font-family:monospace;color:#555;} </style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb"><li><a href="#" data-nav="ダッシュボード">ダッシュボード</a></li><li>RFX設定 モックアップ一覧</li></ul>
+    <div class="page-content">
+      <div class="page-title-row"><h3 class="page-title">RFX機能 モックアップ一覧</h3><span class="status-badge st-blue" style="min-width:auto;">Provider Portal</span></div>
+      <div class="alert alert-info">
+        Provider（ジーニーラボ社内システム管理者・company_division_code=90）向け画面です。
+        ※ Provider Portal フォルダは、ご指定の Buyer / Supplier 2フォルダに含まれないため新設しています（要確認）。
+      </div>
+      <div class="section">
+        <div class="section-head">Provider Portal 画面</div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th class="center">画面ID</th><th>画面名</th><th class="center">区分</th><th class="center">リンク</th></tr></thead>
+            <tbody>
+              <tr><td class="center"><span class="scr">SCR-RFX-P01</span></td><td>RFXシステム設定（リマインド／添付上限／評価軸デフォルト）</td><td class="center">共通</td><td class="center"><a href="eProcurement_RFX_ProviderSettings.html">開く</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section"><div class="section-head">他ポータル</div><div class="section-body"><p>Buyer: <span class="scr">../../buyer-portal/RFX機能/index.html</span>　｜　Supplier: <span class="scr">../../supplier-portal/RFX機能/index.html</span></p></div></div>
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+<script src="assets/layout.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'provider', activeNav:'rfx', user:'山田健一', company:'ジーニーラボ株式会社（Provider）' };
+  JienieLayout.init();
+</script>
+</body>
+</html>

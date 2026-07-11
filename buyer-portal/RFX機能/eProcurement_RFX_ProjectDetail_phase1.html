@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-003 案件詳細・進行状況画面（Phase 1） — Buyer Portal / RFXモジュール
+  ハブ画面（★各フェーズの起点・帰着点）。
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-003, §2.1 ToBe業務フロー, §3.2 RD-RFX-001/002/010, §4.3 サイトマップ
+    - phase_scope.md: 画面別フェーズ対応表（SCR-003 Phase2差分=BAFO/エンベロープ表示）
+    - BR-RFX-001（RFI任意/ショートリスト）, BR-RFX-005（送信後変更不可）, BR-RFX-009（Award承認WF）, BR-RFX-010（ウェイトロック）
+  Nguồn design: MOCKUP_GENERATION_PROMPT.md §3（design system）, assets/layout.css|js（§3再構成版）
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 5社 / 評価者3名）
+  Tự đề xuất / ■未確定:
+    - 案件表示コード「RFX260700123」は display code 提案（DBはUUID）。要確認。
+    - 進行状況フローの段組み・アイコンは提案。R-07(承認者指定)/R-12(Q&A匿名化)は未確定のまま表示。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件詳細・進行状況 | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .summary-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  .sc { background:#fff; border:1px solid var(--j2-border); border-radius:6px; padding:12px 14px; }
+  .sc .sc-lbl { font-size:.74rem; color:#777; }
+  .sc .sc-val { font-size:1.5rem; font-weight:bold; margin-top:2px; }
+  .sc .sc-sub { font-size:.72rem; color:#999; }
+  .action-bar { display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 18px; }
+  @media(max-width:900px){ .summary-cards{ grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li>案件詳細・進行状況</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">社内基幹システム刷新に伴うクラウド基盤調達</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <span class="status-badge st-blue" id="projStatus">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ProjectDetail_phase2.html" data-nav="">Phase 2版を見る ⇄</a>
+      </div>
+
+      <div class="alert alert-info">
+        本案件は <b>RFI → RFP → 評価 → Award</b> の標準フローで進行中です。この画面（SCR-RFX-003）は各フェーズ操作の
+        <b>ハブ</b>です（02_要件定義書 §4.2）。RFIは任意フェーズです（BR-RFX-001）。
+      </div>
+
+      <!-- サマリーカード -->
+      <div class="summary-cards">
+        <div class="sc"><div class="sc-lbl">案件番号</div><div class="sc-val" style="font-size:1.05rem;">RFX260700123</div><div class="sc-sub">カテゴリ: ITインフラ/クラウド</div></div>
+        <div class="sc"><div class="sc-lbl">参加サプライヤ</div><div class="sc-val">4 <span style="font-size:.8rem;font-weight:normal;">社</span></div><div class="sc-sub">招待5社中・不参加1社</div></div>
+        <div class="sc"><div class="sc-lbl">RFP提案提出</div><div class="sc-val">3 / 3</div><div class="sc-sub">ショートリスト対象</div></div>
+        <div class="sc"><div class="sc-lbl">Q&amp;A</div><div class="sc-val">5 <span style="font-size:.8rem;font-weight:normal;">件</span></div><div class="sc-sub">未回答 1件</div></div>
+      </div>
+
+      <!-- 進行フロー -->
+      <div class="section">
+        <div class="section-head">本案件の流れ（進行状況）</div>
+        <div class="section-body">
+          <div class="flow">
+            <div class="flow-step done"><div class="connector"></div><div class="dot">✓</div><div class="flow-label">案件作成</div></div>
+            <div class="flow-step done"><div class="connector"></div><div class="dot">✓</div><div class="flow-label">サプライヤ招待</div></div>
+            <div class="flow-step done"><div class="connector"></div><div class="dot">✓</div><div class="flow-label">RFI（任意）</div></div>
+            <div class="flow-step done"><div class="connector"></div><div class="dot">✓</div><div class="flow-label">ショートリスト</div></div>
+            <div class="flow-step done"><div class="connector"></div><div class="dot">✓</div><div class="flow-label">RFP</div></div>
+            <div class="flow-step current"><div class="connector"></div><div class="dot">●</div><div class="flow-label">評価</div></div>
+            <div class="flow-step"><div class="connector"></div><div class="dot"></div><div class="flow-label">Award承認</div></div>
+            <div class="flow-step"><div class="dot"></div><div class="flow-label">発注誘導</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- フェーズ操作 -->
+      <div class="action-bar">
+        <a class="btn" href="eProcurement_RFX_RFICreate.html">📄 RFIを確認</a>
+        <a class="btn" href="eProcurement_RFX_RFPCreate_phase1.html">📝 RFPを確認</a>
+        <a class="btn" href="eProcurement_RFX_QA.html">💬 Q&amp;A掲示板</a>
+        <a class="btn btn-primary" href="eProcurement_RFX_ScoreSheet_phase1.html">📊 評価シートを入力</a>
+        <a class="btn" href="eProcurement_RFX_ScoreResult_phase1.html">🏆 評価結果・比較</a>
+        <button class="btn" data-open-modal="mAddSupplier">＋ サプライヤ追加招待</button>
+        <button class="btn btn-danger" data-open-modal="mCancel">案件をキャンセル</button>
+      </div>
+
+      <!-- 基本情報 -->
+      <div class="section">
+        <div class="section-head">基本情報
+          <span class="sec-actions"><button class="btn btn-sm" data-nav="調達案件作成・設定画面 SCR-RFX-002（編集）">設定を編集</button></span>
+        </div>
+        <div class="section-body">
+          <div class="kv-grid">
+            <div class="k">案件名</div><div class="v">社内基幹システム刷新に伴うクラウド基盤調達</div>
+            <div class="k">対象カテゴリ</div><div class="v">ITインフラ / クラウドサービス</div>
+            <div class="k">案件担当者</div><div class="v">調達花子（購買部門リード）</div>
+            <div class="k">評価者</div><div class="v">技術太郎（技術部長・50%）、品質次郎（品質管理課・25%）、現場三郎（利用部門・25%）</div>
+            <div class="k">評価軸ウェイト</div><div class="v">技術 60% / 価格 40% <span class="status-badge pill st-gray" style="margin-left:8px;">🔒 ロック済</span> <span class="muted">評価フェーズ開始でロック（BR-RFX-010）</span></div>
+            <div class="k">RFI回答期限</div><div class="v">2026-07-18</div>
+            <div class="k">RFP提案期限</div><div class="v">2026-08-08</div>
+            <div class="k">評価期限</div><div class="v">2026-08-22</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 参加サプライヤ -->
+      <div class="section">
+        <div class="section-head">参加サプライヤ状況</div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th>サプライヤ</th><th class="center">招待状態</th><th class="center">ショートリスト</th><th class="center">RFP提出</th><th class="center">回答確認</th></tr></thead>
+            <tbody>
+              <tr><td>富士クラウド株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">選定</td><td class="center"><span class="status-badge pill st-moss">提出済</span></td><td class="center"><button class="btn btn-sm" data-nav="RFI/RFP回答内容確認（SCR-RFX-008 read）">確認</button></td></tr>
+              <tr><td>日本デジタルソリューションズ株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">選定</td><td class="center"><span class="status-badge pill st-moss">提出済</span></td><td class="center"><button class="btn btn-sm" data-nav="RFI/RFP回答内容確認（SCR-RFX-008 read）">確認</button></td></tr>
+              <tr><td>さくらインフラ株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">選定</td><td class="center"><span class="status-badge pill st-moss">提出済</span></td><td class="center"><button class="btn btn-sm" data-nav="RFI/RFP回答内容確認（SCR-RFX-008 read）">確認</button></td></tr>
+              <tr><td>グローバルテック株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">選外</td><td class="center"><span class="status-badge pill st-gray">対象外</span></td><td class="center"><button class="btn btn-sm" disabled title="ショートリスト選外のためRFP対象外">確認</button></td></tr>
+              <tr><td>みらいネットワークス株式会社</td><td class="center"><span class="status-badge pill st-gray">不参加</span></td><td class="center">—</td><td class="center">—</td><td class="center">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 添付ファイルバージョン -->
+      <div class="section">
+        <div class="section-head">添付ファイル（バージョン管理・RD-RFX-011）</div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th>ファイル名</th><th class="center">最新版</th><th>更新者</th><th>更新日時</th><th class="center">操作</th></tr></thead>
+            <tbody>
+              <tr><td>RFP_要求仕様書.pdf</td><td class="center">v3</td><td>調達花子</td><td>2026-07-09 14:22:10</td><td class="center"><button class="btn btn-sm" data-open-modal="mVersions">版一覧</button></td></tr>
+              <tr><td>評価基準書.xlsx</td><td class="center">v1</td><td>技術太郎</td><td>2026-07-05 10:03:41</td><td class="center"><button class="btn btn-sm" data-open-modal="mVersions">版一覧</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- モーダル: キャンセル -->
+<div class="modal-overlay" id="mCancel">
+  <div class="modal-box">
+    <div class="modal-head">案件のキャンセル<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger">この操作は取り消せません。キャンセルすると全参加サプライヤへ通知され、案件ステータスが「キャンセル」になります。</div>
+      <label class="req-lbl">キャンセル理由 <span class="chip-req">必須</span></label>
+      <textarea id="cancelReason" placeholder="例：予算凍結のため"></textarea>
+      <div class="field-error" id="cancelErr">キャンセル理由を入力してください。</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-danger" id="btnCancelDo">キャンセルを確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: サプライヤ追加招待 -->
+<div class="modal-overlay" id="mAddSupplier">
+  <div class="modal-box">
+    <div class="modal-head">サプライヤ追加招待<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <p class="muted">既存サプライヤマスタから選択します（RD-RFX-002・案件担当者のみ実行可）。</p>
+      <div class="chk-row" style="flex-direction:column;gap:8px;">
+        <label><input type="checkbox" value="新東京システムズ株式会社"> 新東京システムズ株式会社</label>
+        <label><input type="checkbox" value="関西クラウドパートナーズ株式会社"> 関西クラウドパートナーズ株式会社</label>
+        <label><input type="checkbox" value="ネクストIT株式会社"> ネクストIT株式会社</label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-primary" id="btnAddDo">招待を送信</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 版一覧 -->
+<div class="modal-overlay" id="mVersions">
+  <div class="modal-box wide">
+    <div class="modal-head">添付ファイル 版一覧<button class="close" data-close>×</button></div>
+    <div class="modal-body" style="padding:0;">
+      <table class="data">
+        <thead><tr><th class="center">版</th><th>更新者</th><th>更新日時</th><th>コメント</th><th class="center">DL</th></tr></thead>
+        <tbody>
+          <tr><td class="center">v3（最新）</td><td>調達花子</td><td>2026-07-09 14:22:10</td><td>Q&amp;A反映・要求仕様追記</td><td class="center"><button class="btn btn-sm" data-nav="旧版ダウンロード（service-file）">DL</button></td></tr>
+          <tr><td class="center">v2</td><td>調達花子</td><td>2026-07-07 09:15:00</td><td>予算範囲を修正</td><td class="center"><button class="btn btn-sm" data-nav="旧版ダウンロード（service-file）">DL</button></td></tr>
+          <tr><td class="center">v1</td><td>調達花子</td><td>2026-07-03 16:40:22</td><td>初版</td><td class="center"><button class="btn btn-sm" data-nav="旧版ダウンロード（service-file）">DL</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>閉じる</button></div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  // キャンセル: validate → DOM更新
+  document.getElementById('btnCancelDo').addEventListener('click', function(){
+    var r = document.getElementById('cancelReason');
+    if(!r.value.trim()){ r.classList.add('error'); document.getElementById('cancelErr').classList.add('show'); return; }
+    r.classList.remove('error'); document.getElementById('cancelErr').classList.remove('show');
+    JienieLayout.closeModal('mCancel');
+    var b = document.getElementById('projStatus');
+    b.className = 'status-badge st-gray'; b.textContent = 'キャンセル';
+    JienieLayout.toast('案件をキャンセルしました。全参加サプライヤへ通知を送信しました。');
+  });
+
+  // 追加招待: 選択数を反映
+  document.getElementById('btnAddDo').addEventListener('click', function(){
+    var n = document.querySelectorAll('#mAddSupplier input:checked').length;
+    if(n===0){ JienieLayout.toast('招待するサプライヤを選択してください。'); return; }
+    JienieLayout.closeModal('mAddSupplier');
+    JienieLayout.toast(n + '社へ招待通知を送信しました（service-notification経由）。');
+  });
+</script>
+</body>
+</html>

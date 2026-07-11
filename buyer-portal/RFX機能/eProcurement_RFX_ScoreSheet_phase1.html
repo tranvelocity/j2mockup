@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-009 評価シート入力画面（Phase 1・技術/価格2軸固定） — Buyer Portal / RFXモジュール
+  Vai trò người dùng（アクター）: 評価者 技術太郎（技術部長・評価者ウェイト50%）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-009, §3.2 RD-RFX-007（評価シート・総合＝技術×技術ウェイト+価格×価格ウェイト）,
+      RD-RFX-008（複数評価者スコアリング・入力完了後に全評価者でシェア）
+    - §2.2 BR-RFX-003（重み付きスコア合計・評価者ウェイト）, BR-RFX-006（複数評価者・推薦フラグ/コメント）,
+      BR-RFX-010（評価フェーズ開始でウェイトロック）
+    - §8.5 セキュリティ: 評価スコアの隔離（各評価者は自身のスコアのみ編集、他者スコアは完了後まで非表示）
+    - phase_scope.md: SCR-009 は Phase 2 差分大（評価軸可変・価格自動換算・エンベロープ方式）
+  Nguồn design: assets/layout.css|js（MOCKUP_GENERATION_PROMPT.md §3再構成版）, 参照: eProcurement_RFX_ProjectDetail_phase1.html
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 評価者3名 / 技術太郎入力値は評価者ウェイト集計で spec表に一致）
+  Tự đề xuất / ■未確定:
+    - 表示コード「RFX260700123」は display code 提案（DBはUUID）。要確認。
+    - 技術太郎の個別スコアは spec 集計値(富士C88/72等)へ 50/25/25 で整合するよう自己設定した realism 値。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>評価シート入力（Phase 1） | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .lock-box { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .lock-box .w-item { display:flex; align-items:baseline; gap:8px; }
+  .lock-box .w-item .w-lbl { font-weight:bold; }
+  .lock-box .w-item .w-num { font-size:1.35rem; font-weight:bold; color:var(--j2-blue); }
+  .eval-supplier { margin-bottom:18px; }
+  .eval-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 22px; }
+  .eval-grid .full { grid-column:1 / -1; }
+  .fld-lbl { font-size:.8rem; font-weight:bold; color:#333; display:block; margin-bottom:4px; }
+  .score-input { width:110px; text-align:right; }
+  .total-box {
+    display:flex; align-items:center; gap:10px; background:#f6f8fc;
+    border:1px solid var(--j2-th-border); border-radius:6px; padding:10px 16px;
+  }
+  .total-box .tb-lbl { font-size:.82rem; color:#555; }
+  .total-box .tb-val { font-size:1.7rem; font-weight:bold; color:var(--j2-blue); }
+  .total-box .tb-formula { font-size:.72rem; color:#999; }
+  .char-count { font-size:.72rem; color:#999; text-align:right; }
+  .rec-block { background:#fffaf0; border:1px dashed #e0c07a; border-radius:6px; padding:10px 14px; }
+  @media(max-width:900px){ .eval-grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li>評価シート入力</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">評価シート入力</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <span class="status-badge st-blue">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ScoreSheet_phase2.html">Phase 2版を見る ⇄</a>
+      </div>
+
+      <div class="alert alert-info">
+        評価シートの入力は <b>ステータス 400（評価中）</b> の案件でのみ可能です（RD-RFX-007 受入基準）。
+        本案件「<b>社内基幹システム刷新に伴うクラウド基盤調達</b>（RFX260700123）」は現在 評価中 です。
+        技術・価格の <b>2軸固定</b> で採点します（Phase 1 スコープ）。
+      </div>
+
+      <!-- 評価軸ウェイト（読み取り専用・ロック済） -->
+      <div class="section">
+        <div class="section-head">評価軸ウェイト（案件作成時に設定・ロック済）</div>
+        <div class="section-body">
+          <div class="lock-box">
+            <div class="w-item"><span class="w-lbl">技術評価</span><span class="w-num">60%</span></div>
+            <div class="w-item"><span class="w-lbl">価格評価</span><span class="w-num">40%</span></div>
+            <span class="status-badge pill st-gray">🔒 ロック済</span>
+            <span class="muted">評価フェーズ開始時に自動ロックされ、変更できません（BR-RFX-010）。</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 評価者切替 note -->
+      <div class="section">
+        <div class="section-head">評価者</div>
+        <div class="section-body">
+          <div class="kv-grid" style="grid-template-columns:180px 1fr;">
+            <div class="k">入力中の評価者</div>
+            <div class="v"><b>技術太郎</b>（技術部長）<span class="status-badge pill st-blue" style="margin-left:8px;">自分</span> <span class="muted">評価者ウェイト 50%</span></div>
+            <div class="k">他の評価者</div>
+            <div class="v">品質次郎（品質管理課・25%）／ 現場三郎（利用部門・25%）<span class="muted" style="display:block;margin-top:2px;">他評価者のスコアは各自の入力完了後に全評価者でシェアされます（BR-RFX-006）。評価中は自分のスコアのみ編集可能です（セキュリティ §8.5 スコア隔離）。</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 対象サプライヤ: 富士C -->
+      <div class="section eval-supplier" data-supplier="fc">
+        <div class="section-head">① 富士クラウド株式会社
+          <span class="sec-actions"><button class="btn btn-sm" data-nav="RFP提案内容の確認（SCR-RFX-008 read）">提案書を確認</button></span>
+        </div>
+        <div class="section-body">
+          <div class="eval-grid">
+            <div>
+              <label class="fld-lbl">技術スコア（0〜100 整数）<span class="chip-req">必須</span></label>
+              <input type="number" class="score-input tech" min="0" max="100" step="1" value="90">
+              <div class="field-error">0〜100 の整数で入力してください。</div>
+            </div>
+            <div>
+              <label class="fld-lbl">価格スコア（0〜100 整数）<span class="chip-req">必須</span></label>
+              <input type="number" class="score-input price" min="0" max="100" step="1" value="70">
+              <div class="field-error">0〜100 の整数で入力してください。</div>
+            </div>
+            <div class="full">
+              <div class="total-box">
+                <span class="tb-lbl">総合スコア（自動計算）</span>
+                <span class="tb-val total">—</span>
+                <span class="tb-formula">＝ 技術 × 60% ＋ 価格 × 40%</span>
+              </div>
+            </div>
+            <div class="full">
+              <label class="fld-lbl">コメント <span class="chip-opt">任意</span>（最大500文字）</label>
+              <textarea class="comment" maxlength="500" placeholder="提案書の技術力・実績・価格妥当性等の所見">技術実装力・実績とも高水準。マルチクラウド運用体制が強み。価格はやや高め。</textarea>
+              <div class="char-count"><span class="cc">0</span> / 500</div>
+            </div>
+            <div class="full">
+              <div class="rec-block">
+                <label><input type="checkbox" class="rec-flag-chk"> <b>推薦フラグ</b>（この案件で推薦する）</label>
+                <label class="fld-lbl" style="margin-top:8px;">推薦コメント <span class="chip-opt">任意</span></label>
+                <textarea class="rec-comment" maxlength="500" placeholder="推薦理由（推薦フラグON時に記録）"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 対象サプライヤ: 日本DS -->
+      <div class="section eval-supplier" data-supplier="ds">
+        <div class="section-head">② 日本デジタルソリューションズ株式会社
+          <span class="sec-actions"><button class="btn btn-sm" data-nav="RFP提案内容の確認（SCR-RFX-008 read）">提案書を確認</button></span>
+        </div>
+        <div class="section-body">
+          <div class="eval-grid">
+            <div>
+              <label class="fld-lbl">技術スコア（0〜100 整数）<span class="chip-req">必須</span></label>
+              <input type="number" class="score-input tech" min="0" max="100" step="1" value="80">
+              <div class="field-error">0〜100 の整数で入力してください。</div>
+            </div>
+            <div>
+              <label class="fld-lbl">価格スコア（0〜100 整数）<span class="chip-req">必須</span></label>
+              <input type="number" class="score-input price" min="0" max="100" step="1" value="86">
+              <div class="field-error">0〜100 の整数で入力してください。</div>
+            </div>
+            <div class="full">
+              <div class="total-box">
+                <span class="tb-lbl">総合スコア（自動計算）</span>
+                <span class="tb-val total">—</span>
+                <span class="tb-formula">＝ 技術 × 60% ＋ 価格 × 40%</span>
+              </div>
+            </div>
+            <div class="full">
+              <label class="fld-lbl">コメント <span class="chip-opt">任意</span>（最大500文字）</label>
+              <textarea class="comment" maxlength="500" placeholder="提案書の技術力・実績・価格妥当性等の所見">技術・価格のバランスが最も良い。移行計画が具体的で価格競争力も高い。</textarea>
+              <div class="char-count"><span class="cc">0</span> / 500</div>
+            </div>
+            <div class="full">
+              <div class="rec-block">
+                <label><input type="checkbox" class="rec-flag-chk" checked> <b>推薦フラグ</b>（この案件で推薦する）</label>
+                <label class="fld-lbl" style="margin-top:8px;">推薦コメント <span class="chip-opt">任意</span></label>
+                <textarea class="rec-comment" maxlength="500" placeholder="推薦理由（推薦フラグON時に記録）">総合バランスが最も優れ、技術・価格とも安定。第一候補として推薦。</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 対象サプライヤ: さくらI -->
+      <div class="section eval-supplier" data-supplier="si">
+        <div class="section-head">③ さくらインフラ株式会社
+          <span class="sec-actions"><button class="btn btn-sm" data-nav="RFP提案内容の確認（SCR-RFX-008 read）">提案書を確認</button></span>
+        </div>
+        <div class="section-body">
+          <div class="eval-grid">
+            <div>
+              <label class="fld-lbl">技術スコア（0〜100 整数）<span class="chip-req">必須</span></label>
+              <input type="number" class="score-input tech" min="0" max="100" step="1" value="78">
+              <div class="field-error">0〜100 の整数で入力してください。</div>
+            </div>
+            <div>
+              <label class="fld-lbl">価格スコア（0〜100 整数）<span class="chip-req">必須</span></label>
+              <input type="number" class="score-input price" min="0" max="100" step="1" value="88">
+              <div class="field-error">0〜100 の整数で入力してください。</div>
+            </div>
+            <div class="full">
+              <div class="total-box">
+                <span class="tb-lbl">総合スコア（自動計算）</span>
+                <span class="tb-val total">—</span>
+                <span class="tb-formula">＝ 技術 × 60% ＋ 価格 × 40%</span>
+              </div>
+            </div>
+            <div class="full">
+              <label class="fld-lbl">コメント <span class="chip-opt">任意</span>（最大500文字）</label>
+              <textarea class="comment" maxlength="500" placeholder="提案書の技術力・実績・価格妥当性等の所見">価格は最安。技術面は標準的だが要件は充足。コスト重視なら有力。</textarea>
+              <div class="char-count"><span class="cc">0</span> / 500</div>
+            </div>
+            <div class="full">
+              <div class="rec-block">
+                <label><input type="checkbox" class="rec-flag-chk"> <b>推薦フラグ</b>（この案件で推薦する）</label>
+                <label class="fld-lbl" style="margin-top:8px;">推薦コメント <span class="chip-opt">任意</span></label>
+                <textarea class="rec-comment" maxlength="500" placeholder="推薦理由（推薦フラグON時に記録）"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warn">
+        グローバルテック株式会社はショートリスト選外のため評価対象外です（RFP対象外）。
+      </div>
+
+      <!-- フッター操作 -->
+      <div class="page-title-row" style="justify-content:flex-end;">
+        <button class="btn" id="btnSaveDraft">一時保存</button>
+        <button class="btn btn-primary btn-lg" id="btnConfirm">評価を確定して共有</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- モーダル: 確定確認 -->
+<div class="modal-overlay" id="mConfirm">
+  <div class="modal-box">
+    <div class="modal-head">評価の確定・共有<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">確定すると、あなた（技術太郎）のスコア・コメント・推薦意見が <b>全評価者および案件担当者に共有</b>されます（BR-RFX-006）。確定後の編集はできません。</div>
+      <p class="muted">対象：富士C・日本DS・さくらI（3社）／評価軸：技術60%・価格40%（ロック済）</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-primary" id="btnConfirmDo">確定して共有する</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'技術太郎', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  var TECH_W = 0.6, PRICE_W = 0.4;
+
+  function recalc(card){
+    var t = parseFloat(card.querySelector('.tech').value);
+    var p = parseFloat(card.querySelector('.price').value);
+    var box = card.querySelector('.total');
+    if(isNaN(t) || isNaN(p)){ box.textContent = '—'; return; }
+    box.textContent = (t*TECH_W + p*PRICE_W).toFixed(1);
+  }
+
+  function validInt(v){
+    if(v.trim()==='') return false;
+    var n = Number(v);
+    return Number.isInteger(n) && n>=0 && n<=100;
+  }
+
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.eval-supplier'));
+
+  cards.forEach(function(card){
+    // live recalc + validation clear
+    card.querySelectorAll('.tech, .price').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        if(validInt(inp.value)){ inp.classList.remove('error'); inp.nextElementSibling.classList.remove('show'); }
+        recalc(card);
+      });
+    });
+    // char count
+    var ta = card.querySelector('.comment');
+    var cc = card.querySelector('.cc');
+    if(ta && cc){
+      var upd = function(){ cc.textContent = ta.value.length; };
+      ta.addEventListener('input', upd); upd();
+    }
+    recalc(card);
+  });
+
+  function validateAll(){
+    var ok = true;
+    cards.forEach(function(card){
+      card.querySelectorAll('.tech, .price').forEach(function(inp){
+        if(!validInt(inp.value)){
+          ok = false; inp.classList.add('error'); inp.nextElementSibling.classList.add('show');
+        }
+      });
+    });
+    return ok;
+  }
+
+  document.getElementById('btnSaveDraft').addEventListener('click', function(){
+    JienieLayout.toast('評価内容を一時保存しました（下書き）。');
+  });
+
+  document.getElementById('btnConfirm').addEventListener('click', function(){
+    if(!validateAll()){ JienieLayout.toast('スコアは0〜100の整数で入力してください。'); return; }
+    JienieLayout.openModal('mConfirm');
+  });
+
+  document.getElementById('btnConfirmDo').addEventListener('click', function(){
+    JienieLayout.closeModal('mConfirm');
+    JienieLayout.toast('評価を確定し、全評価者・案件担当者へ共有しました。評価結果・比較画面で確認できます。');
+    // 確定後は編集不可の状態を表現
+    document.querySelectorAll('.eval-supplier input, .eval-supplier textarea').forEach(function(el){ el.setAttribute('disabled','disabled'); });
+    var foot = document.getElementById('btnConfirm').parentNode;
+    foot.innerHTML = '<span class="status-badge pill st-moss">確定・共有済</span> <a class="btn btn-primary" href="eProcurement_RFX_ScoreResult_phase1.html">評価結果・比較を見る 🏆</a>';
+  });
+</script>
+</body>
+</html>

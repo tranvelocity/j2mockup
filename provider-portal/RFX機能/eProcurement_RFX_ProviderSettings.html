@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: RFXシステム設定画面（画面ID：SCR-RFX-P01）— RFX機能（新規開発・Provider Portal）
+  Dùng chung header/sidebar qua ../assets/layout.css + ../assets/layout.js (Provider Portal,
+  assets vừa được tạo lần đầu trong session này — provider-supplier/ trước đó chỉ có sitemap.md).
+
+  Nguồn yêu cầu (projects/standard/documents/features/RFX機能/, đã re-confirm sau khi 02_要件定義書.md
+  được cập nhật lên v0.9 ngày 2026-07-09):
+    - 02_要件定義書.md v0.9 §1.2: bổ sung Provider role — "ジーニーラボが運営するシステム管理者ロール
+      であり、全クライアント・全サプライヤをまたいだシステム設定・マスタ管理・監査ログ参照を担う"
+      (company_division_code=90).
+    - 02_要件定義書.md v0.9 §4.1 画面一覧: hàng mới
+      "SCR-RFX-P01 | RFXシステム設定画面 | Provider（システム管理者） | Q-BD-RFX-005・8.3運用・保守性 |
+      Provider Portal".
+    - 02_要件定義書.md v0.9 §4.2 "SCR-RFX-P01: RFXシステム設定画面（Provider）" — 4項目:
+        リマインド送信タイミング（RFI）／リマインド送信タイミング（RFP）／添付ファイルサイズ上限
+        （暫定50MB）／評価軸デフォルトウェイト（技術／価格）。
+        既存の Master モジュールに「RFX設定」サブメニューとして追加（§4.3 サイトマップ Provider
+        Portal subgraph, node P001）。Provider（システム管理者）のみ編集可能。
+    - 02_要件定義書.md v0.9 §8.3 運用・保守性: 「評価軸の重み付け・リマインド送信タイミング等は
+      設定変更のみで対応できることが望ましい（■未確定）」「重要操作はAuditログとして記録すること」
+      → màn hình này CHÍNH LÀ cách hiện thực hóa 2 yêu cầu này; do đó mockup có bảng 更新履歴
+      (Audit trail) ở cuối trang để chứng minh yêu cầu ログ出力.
+    - 03_基本設計書.md §5.3 rfx_reminder_config: config_id／リマインド日数1／リマインド日数2／
+      更新日時／更新者ID — entity đã có sẵn cho 2 field リマインド設定; mockup dùng đúng field name
+      này cho RFI/RFP reminder days.
+    - 03_基本設計書.md §6.1 API: 「リマインド設定取得(GET)」／「リマインド設定更新(PUT，Provider
+      管理者のみ実行可能)」— mockup mô phỏng luồng GET khi tải trang + PUT khi 保存する.
+
+  ⚠️ GHI CHÚ KHÔNG NHẤT QUÁN GIỮA TÀI LIỆU (chưa được reconcile trong tài liệu gốc — nêu rõ ở đây
+  để người review biết, KHÔNG tự ý sửa tài liệu):
+    - 03_基本設計書.md §4.1 và phase_scope.md vẫn còn liệt kê "SCR-RFX-013｜リマインド設定画面｜
+      Provider（システム管理者）｜Provider Portal" — CHỈ có phạm vi リマインド設定, hẹp hơn.
+      02_要件定義書.md v0.9 (mới hơn, 2026-07-09) định nghĩa SCR-RFX-P01 với phạm vi RỘNG HƠN
+      (thêm 添付ファイルサイズ上限 + 評価軸デフォルトウェイト, đổi sang numbering "P"-prefix riêng
+      cho Provider). Mockup này triển khai theo SCR-RFX-P01 (tài liệu mới hơn, đã v0.9 xác nhận),
+      xem SCR-RFX-013 như tiền thân đã được thay thế — 03_基本設計書.md/phase_scope.md nên được
+      cập nhật đồng bộ ở lần review kế tiếp (đã ghi vào task list nội bộ, KHÔNG tự sửa 2 file đó
+      vì thuộc quyền PM/BrSE theo j2-document-standards).
+
+  DEMO DATA (đề xuất — nhất quán với dữ liệu đã dùng ở buyer-portal):
+    - Giá trị hiện tại (giả lập GET từ rfx_reminder_config + config tương ứng):
+        リマインド日数(RFI)=3日前／リマインド日数(RFP)=5日前／添付ファイルサイズ上限=50MB
+        （đúng giá trị "暫定50MB" trong 02_要件定義書.md §8.2)／評価軸デフォルト 技術60%・価格40%
+        (TRÙNG với default đã dùng ở eProcurement_RFX_ProjectCreate.html dòng "default 重み
+        技術60/価格40" — vì màn này CHÍNH LÀ nơi cấu hình giá trị default đó, phải nhất quán).
+    - Provider demo user: 山田健一（ジーニーラボ株式会社）theo provider-supplier/assets/layout.js.
+    - 更新履歴 ban đầu có sẵn 2 dòng lịch sử giả lập (trước khi user tương tác) để minh họa Audit
+      log đã tồn tại; khi 保存する thành công sẽ prepend thêm 1 dòng mới với timestamp "hôm nay"
+      2026-07-09 và 更新者=山田健一.
+
+  SUB-FEATURE HOẠT ĐỘNG THẬT (tier 2 theo MOCKUP_GENERATION_PROMPT.md mục 4):
+    1. Load form với giá trị hiện tại (mô phỏng GET リマインド設定) — có nút "元に戻す" reset về
+       giá trị đã lưu gần nhất.
+    2. Validate LIVE từng field khi blur/input: リマインド日数 phải là số nguyên 1〜30；
+       添付ファイルサイズ上限 phải là số nguyên 1〜200；評価軸ウェイト 技術+価格 phải luôn =100%
+       (kéo 1 slider → slider còn lại tự bù, giống UX đã dùng ở ProjectCreate.html).
+    3. Nút「保存する」CHỈ活性化 khi tất cả field hợp lệ VÀ có ít nhất 1 giá trị thay đổi so với
+       bản đã lưu (tránh lưu vô nghĩa khi không đổi gì).
+    4. Bấm 保存する → modal xác nhận hiển thị bảng so sánh 変更前／変更後 (chỉ hiện dòng có thay
+       đổi thật) → xác nhận → PUT giả lập → toast báo thành công → prepend dòng mới vào 更新履歴
+       (Audit trail) với 更新日時=2026-07-09 hiện tại + 更新者=山田健一 → nút Save disable lại.
+    5. Cảnh báo cố định (không phải lỗi) nhắc BR-RFX-010: thay đổi デフォルトウェイト chỉ áp dụng
+       cho案件 MỚI tạo sau thời điểm lưu; các案件 đã chuyển sang評価フェーズ(400)đã bị khóa trọng
+       số riêng, KHÔNG bị ảnh hưởng bởi thay đổi ở đây (điểm TỰ ĐỀ XUẤT — cần detailed-design xác
+       nhận lại logic áp dụng default có retroactive hay không).
+    6. Cảnh báo phạm vi cấu hình: hiện tại là 1 bộ設定 DUY NHẤT dùng chung toàn hệ thống (chưa hỗ
+       trợ per-client) — khớp với 02_要件定義書.md §4.2 note về Q-BD-RFX-004 tương đương chưa xác
+       định cấu hình theo client riêng (Phase 2 trở đi).
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFXシステム設定</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; max-width: 1100px; }
+
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; cursor: pointer; }
+  .breadcrumb .active { color: #111111; }
+
+  .page-title { margin: 1.25rem 0 .6rem; display: flex; align-items: center; gap: .8rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+  .page-title .new-badge { background: #ff3333; color: #fff; font-size: .72rem; font-weight: bold; padding: 2px 8px; border-radius: 3px; }
+  .page-desc { color: #555; font-size: .9rem; margin-bottom: 1.4rem; }
+
+  .info-banner {
+    background: #eef3ff; border: 1px solid #c9d8ff; border-left: 4px solid #4169e1;
+    padding: .8rem 1.1rem; font-size: .86rem; color: #22315c; margin-bottom: 1.4rem; border-radius: 3px;
+  }
+  .info-banner b { color: #1a2a55; }
+  .warn-banner {
+    background: #fff8ec; border: 1px solid #ffe1ad; border-left: 4px solid #ff9933;
+    padding: .8rem 1.1rem; font-size: .86rem; color: #6b4a12; margin-bottom: 1.4rem; border-radius: 3px;
+  }
+
+  .form-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.4rem; }
+  .form-section-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; display: flex; justify-content: space-between; align-items: center; }
+  .form-section-header .role-note { font-size: .75rem; font-weight: normal; opacity: .9; }
+  .form-section-body { padding: 1.3rem 1.5rem; }
+
+  .f-row { display: flex; align-items: flex-start; margin-bottom: 1.2rem; }
+  .f-row:last-child { margin-bottom: .2rem; }
+  .f-label { width: 260px; flex-shrink: 0; padding-top: .5rem; font-size: .95rem; display: flex; align-items: center; gap: .5rem; }
+  .f-input { flex: 1; min-width: 0; max-width: 420px; }
+  .f-input .unit-input { display: flex; align-items: center; gap: .6rem; }
+  .f-input input[type="number"] {
+    width: 110px; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .95rem; background: #fff; text-align: right;
+  }
+  .f-input input[type="number"].err { border-color: #dc3545; background: #fff5f5; }
+  .f-input .unit { font-size: .92rem; color: #444; }
+  .f-input .note { font-size: .8rem; color: #777; margin-top: .4rem; }
+  .err-msg { color: #dc3545; font-size: .82rem; margin-top: .35rem; display: none; }
+  .err-msg.show { display: block; }
+  .changed-mark { color: #ff9933; font-size: .78rem; font-weight: bold; margin-left: .5rem; display: none; }
+  .changed-mark.show { display: inline; }
+
+  /* 評価軸スライダー (giống pattern ProjectCreate.html) */
+  .weight-slider-row { display: flex; align-items: center; gap: 1.2rem; max-width: 640px; }
+  .weight-slider-row .w-side { width: 150px; font-size: .95rem; font-weight: bold; }
+  .weight-slider-row .w-side.right { text-align: right; }
+  .weight-slider-row input[type="range"] { flex: 1; accent-color: #4169e1; }
+  .weight-vals { display: flex; gap: 2rem; margin-top: .6rem; font-size: .95rem; align-items: center; }
+  .weight-vals b { font-size: 1.15rem; color: #4169e1; }
+  .sum-note { font-size: .85rem; margin-top: .5rem; }
+  .sum-note .sum-ok { color: #437643; font-weight: bold; }
+  .sum-note .sum-ng { color: #dc3545; font-weight: bold; }
+  .btn-even { background: none; border: 1px solid #4169e1; color: #4169e1; border-radius: 4px; padding: .35rem .9rem; font-size: .85rem; cursor: pointer; margin-top: .8rem; }
+  .btn-even:hover { background: #eef3ff; }
+
+  .form-buttons { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin: 2rem 0 1rem; }
+  .btn-save {
+    background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%);
+    border: 1px solid #4169e1; color: #fff; font-size: 1.05rem; padding: .75rem 2rem;
+    border-radius: 4px; cursor: pointer; min-width: 200px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5); font-weight: bold;
+  }
+  .btn-save:disabled { background: #c9c9c9; border-color: #c9c9c9; cursor: not-allowed; box-shadow: none; }
+  .btn-reset {
+    background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1.05rem; padding: .75rem 1.6rem;
+    border-radius: 4px; cursor: pointer; min-width: 160px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+  }
+  .btn-reset:disabled { color: #bbb; cursor: not-allowed; }
+  .req-hint { text-align: center; font-size: .85rem; color: #777; margin-top: -.6rem; margin-bottom: 1rem; }
+  .req-hint .ng { color: #dc3545; }
+  .req-hint .ok { color: #437643; font-weight: bold; }
+
+  /* 更新履歴 (Audit trail) */
+  .history-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .history-table th { background: #eef1f7; border: 1px solid #e3e3e6; padding: .55rem .8rem; font-weight: bold; text-align: left; }
+  .history-table td { border: 1px solid #e3e3e6; padding: .5rem .8rem; background: #fff; }
+  .history-table tr.new-entry td { background: #f2f8ee; }
+  .history-table .diff-tag { display: inline-block; background: #eef3ff; color: #4169e1; font-size: .76rem; padding: 1px 6px; border-radius: 3px; margin: 1px 3px 1px 0; }
+
+  /* Modal */
+  .rfx-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; align-items: center; justify-content: center; }
+  .rfx-overlay.show { display: flex; }
+  .rfx-modal { background: #fff; width: 560px; max-width: 94%; max-height: 88vh; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+  .rfx-modal-header { padding: 1rem 1.3rem; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .rfx-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #888; }
+  .rfx-modal-body { padding: 1.2rem 1.3rem; font-size: .95rem; line-height: 1.7; overflow-y: auto; }
+  .rfx-modal-footer { padding: .8rem 1.3rem 1.2rem; display: flex; gap: 1rem; justify-content: center; flex-shrink: 0; border-top: 1px solid #f0f0f0; }
+  .rfx-modal-footer .ok { background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%); border: 1px solid #4169e1; color: #fff; font-weight: bold; padding: .6rem 2.2rem; border-radius: 4px; cursor: pointer; }
+  .rfx-modal-footer .ng { background: #fff; border: 1px solid #ccc; color: #111; padding: .6rem 2.2rem; border-radius: 4px; cursor: pointer; }
+  .diff-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .diff-table th { background: #eef1f7; border: 1px solid #e3e3e6; padding: .5rem .7rem; text-align: left; }
+  .diff-table td { border: 1px solid #e3e3e6; padding: .5rem .7rem; }
+  .diff-table .before { color: #999; text-decoration: line-through; }
+  .diff-table .after { color: #4169e1; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="トップページ（Provider Home）">トップページ</a></li>
+      <li><a href="#" data-nav="マスタ管理画面（eProcurement_Settings_MasterManagement_MasterSetting）">マスタ管理</a></li>
+      <li class="active">RFX設定</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="page-title"><h3>RFXシステム設定</h3><span class="new-badge">NEW</span></div>
+      <div class="page-desc">画面ID：SCR-RFX-P01／RFX機能に関するシステム全体の設定を行います。編集はProvider（システム管理者）のみ可能です。</div>
+
+      <div class="info-banner">
+        <b>適用範囲について：</b> 本設定はシステム全体で1セットのみ適用されます（クライアント別の個別設定には現在対応していません）。
+      </div>
+
+      <form id="settingsForm" novalidate>
+
+        <!-- ===== リマインド送信設定 ===== -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <span>リマインド送信設定</span>
+            <span class="role-note">rfx_reminder_config／リマインド日数1・2</span>
+          </div>
+          <div class="form-section-body">
+            <div class="f-row">
+              <div class="f-label">リマインド送信タイミング（RFI）</div>
+              <div class="f-input">
+                <div class="unit-input">
+                  <input type="number" id="remindRfi" min="1" max="30" step="1">
+                  <span class="unit">日前に未回答サプライヤへ送信</span>
+                  <span class="changed-mark" id="markRfi">変更あり</span>
+                </div>
+                <div class="note">RFI回答期限の何日前にリマインドメールを送信するか（1〜30の整数）</div>
+                <div class="err-msg" id="errRfi">1〜30の整数で入力してください。</div>
+              </div>
+            </div>
+            <div class="f-row">
+              <div class="f-label">リマインド送信タイミング（RFP）</div>
+              <div class="f-input">
+                <div class="unit-input">
+                  <input type="number" id="remindRfp" min="1" max="30" step="1">
+                  <span class="unit">日前に未提出サプライヤへ送信</span>
+                  <span class="changed-mark" id="markRfp">変更あり</span>
+                </div>
+                <div class="note">RFP提出期限の何日前にリマインドメールを送信するか（1〜30の整数）</div>
+                <div class="err-msg" id="errRfp">1〜30の整数で入力してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 添付ファイル設定 ===== -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <span>添付ファイル設定</span>
+            <span class="role-note">02_要件定義書.md §8.2（暫定50MB・■未確定）</span>
+          </div>
+          <div class="form-section-body">
+            <div class="f-row">
+              <div class="f-label">添付ファイルサイズ上限</div>
+              <div class="f-input">
+                <div class="unit-input">
+                  <input type="number" id="fileSizeLimit" min="1" max="200" step="1">
+                  <span class="unit">MB／ファイル</span>
+                  <span class="changed-mark" id="markFile">変更あり</span>
+                </div>
+                <div class="note">RFI/RFP回答・提案書等の添付ファイル1件あたりの上限サイズ（1〜200の整数）</div>
+                <div class="err-msg" id="errFile">1〜200の整数で入力してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 評価軸デフォルトウェイト設定 ===== -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <span>評価軸デフォルトウェイト設定</span>
+            <span class="role-note">案件作成画面（SCR-RFX-002）のシステムデフォルト値</span>
+          </div>
+          <div class="form-section-body">
+            <div class="weight-slider-row">
+              <div class="w-side">技術評価</div>
+              <input type="range" id="weightTech" min="0" max="100" step="5">
+              <div class="w-side right">価格評価</div>
+            </div>
+            <div class="weight-vals">
+              <div>技術：<b id="weightTechVal">60</b>%</div>
+              <div>価格：<b id="weightPriceVal">40</b>%</div>
+              <span class="changed-mark" id="markWeight">変更あり</span>
+            </div>
+            <div class="sum-note" id="weightSumNote"><span class="sum-ok">合計 100% — OK</span></div>
+            <button type="button" class="btn-even" id="btnEven">50 / 50 に均等配分</button>
+            <div class="warn-banner" style="margin-top:1.1rem;">
+              <b>ご注意：</b> ここで変更したデフォルト値は、保存後に<b>新規作成される調達案件</b>にのみ適用されます。
+              既に評価フェーズ（ステータス400）へ進んだ案件の重み付けはBR-RFX-010により既にロックされており、本設定の変更による影響は受けません。
+            </div>
+          </div>
+        </div>
+
+        <div class="form-buttons">
+          <button type="button" class="btn-reset" id="btnReset" disabled>元に戻す</button>
+          <button type="button" class="btn-save" id="btnSave" disabled>保存する</button>
+        </div>
+        <div class="req-hint" id="reqHint">変更がありません</div>
+
+      </form>
+
+      <!-- ===== 更新履歴（Audit trail） ===== -->
+      <div class="form-section">
+        <div class="form-section-header">
+          <span>更新履歴</span>
+          <span class="role-note">02_要件定義書.md §8.3 ログ出力（重要操作のAuditログ記録）</span>
+        </div>
+        <div class="form-section-body">
+          <table class="history-table">
+            <thead>
+              <tr><th style="width:160px;">更新日時</th><th style="width:120px;">更新者</th><th>変更内容</th></tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr>
+                <td>2026-06-20 10:15</td>
+                <td>山田健一</td>
+                <td><span class="diff-tag">添付ファイルサイズ上限：30MB → 50MB</span></td>
+              </tr>
+              <tr>
+                <td>2026-06-02 09:40</td>
+                <td>山田健一</td>
+                <td><span class="diff-tag">評価軸デフォルトウェイト：技術50% → 60%</span><span class="diff-tag">価格50% → 40%</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+
+<!-- 保存確認 modal -->
+<div class="rfx-overlay" id="confirmOverlay">
+  <div class="rfx-modal">
+    <div class="rfx-modal-header">
+      <span>設定内容の確認</span>
+      <button type="button" class="rfx-modal-close" id="confirmCloseBtn">&times;</button>
+    </div>
+    <div class="rfx-modal-body">
+      <p>以下の内容で設定を更新します。よろしいですか？</p>
+      <table class="diff-table" id="diffTable"></table>
+    </div>
+    <div class="rfx-modal-footer">
+      <button type="button" class="ng" id="confirmCancelBtn">キャンセル</button>
+      <button type="button" class="ok" id="confirmOkBtn">更新する</button>
+    </div>
+  </div>
+</div>
+
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'provider', activeNav:'rfx', user:'山田健一', company:'ジーニーラボ株式会社（Provider）' };
+  JienieLayout.init();
+
+  // ===== Saved state (mo phong GET リマインド設定 + config lien quan) =====
+  var saved = { remindRfi: 3, remindRfp: 5, fileSizeLimit: 50, weightTech: 60 };
+  var current = Object.assign({}, saved);
+
+  var elRfi = document.getElementById('remindRfi');
+  var elRfp = document.getElementById('remindRfp');
+  var elFile = document.getElementById('fileSizeLimit');
+  var elWeight = document.getElementById('weightTech');
+  var elWeightTechVal = document.getElementById('weightTechVal');
+  var elWeightPriceVal = document.getElementById('weightPriceVal');
+
+  function applyToForm(state) {
+    elRfi.value = state.remindRfi;
+    elRfp.value = state.remindRfp;
+    elFile.value = state.fileSizeLimit;
+    elWeight.value = state.weightTech;
+    elWeightTechVal.textContent = state.weightTech;
+    elWeightPriceVal.textContent = 100 - state.weightTech;
+  }
+  applyToForm(current);
+
+  function validateInt(val, min, max) {
+    var n = Number(val);
+    return Number.isInteger(n) && n >= min && n <= max;
+  }
+
+  function fieldChanged(key) { return String(current[key]) !== String(saved[key]); }
+
+  function updateFieldUI(inputEl, errEl, markEl, key, min, max) {
+    var ok = validateInt(inputEl.value, min, max);
+    inputEl.classList.toggle('err', !ok);
+    errEl.classList.toggle('show', !ok);
+    markEl.classList.toggle('show', fieldChanged(key));
+    return ok;
+  }
+
+  function refreshAll() {
+    var okRfi = updateFieldUI(elRfi, document.getElementById('errRfi'), document.getElementById('markRfi'), 'remindRfi', 1, 30);
+    var okRfp = updateFieldUI(elRfp, document.getElementById('errRfp'), document.getElementById('markRfp'), 'remindRfp', 1, 30);
+    var okFile = updateFieldUI(elFile, document.getElementById('errFile'), document.getElementById('markFile'), 'fileSizeLimit', 1, 200);
+
+    document.getElementById('markWeight').classList.toggle('show', fieldChanged('weightTech'));
+    document.getElementById('weightSumNote').innerHTML = '<span class="sum-ok">合計 100% — OK</span>';
+
+    var anyChanged = fieldChanged('remindRfi') || fieldChanged('remindRfp') || fieldChanged('fileSizeLimit') || fieldChanged('weightTech');
+    var allValid = okRfi && okRfp && okFile;
+
+    document.getElementById('btnReset').disabled = !anyChanged;
+    document.getElementById('btnSave').disabled = !(anyChanged && allValid);
+
+    var hint = document.getElementById('reqHint');
+    if (!anyChanged) {
+      hint.innerHTML = '変更がありません';
+    } else if (!allValid) {
+      hint.innerHTML = '<span class="ng">入力内容にエラーがあります。修正してください。</span>';
+    } else {
+      hint.innerHTML = '<span class="ok">保存する準備ができています</span>';
+    }
+  }
+
+  elRfi.addEventListener('input', function () { current.remindRfi = elRfi.value; refreshAll(); });
+  elRfp.addEventListener('input', function () { current.remindRfp = elRfp.value; refreshAll(); });
+  elFile.addEventListener('input', function () { current.fileSizeLimit = elFile.value; refreshAll(); });
+  elWeight.addEventListener('input', function () {
+    var v = Number(elWeight.value);
+    current.weightTech = v;
+    elWeightTechVal.textContent = v;
+    elWeightPriceVal.textContent = 100 - v;
+    refreshAll();
+  });
+
+  document.getElementById('btnEven').addEventListener('click', function () {
+    current.weightTech = 50;
+    elWeight.value = 50;
+    elWeightTechVal.textContent = 50;
+    elWeightPriceVal.textContent = 50;
+    refreshAll();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function () {
+    current = Object.assign({}, saved);
+    applyToForm(current);
+    refreshAll();
+    JienieLayout.toast('保存済みの値に戻しました');
+  });
+
+  // ===== Confirm modal =====
+  var overlay = document.getElementById('confirmOverlay');
+  function fieldLabel(key) {
+    return { remindRfi: 'リマインド送信タイミング（RFI）', remindRfp: 'リマインド送信タイミング（RFP）',
+      fileSizeLimit: '添付ファイルサイズ上限', weightTech: '評価軸デフォルトウェイト（技術/価格）' }[key];
+  }
+  function fieldDisplay(key, val) {
+    if (key === 'remindRfi' || key === 'remindRfp') return val + '日前';
+    if (key === 'fileSizeLimit') return val + 'MB';
+    if (key === 'weightTech') return '技術' + val + '% / 価格' + (100 - Number(val)) + '%';
+    return val;
+  }
+
+  document.getElementById('btnSave').addEventListener('click', function () {
+    var rows = '<tr><th>設定項目</th><th>変更前</th><th>変更後</th></tr>';
+    ['remindRfi', 'remindRfp', 'fileSizeLimit', 'weightTech'].forEach(function (key) {
+      if (fieldChanged(key)) {
+        rows += '<tr><td>' + fieldLabel(key) + '</td><td class="before">' + fieldDisplay(key, saved[key]) +
+          '</td><td class="after">' + fieldDisplay(key, current[key]) + '</td></tr>';
+      }
+    });
+    document.getElementById('diffTable').innerHTML = rows;
+    overlay.classList.add('show');
+  });
+  document.getElementById('confirmCloseBtn').addEventListener('click', function () { overlay.classList.remove('show'); });
+  document.getElementById('confirmCancelBtn').addEventListener('click', function () { overlay.classList.remove('show'); });
+
+  document.getElementById('confirmOkBtn').addEventListener('click', function () {
+    var diffTags = '';
+    ['remindRfi', 'remindRfp', 'fileSizeLimit', 'weightTech'].forEach(function (key) {
+      if (fieldChanged(key)) {
+        diffTags += '<span class="diff-tag">' + fieldLabel(key) + '：' + fieldDisplay(key, saved[key]) +
+          ' → ' + fieldDisplay(key, current[key]) + '</span>';
+      }
+    });
+    var now = '2026-07-09 ' + new Date().toTimeString().slice(0, 5);
+    var row = document.createElement('tr');
+    row.className = 'new-entry';
+    row.innerHTML = '<td>' + now + '</td><td>山田健一</td><td>' + diffTags + '</td>';
+    document.getElementById('historyBody').insertBefore(row, document.getElementById('historyBody').firstChild);
+
+    saved = Object.assign({}, current);
+    overlay.classList.remove('show');
+    refreshAll();
+    JienieLayout.toast('RFXシステム設定を更新しました');
+  });
+
+  refreshAll();
+</script>
+
+</body>
+</html>

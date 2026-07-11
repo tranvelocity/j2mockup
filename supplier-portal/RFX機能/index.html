@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- RFX機能 モックアップ ナビゲーション（Supplier Portal）。出典: 02_要件定義書.md §4.1/§4.3。 -->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFX機能 モックアップ一覧（Supplier Portal）</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style> .scr{font-family:monospace;color:#555;} .ph{font-size:.72rem;font-weight:bold;border-radius:4px;padding:1px 8px;} .ph1{background:#e3f3e3;color:#2f7d32;} .ph2{background:#e6efff;color:#21489c;} .phc{background:#f0f0f0;color:#555;} </style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb"><li><a href="#" data-nav="ホーム">ホーム</a></li><li>調達案件(RFX) モックアップ一覧</li></ul>
+    <div class="page-content">
+      <div class="page-title-row"><h3 class="page-title">RFX機能 モックアップ一覧</h3><span class="status-badge st-blue" style="min-width:auto;">Supplier Portal</span></div>
+      <div class="alert alert-info">参加サプライヤ（富士クラウド株式会社）視点の画面です。Supplier Portal のRFXナビ配置は ■未確定（Q-RD-RFX-003）。</div>
+      <div class="section">
+        <div class="section-head">Supplier Portal 画面</div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th class="center">画面ID</th><th>画面名</th><th class="center">区分</th><th class="center">リンク</th></tr></thead>
+            <tbody>
+              <tr><td class="center"><span class="scr">—</span></td><td>参加案件一覧（新規追加）</td><td class="center"><span class="ph phc">共通</span></td><td class="center"><a href="eProcurement_RFX_Supplier_ProjectList.html">開く</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-007</span></td><td>Q&amp;A掲示板（Supplier側）</td><td class="center"><span class="ph phc">共通</span></td><td class="center"><a href="eProcurement_RFX_QA_Supplier.html">開く</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-008</span></td><td>RFI/RFP回答・提出（Phase 1）</td><td class="center"><span class="ph ph1">P1</span></td><td class="center"><a href="eProcurement_RFX_SupplierResponse_phase1.html">開く</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-008</span></td><td>RFI/RFP回答・提出（Phase 2・カスタム）</td><td class="center"><span class="ph ph2">P2</span></td><td class="center"><a href="eProcurement_RFX_SupplierResponse_phase2.html">開く</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section"><div class="section-head">他ポータル</div><div class="section-body"><p>Buyer: <span class="scr">../../buyer-portal/RFX機能/index.html</span>　｜　Provider: <span class="scr">../../provider-portal/RFX機能/index.html</span></p></div></div>
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+<script src="assets/layout.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'supplier', activeNav:'rfx', user:'富士 太郎', company:'富士クラウド株式会社' };
+  JienieLayout.init();
+</script>
+</body>
+</html>

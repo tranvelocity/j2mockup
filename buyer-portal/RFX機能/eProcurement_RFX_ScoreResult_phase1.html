@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-010 評価結果・比較画面（Phase 1・降順ランキング） — Buyer Portal / RFXモジュール
+  Vai trò người dùng（アクター）: 案件担当者 調達花子（購買部門リード・議長）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-010（全評価者スコアを総合スコア降順ランキングで表示・Ariba落札推奨レポート相当）,
+      §3.2 RD-RFX-007（総合＝技術×技術ウェイト+価格×価格ウェイト・降順ランキング）, RD-RFX-008（全評価者の個別スコア・コメント・推薦意見を一覧）
+    - §2.2 BR-RFX-003（重み付きスコア合計・評価者ウェイト集計）, BR-RFX-006（推薦フラグ/コメント共有）, BR-RFX-009（Award承認WFへ）
+  Nguồn design: assets/layout.css|js, 参照: eProcurement_RFX_ProjectDetail_phase1.html
+  Demo data: _RFX_MOCKUP_SPEC.md
+    集計: 技術60/価格40（軸ウェイト・ロック）× 評価者ウェイト 技術太郎50 / 品質次郎25 / 現場三郎25
+    集約スコア: 富士C 88/72=81.6, 日本DS 82/85=83.2, さくらI 76/90=81.6（GTechは選外・評価対象外）
+  Tự đề xuất / ■未確定:
+    - display code「RFX260700123」は提案（DBはUUID）。同点(富士C/さくらI=81.6)の順位は技術スコア高い富士C=2位とした（自己判断・要確認）。
+    - 評価者別サブスコアは集約値へ 50/25/25 で整合するよう realism 設定。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>評価結果・比較（Phase 1） | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .rank-medal { font-size:1.2rem; }
+  .sub-cell { color:#888; font-size:.78rem; }
+  .detail-row td { background:#f8fafd !important; padding:0 !important; }
+  .detail-inner { padding:14px 16px; }
+  .detail-inner h4 { margin:0 0 10px; font-size:.9rem; }
+  .expand-btn { cursor:pointer; }
+  .score-big { font-weight:bold; font-size:1.05rem; color:var(--j2-blue); }
+  .lock-box { display:flex; gap:22px; flex-wrap:wrap; align-items:center; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li>評価結果・比較</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">評価結果・比較</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <span class="status-badge st-blue">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ScoreResult_phase2.html">Phase 2版を見る ⇄</a>
+      </div>
+
+      <div class="alert alert-info">
+        <b>案件担当者（議長）ビュー</b>：全評価者（技術太郎・品質次郎・現場三郎）のスコアを集計し、<b>総合スコア降順ランキング</b>で表示しています（Ariba 落札推奨レポート相当）。
+        各行の「評価者別内訳」を展開すると、全評価者の個別スコア・コメント・推薦意見を確認できます（BR-RFX-006 / RD-RFX-008）。
+        担当者はこれらを<b>総括</b>のうえ Award 候補を選定してください。
+      </div>
+
+      <!-- 集計条件 -->
+      <div class="section">
+        <div class="section-head">集計条件</div>
+        <div class="section-body">
+          <div class="lock-box">
+            <span>案件番号 <b>RFX260700123</b></span>
+            <span>評価軸ウェイト <b>技術60% / 価格40%</b> <span class="status-badge pill st-gray">🔒 ロック済</span></span>
+            <span>評価者ウェイト <b>技術太郎50% / 品質次郎25% / 現場三郎25%</b></span>
+          </div>
+          <p class="muted" style="margin-top:8px;">総合スコア＝技術スコア×0.6＋価格スコア×0.4。技術・価格の各集約スコアは評価者ウェイトで加重集計（BR-RFX-003）。</p>
+        </div>
+      </div>
+
+      <!-- ランキング -->
+      <div class="section">
+        <div class="section-head">総合スコア ランキング（降順）</div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead>
+              <tr>
+                <th class="center" rowspan="2">順位</th>
+                <th rowspan="2">サプライヤ</th>
+                <th class="center" colspan="2">技術（60%）</th>
+                <th class="center" colspan="2">価格（40%）</th>
+                <th class="center" rowspan="2">総合スコア</th>
+                <th class="center" rowspan="2">推薦</th>
+                <th class="center" rowspan="2">評価者別内訳</th>
+              </tr>
+              <tr>
+                <th class="center">加重前</th><th class="center">加重後</th>
+                <th class="center">加重前</th><th class="center">加重後</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 1位 日本DS -->
+              <tr>
+                <td class="center rank rank-1"><span class="rank-medal">🥇</span> 1</td>
+                <td>日本デジタルソリューションズ株式会社</td>
+                <td class="center">82</td><td class="center sub-cell">49.2</td>
+                <td class="center">85</td><td class="center sub-cell">34.0</td>
+                <td class="center"><span class="score-big">83.2</span></td>
+                <td class="center"><span class="rec-flag">★3</span> <span class="muted">/3名</span></td>
+                <td class="center"><button class="btn btn-sm expand-btn" data-target="d-ds">内訳を表示 ▾</button></td>
+              </tr>
+              <tr class="detail-row" id="d-ds" style="display:none;"><td colspan="9">
+                <div class="detail-inner">
+                  <h4>日本デジタルソリューションズ株式会社 — 評価者別内訳</h4>
+                  <table class="data">
+                    <thead><tr><th>評価者</th><th class="center">ウェイト</th><th class="center">技術</th><th class="center">価格</th><th class="center">個別総合</th><th class="center">推薦</th><th>コメント</th></tr></thead>
+                    <tbody>
+                      <tr><td>技術太郎（技術部長）</td><td class="center">50%</td><td class="center">80</td><td class="center">86</td><td class="center">82.4</td><td class="center"><span class="rec-flag">★</span></td><td>総合バランスが最も優れ、技術・価格とも安定。第一候補として推薦。</td></tr>
+                      <tr><td>品質次郎（品質管理課）</td><td class="center">25%</td><td class="center">84</td><td class="center">84</td><td class="center">84.0</td><td class="center"><span class="rec-flag">★</span></td><td>品質保証体制・SLAが明確。推薦。</td></tr>
+                      <tr><td>現場三郎（利用部門）</td><td class="center">25%</td><td class="center">84</td><td class="center">84</td><td class="center">84.0</td><td class="center"><span class="rec-flag">★</span></td><td>現場運用のしやすさ・サポート体制が良い。推薦。</td></tr>
+                      <tr style="font-weight:bold;background:#eef4ff;"><td>加重集計</td><td class="center">100%</td><td class="center">82</td><td class="center">85</td><td class="center">83.2</td><td class="center">3/3</td><td>—</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </td></tr>
+
+              <!-- 2位 富士C -->
+              <tr>
+                <td class="center rank rank-2"><span class="rank-medal">🥈</span> 2</td>
+                <td>富士クラウド株式会社</td>
+                <td class="center">88</td><td class="center sub-cell">52.8</td>
+                <td class="center">72</td><td class="center sub-cell">28.8</td>
+                <td class="center"><span class="score-big">81.6</span></td>
+                <td class="center"><span class="rec-flag">★1</span> <span class="muted">/3名</span></td>
+                <td class="center"><button class="btn btn-sm expand-btn" data-target="d-fc">内訳を表示 ▾</button></td>
+              </tr>
+              <tr class="detail-row" id="d-fc" style="display:none;"><td colspan="9">
+                <div class="detail-inner">
+                  <h4>富士クラウド株式会社 — 評価者別内訳</h4>
+                  <table class="data">
+                    <thead><tr><th>評価者</th><th class="center">ウェイト</th><th class="center">技術</th><th class="center">価格</th><th class="center">個別総合</th><th class="center">推薦</th><th>コメント</th></tr></thead>
+                    <tbody>
+                      <tr><td>技術太郎（技術部長）</td><td class="center">50%</td><td class="center">90</td><td class="center">70</td><td class="center">82.0</td><td class="center">—</td><td>技術実装力・実績とも高水準。価格はやや高め。</td></tr>
+                      <tr><td>品質次郎（品質管理課）</td><td class="center">25%</td><td class="center">88</td><td class="center">74</td><td class="center">82.4</td><td class="center"><span class="rec-flag">★</span></td><td>技術・品質は最高評価。信頼性を重視するなら推薦。</td></tr>
+                      <tr><td>現場三郎（利用部門）</td><td class="center">25%</td><td class="center">84</td><td class="center">74</td><td class="center">80.0</td><td class="center">—</td><td>機能は充分だが価格が割高。</td></tr>
+                      <tr style="font-weight:bold;background:#eef4ff;"><td>加重集計</td><td class="center">100%</td><td class="center">88</td><td class="center">72</td><td class="center">81.6</td><td class="center">1/3</td><td>—</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </td></tr>
+
+              <!-- 3位 さくらI -->
+              <tr>
+                <td class="center rank rank-3"><span class="rank-medal">🥉</span> 3</td>
+                <td>さくらインフラ株式会社</td>
+                <td class="center">76</td><td class="center sub-cell">45.6</td>
+                <td class="center">90</td><td class="center sub-cell">36.0</td>
+                <td class="center"><span class="score-big">81.6</span></td>
+                <td class="center"><span class="rec-flag">★1</span> <span class="muted">/3名</span></td>
+                <td class="center"><button class="btn btn-sm expand-btn" data-target="d-si">内訳を表示 ▾</button></td>
+              </tr>
+              <tr class="detail-row" id="d-si" style="display:none;"><td colspan="9">
+                <div class="detail-inner">
+                  <h4>さくらインフラ株式会社 — 評価者別内訳</h4>
+                  <table class="data">
+                    <thead><tr><th>評価者</th><th class="center">ウェイト</th><th class="center">技術</th><th class="center">価格</th><th class="center">個別総合</th><th class="center">推薦</th><th>コメント</th></tr></thead>
+                    <tbody>
+                      <tr><td>技術太郎（技術部長）</td><td class="center">50%</td><td class="center">78</td><td class="center">88</td><td class="center">82.0</td><td class="center">—</td><td>価格は最安。技術面は標準的だが要件は充足。</td></tr>
+                      <tr><td>品質次郎（品質管理課）</td><td class="center">25%</td><td class="center">74</td><td class="center">92</td><td class="center">81.2</td><td class="center">—</td><td>コスト優位だが実績面にやや不安。</td></tr>
+                      <tr><td>現場三郎（利用部門）</td><td class="center">25%</td><td class="center">74</td><td class="center">92</td><td class="center">81.2</td><td class="center"><span class="rec-flag">★</span></td><td>コスト重視の観点で推薦。</td></tr>
+                      <tr style="font-weight:bold;background:#eef4ff;"><td>加重集計</td><td class="center">100%</td><td class="center">76</td><td class="center">90</td><td class="center">81.6</td><td class="center">1/3</td><td>—</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="alert alert-warn">
+        グローバルテック株式会社（GTech）はショートリスト選外のため評価対象外です。みらいネットワークス株式会社は不参加です。
+      </div>
+
+      <!-- 議長総括 -->
+      <div class="section">
+        <div class="section-head">議長（案件担当者）総括メモ</div>
+        <div class="section-body">
+          <p class="muted">全評価者のスコア・コメント・推薦意見を総括し、Award 候補選定の判断材料とします（RD-RFX-008 受入基準）。このメモは Award 承認申請時の推薦コメントに引用できます。</p>
+          <textarea id="chairNote" maxlength="1000" placeholder="例：総合1位の日本DSは3名全員が推薦。技術重視なら富士C、コスト重視ならさくらIも候補。">総合スコア1位の日本DSは全評価者が推薦しており、技術・価格のバランスが最良。第一候補として妥当。</textarea>
+        </div>
+      </div>
+
+      <!-- フッター操作 -->
+      <div class="page-title-row" style="justify-content:flex-end;">
+        <a class="btn" href="eProcurement_RFX_ScoreSheet_phase1.html">← 評価シートに戻る</a>
+        <a class="btn btn-primary btn-lg" href="eProcurement_RFX_AwardRequest_phase1.html">Award候補を選定して申請 →</a>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  document.querySelectorAll('.expand-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var row = document.getElementById(btn.getAttribute('data-target'));
+      var open = row.style.display === 'none';
+      row.style.display = open ? 'table-row' : 'none';
+      btn.textContent = open ? '内訳を隠す ▴' : '内訳を表示 ▾';
+    });
+  });
+</script>
+</body>
+</html>

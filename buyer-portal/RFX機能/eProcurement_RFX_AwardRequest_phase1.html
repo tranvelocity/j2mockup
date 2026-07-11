@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-011 Award確定申請画面（Phase 1・案件担当者） — Buyer Portal / RFXモジュール
+  Vai trò người dùng（アクター）: 案件担当者 調達花子（購買部門リード）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-011, §3.2 RD-RFX-009（Award候補1社/複数社選択→承認申請→承認者へ通知）
+    - §2.2 BR-RFX-009（担当者はAwardを単独確定できない・承認WF必須。承認者が承認して初めて確定。差戻し時は評価中へ）
+    - §2.2 BR-RFX-004（RFP採用≠発注。Award確定後に採用サプライヤへ改めて見積依頼→既存見積購買フローで発注）
+    - §2.2 BR-RFX-006（Award候補は複数社選択可）
+  Nguồn design: assets/layout.css|js, 参照: eProcurement_RFX_ProjectDetail_phase1.html / eProcurement_RFX_ScoreResult_phase1.html
+  Demo data: _RFX_MOCKUP_SPEC.md（ランキング: 日本DS83.2 / 富士C81.6 / さくらI81.6・承認者=経理雄之助）
+  Tự đề xuất / ■未確定:
+    - display code「RFX260700123」は提案（DBはUUID）。
+    - 承認者の指定方法（固定/選択/役職ベース）は R-07 未確定。ここでは選択UIとして提案表示。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Award確定申請（Phase 1） | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .cand-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--j2-th-border); border-radius:6px; margin-bottom:8px; }
+  .cand-row.top { background:#f6f8fc; }
+  .cand-row .rk { font-weight:bold; min-width:52px; }
+  .cand-row .nm { flex:1; }
+  .cand-row .sc { font-weight:bold; color:var(--j2-blue); }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li><a href="eProcurement_RFX_ScoreResult_phase1.html">評価結果・比較</a></li>
+      <li>Award確定申請</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">Award確定申請</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <span class="status-badge st-blue">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_AwardRequest_phase2.html">Phase 2版を見る ⇄</a>
+      </div>
+
+      <div class="alert alert-info">
+        案件担当者は Award を<b>単独で確定できません</b>。Award 候補を選定し <b>承認者へ承認申請</b>を送信します。承認者が承認して初めて Award が正式確定します（BR-RFX-009・承認ワークフロー必須）。
+      </div>
+      <div class="alert alert-warn">
+        <b>RFP 採用 ≠ 発注</b>：Award 確定後は、選定したサプライヤへ改めて<b>見積依頼</b>を行い、既存の見積購買フロー（通常フロー）で発注します（BR-RFX-004）。この申請は発注を確定するものではありません。
+      </div>
+
+      <!-- 案件情報 -->
+      <div class="section">
+        <div class="section-head">対象案件</div>
+        <div class="section-body">
+          <div class="kv-grid">
+            <div class="k">案件番号</div><div class="v">RFX260700123</div>
+            <div class="k">案件名</div><div class="v">社内基幹システム刷新に伴うクラウド基盤調達</div>
+            <div class="k">案件担当者</div><div class="v">調達花子（購買部門リード）</div>
+            <div class="k">評価軸ウェイト</div><div class="v">技術60% / 価格40% <span class="status-badge pill st-gray" style="margin-left:6px;">🔒 ロック済</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ランキングサマリ -->
+      <div class="section">
+        <div class="section-head">評価ランキングサマリ（総合スコア降順）
+          <span class="sec-actions"><a class="btn btn-sm" href="eProcurement_RFX_ScoreResult_phase1.html">詳細を見る</a></span>
+        </div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th class="center">順位</th><th>サプライヤ</th><th class="center">技術</th><th class="center">価格</th><th class="center">総合スコア</th><th class="center">推薦</th></tr></thead>
+            <tbody>
+              <tr><td class="center rank rank-1">🥇 1</td><td>日本デジタルソリューションズ株式会社</td><td class="center">82</td><td class="center">85</td><td class="center"><b>83.2</b></td><td class="center"><span class="rec-flag">★3</span>/3</td></tr>
+              <tr><td class="center rank rank-2">🥈 2</td><td>富士クラウド株式会社</td><td class="center">88</td><td class="center">72</td><td class="center"><b>81.6</b></td><td class="center"><span class="rec-flag">★1</span>/3</td></tr>
+              <tr><td class="center rank rank-3">🥉 3</td><td>さくらインフラ株式会社</td><td class="center">76</td><td class="center">90</td><td class="center"><b>81.6</b></td><td class="center"><span class="rec-flag">★1</span>/3</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Award候補選択 -->
+      <div class="section">
+        <div class="section-head">Award 候補の選定（1社または複数社）<span class="chip-req">必須</span></div>
+        <div class="section-body">
+          <p class="muted">評価結果を総括のうえ Award 候補を選択してください。複数社の選定も可能です（BR-RFX-006・RD-RFX-009）。</p>
+          <label class="cand-row top"><input type="checkbox" class="cand" value="日本デジタルソリューションズ株式会社" checked> <span class="rk">🥇 1位</span><span class="nm">日本デジタルソリューションズ株式会社</span><span class="sc">総合 83.2</span></label>
+          <label class="cand-row"><input type="checkbox" class="cand" value="富士クラウド株式会社"> <span class="rk">🥈 2位</span><span class="nm">富士クラウド株式会社</span><span class="sc">総合 81.6</span></label>
+          <label class="cand-row"><input type="checkbox" class="cand" value="さくらインフラ株式会社"> <span class="rk">🥉 3位</span><span class="nm">さくらインフラ株式会社</span><span class="sc">総合 81.6</span></label>
+          <div class="field-error" id="candErr">Award 候補を1社以上選択してください。</div>
+        </div>
+      </div>
+
+      <!-- 承認者・推薦コメント -->
+      <div class="section">
+        <div class="section-head">承認申請内容</div>
+        <div class="section-body">
+          <label class="req-lbl">承認者 <span class="chip-req">必須</span></label>
+          <div style="margin:4px 0 4px;">
+            <select id="approver">
+              <option value="経理雄之助">経理雄之助（購買担当役員）</option>
+              <option value="">— その他の承認者を選択 —</option>
+            </select>
+          </div>
+          <p class="muted" style="margin-top:0;">※ 承認者の指定方法（固定／選択／役職ベース）は R-07 未確定。本モックでは選択UIとして提案表示。</p>
+
+          <label class="req-lbl" style="display:block;margin-top:12px;">推薦コメント <span class="chip-req">必須</span>（承認者へ）</label>
+          <textarea id="recComment" maxlength="1000" placeholder="Award候補の選定理由・評価総括を記載してください。">総合スコア1位の日本DSは全評価者が推薦しており、技術・価格のバランスが最良。第一候補として承認を申請します。</textarea>
+          <div class="field-error" id="commentErr">推薦コメントを入力してください。</div>
+        </div>
+      </div>
+
+      <!-- フッター操作 -->
+      <div class="page-title-row" style="justify-content:flex-end;">
+        <a class="btn" href="eProcurement_RFX_ScoreResult_phase1.html">← 評価結果へ戻る</a>
+        <button class="btn btn-primary btn-lg" id="btnSubmit">承認申請を送信</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- モーダル: 申請確認 -->
+<div class="modal-overlay" id="mSubmit">
+  <div class="modal-box">
+    <div class="modal-head">承認申請の送信<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">承認者（<b id="mApprover">経理雄之助</b>）へ承認依頼を送信します。承認者が承認して初めて Award が確定します（BR-RFX-009）。</div>
+      <p><b>Award候補：</b><span id="mCands">—</span></p>
+      <p class="muted">送信後、案件ステータスは「Award承認待ち（500）」へ遷移します。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-primary" id="btnSubmitDo">承認申請を確定送信</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  var candErr = document.getElementById('candErr');
+  var commentErr = document.getElementById('commentErr');
+  var recComment = document.getElementById('recComment');
+
+  function selectedCands(){
+    return Array.prototype.slice.call(document.querySelectorAll('.cand:checked')).map(function(c){ return c.value; });
+  }
+
+  document.querySelectorAll('.cand').forEach(function(c){
+    c.addEventListener('change', function(){ if(selectedCands().length>0) candErr.classList.remove('show'); });
+  });
+  recComment.addEventListener('input', function(){ if(recComment.value.trim()){ recComment.classList.remove('error'); commentErr.classList.remove('show'); } });
+
+  document.getElementById('btnSubmit').addEventListener('click', function(){
+    var cands = selectedCands();
+    var ok = true;
+    if(cands.length===0){ candErr.classList.add('show'); ok=false; }
+    if(!recComment.value.trim()){ recComment.classList.add('error'); commentErr.classList.add('show'); ok=false; }
+    if(!ok){ JienieLayout.toast('入力内容を確認してください。'); return; }
+    document.getElementById('mApprover').textContent = document.getElementById('approver').value || '（未選択）';
+    document.getElementById('mCands').textContent = cands.join(' ／ ');
+    JienieLayout.openModal('mSubmit');
+  });
+
+  document.getElementById('btnSubmitDo').addEventListener('click', function(){
+    JienieLayout.closeModal('mSubmit');
+    JienieLayout.toast('承認申請を送信しました。承認者へ通知しました。');
+    var badge = document.querySelector('.page-title-row .status-badge');
+    badge.className = 'status-badge st-pink'; badge.textContent = 'Award承認待ち';
+    var foot = document.getElementById('btnSubmit').parentNode;
+    foot.innerHTML = '<span class="status-badge pill st-pink">承認申請済（500）</span> <a class="btn" href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細へ戻る</a> <a class="btn btn-primary" href="eProcurement_RFX_AwardApproval.html">承認者ビューを見る（デモ）</a>';
+  });
+</script>
+</body>
+</html>

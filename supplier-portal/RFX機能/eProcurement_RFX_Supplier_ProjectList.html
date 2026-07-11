@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<!--
+  Mockup: 参加案件一覧（新規追加） — Supplier Portal / RFXモジュール
+  Supplier がサイトマップ上「参加案件一覧（新規追加）」ノードから Q&A / 回答画面へ進むハブ。
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.3 サイトマップ（Supplier Portal：参加案件一覧→SCR-007/008）
+    - §3.2 RD-RFX-005（参加サプライヤが Supplier ポータルから自身の案件を確認できること）
+    - §3.2 RD-RFX-010（案件ステータス管理・一覧絞り込み）
+    - §7.2 外部IF（アクセス制御：招待・参加確定サプライヤのみ対象案件にアクセス可）
+    - §8.5 セキュリティ（参加サプライヤ間の情報隔離）
+  Nguồn design: MOCKUP_GENERATION_PROMPT.md §3, assets/layout.css|js（buyer版と同一の共有アセット）
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 発注企業=ジーニーソリューションズ / 自社視点=富士クラウド株式会社）
+  Tự đề xuất / ■未確定:
+    - 「参加案件一覧」画面は要件のサイトマップ上のノードであり画面ID未付番のため、ファイル名・レイアウトは自己提案。
+    - Supplier Portal のRFXナビ配置は ■未確定（Q-RD-RFX-003 / Q-BD-RFX-004・JLA打合せで決定）。
+    - 案件表示コード「RFX260700123」は display code 提案（DBはUUID）。要確認。
+    - 一覧の列構成・カード表現は自己提案。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>参加案件一覧 | 調達案件(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .list-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+  .ls { background:#fff; border:1px solid var(--j2-border); border-radius:6px; padding:12px 14px; }
+  .ls .ls-lbl { font-size:.74rem; color:#777; }
+  .ls .ls-val { font-size:1.5rem; font-weight:bold; margin-top:2px; }
+  @media(max-width:900px){ .list-summary{ grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li>調達案件(RFX)</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">参加案件一覧</h3>
+        <span class="status-badge st-blue" style="min-width:auto;">Supplier Portal</span>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="alert alert-info">
+        本メニュー（調達案件(RFX)）の Supplier Portal 上の配置は <b>■未確定</b> です（Q-RD-RFX-003 / Q-BD-RFX-004・JLAとの打合せで決定）。
+        既存サプライヤポータルのナビゲーション構造との整合を確認中です。
+      </div>
+
+      <div class="alert alert-info">
+        表示されるのは、<b>貴社が招待を受け「参加」を確定した案件のみ</b>です。他社の案件・提案内容は一切参照できません（§8.5 参加サプライヤ間の情報隔離 / §7.2 アクセス制御）。
+      </div>
+
+      <div class="list-summary">
+        <div class="ls"><div class="ls-lbl">参加中の案件</div><div class="ls-val">3 <span style="font-size:.8rem;font-weight:normal;">件</span></div></div>
+        <div class="ls"><div class="ls-lbl">要対応（回答期限あり）</div><div class="ls-val" style="color:var(--st-orange);">2 <span style="font-size:.8rem;font-weight:normal;">件</span></div></div>
+        <div class="ls"><div class="ls-lbl">結果通知待ち</div><div class="ls-val">1 <span style="font-size:.8rem;font-weight:normal;">件</span></div></div>
+      </div>
+
+      <!-- 検索 -->
+      <div class="wrapper-search">
+        <div class="search-row">
+          <input type="text" class="keyword" id="kw" placeholder="案件名・案件番号で検索">
+          <div class="couple-btn">
+            <button class="active" type="button">AND検索</button>
+            <button type="button">OR検索</button>
+          </div>
+          <button class="btn btn-primary btn-search" id="btnSearch">🔍 検索</button>
+        </div>
+        <div class="search-fixed">
+          <div class="filter-group">
+            <span class="lbl">フェーズ／状態</span>
+            <div class="chk-row" id="stFilter">
+              <label><input type="checkbox" value="RFI" checked> RFI回答待ち</label>
+              <label><input type="checkbox" value="RFP" checked> RFP回答受付中</label>
+              <label><input type="checkbox" value="EVAL" checked> 評価中</label>
+              <label><input type="checkbox" value="RESULT" checked> 結果通知待ち</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pagination-bar">
+        <span>1 - 3 / 全 3 件</span>
+        <div class="spacer"></div>
+        <label>表示件数
+          <select><option>20件</option><option>50件</option></select>
+        </label>
+        <div class="sort-couple"><button>更新日時 ↓</button></div>
+      </div>
+
+      <!-- 案件カード -->
+      <div id="cardList">
+
+        <div class="rfx-card" data-st="RFP" data-key="RFX260700123 社内基幹システム刷新に伴うクラウド基盤調達">
+          <div class="rfx-card-head">
+            <span class="type-badge rfp">RFP</span>
+            <span class="anken-no">案件番号：RFX260700123</span>
+            <div class="card-head-right">
+              <span class="status-badge st-orange">RFP回答受付中</span>
+            </div>
+          </div>
+          <div class="rfx-card-body">
+            <div class="rfx-card-title">
+              <a href="eProcurement_RFX_SupplierResponse_phase1.html">社内基幹システム刷新に伴うクラウド基盤調達</a>
+            </div>
+            <div class="rfx-meta">
+              <span>発注企業：<b>ジーニーソリューションズ株式会社</b></span>
+              <span>フェーズ：<b>RFP（提案依頼）</b></span>
+              <span>提案期限：<b>2026-08-08</b></span>
+              <span>カテゴリ：ITインフラ / クラウド</span>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+              <a class="btn btn-primary" href="eProcurement_RFX_SupplierResponse_phase1.html">📝 RFP回答を作成・提出</a>
+              <a class="btn" href="eProcurement_RFX_QA_Supplier.html">💬 Q&amp;A掲示板</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="rfx-card" data-st="RFI" data-key="RFX260600088 データセンター移設に伴う回線・ネットワーク調達">
+          <div class="rfx-card-head">
+            <span class="type-badge rfi">RFI</span>
+            <span class="anken-no">案件番号：RFX260600088</span>
+            <div class="card-head-right">
+              <span class="status-badge st-pink">RFI回答待ち</span>
+            </div>
+          </div>
+          <div class="rfx-card-body">
+            <div class="rfx-card-title">
+              <a href="eProcurement_RFX_SupplierResponse_phase1.html" data-nav="RFI回答画面（SCR-RFX-008・別案件）">データセンター移設に伴う回線・ネットワーク調達</a>
+            </div>
+            <div class="rfx-meta">
+              <span>発注企業：<b>ジーニーソリューションズ株式会社</b></span>
+              <span>フェーズ：<b>RFI（情報収集）</b></span>
+              <span>回答期限：<b>2026-07-16</b></span>
+              <span>カテゴリ：ネットワーク</span>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+              <a class="btn btn-primary" href="eProcurement_RFX_SupplierResponse_phase1.html" data-nav="RFI回答画面（SCR-RFX-008・別案件）">📄 RFI回答を作成</a>
+              <a class="btn" href="eProcurement_RFX_QA_Supplier.html" data-nav="Q&amp;A掲示板（別案件）">💬 Q&amp;A掲示板</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="rfx-card" data-st="RESULT" data-key="RFX260500042 オフィス什器・OA機器リプレース">
+          <div class="rfx-card-head">
+            <span class="type-badge rfp">RFP</span>
+            <span class="anken-no">案件番号：RFX260500042</span>
+            <div class="card-head-right">
+              <span class="status-badge st-blue">結果通知待ち（評価中）</span>
+            </div>
+          </div>
+          <div class="rfx-card-body">
+            <div class="rfx-card-title">オフィス什器・OA機器リプレース</div>
+            <div class="rfx-meta">
+              <span>発注企業：<b>ジーニーソリューションズ株式会社</b></span>
+              <span>フェーズ：<b>評価中</b></span>
+              <span>提出済み：<b>2026-06-30</b></span>
+              <span>カテゴリ：オフィス備品</span>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn" disabled title="提出済み・評価中のため回答は変更できません（BR-RFX-005）">📝 回答提出済み（変更不可）</button>
+              <a class="btn" href="eProcurement_RFX_QA_Supplier.html" data-nav="Q&amp;A掲示板（別案件）">💬 Q&amp;A掲示板</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="pagination-bar">
+        <div class="spacer"></div>
+        <div class="pager"><span class="current">1</span></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'supplier', activeNav:'rfx', user:'富士 太郎', company:'富士クラウド株式会社' };
+  JienieLayout.init();
+
+  // フィルタ + キーワード検索（実挙動）
+  function applyFilter(){
+    var kw = document.getElementById('kw').value.trim().toLowerCase();
+    var checked = Array.from(document.querySelectorAll('#stFilter input:checked')).map(c=>c.value);
+    var shown = 0;
+    document.querySelectorAll('#cardList .rfx-card').forEach(function(card){
+      var okSt = checked.indexOf(card.getAttribute('data-st')) !== -1;
+      var okKw = !kw || card.getAttribute('data-key').toLowerCase().indexOf(kw) !== -1;
+      var vis = okSt && okKw;
+      card.style.display = vis ? '' : 'none';
+      if(vis) shown++;
+    });
+    JienieLayout.toast(shown + '件の参加案件を表示しました。');
+  }
+  document.getElementById('btnSearch').addEventListener('click', applyFilter);
+  document.querySelectorAll('#stFilter input').forEach(function(c){ c.addEventListener('change', applyFilter); });
+  document.getElementById('kw').addEventListener('keydown', function(e){ if(e.key==='Enter') applyFilter(); });
+</script>
+</body>
+</html>

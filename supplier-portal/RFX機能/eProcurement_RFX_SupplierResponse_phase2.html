@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-008 RFI/RFP回答・提出画面（Phase 2・カスタムフォーマット対応） — Supplier Portal / RFXモジュール
+  アクター: 参加サプライヤ 富士クラウド株式会社（富士 太郎）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-008, §3.2 RD-RFX-005, §2.2 BR-RFX-005
+    - phase_scope.md: SCR-008 Phase2差分 = カスタムフォーマット対応（Buyer が RFPCreate_phase2 で定義した可変項目）
+    - Phase2: 金額フィールドは価格自動換算（SCR-009 phase2）の入力源
+  Nguồn design: assets/layout.css|js
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 自社=富士クラウド）
+  Tự đề xuất / ■未確定:
+    - カスタム項目セットは RFPCreate_phase2 のデモ定義に対応する提案。項目の型・必須可否は Buyer 定義に依存。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFI/RFP回答・提出（Phase 2） | 調達案件(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .filebox { border:1px dashed #b9c4d6; border-radius:6px; padding:12px; background:#fafcff; }
+  .custom-field { margin-bottom:16px; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_Supplier_ProjectList.html">調達案件(RFX)</a></li>
+      <li>RFI/RFP回答・提出</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">社内基幹システム刷新に伴うクラウド基盤調達</h3>
+        <span class="phase-tag phase-2">Phase 2 拡張版</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_SupplierResponse_phase1.html">← Phase 1版を見る</a>
+      </div>
+
+      <div class="alert alert-info">
+        <b>Phase 2 拡張版：</b>本 RFP は発注企業が<b>回答フォーマットをカスタマイズ</b>しています（Q-RD-RFX-002 Phase2）。
+        以下の可変項目に回答してください。<b>金額項目</b>は評価時の<b>価格自動換算</b>に使用されます。Phase 1 の固定フォーマットは
+        <a href="eProcurement_RFX_SupplierResponse_phase1.html">Phase 1版</a>を参照。
+      </div>
+      <div class="alert alert-warn"><b>提出後は変更できません（BR-RFX-005）。</b></div>
+
+      <div class="section">
+        <div class="section-head">RFP回答（カスタムフォーマット） <span class="status-badge pill st-orange" style="margin-left:8px;">未提出</span></div>
+        <div class="section-body">
+          <p class="muted">提案期限：2026-08-08　｜　発注企業が定義した項目です。</p>
+          <form id="respForm">
+            <div class="custom-field">
+              <label class="req-lbl">提案概要（テキスト） <span class="chip-req">必須</span></label>
+              <textarea data-req="1" maxlength="4000" placeholder="提案の要点を入力"></textarea>
+              <div class="field-error">入力してください。</div>
+            </div>
+            <div class="custom-field">
+              <label class="req-lbl">初期費用（金額） <span class="chip-req">必須</span> <span class="muted">価格自動換算の対象</span></label><br>
+              <input type="number" data-req="1" placeholder="円" style="width:220px;"> 円
+              <div class="field-error">入力してください。</div>
+            </div>
+            <div class="custom-field">
+              <label class="req-lbl">月額費用（金額） <span class="chip-req">必須</span> <span class="muted">価格自動換算の対象</span></label><br>
+              <input type="number" data-req="1" placeholder="円/月" style="width:220px;"> 円/月
+              <div class="field-error">入力してください。</div>
+            </div>
+            <div class="custom-field">
+              <label class="req-lbl">導入完了予定日（日付） <span class="chip-opt">任意</span></label><br>
+              <input type="text" id="doneDate" placeholder="YYYY-MM-DD" style="width:180px;">
+            </div>
+            <div class="custom-field">
+              <label class="req-lbl">対応SLA（選択） <span class="chip-req">必須</span></label><br>
+              <select data-req="1"><option value="">— 選択 —</option><option>99.9%</option><option>99.95%</option><option>99.99%</option></select>
+              <div class="field-error">選択してください。</div>
+            </div>
+            <div class="custom-field">
+              <label class="req-lbl">提案書（ファイル） <span class="chip-req">必須</span></label>
+              <div class="filebox" style="margin-top:6px;">
+                <button type="button" class="btn" id="btnFile">📎 提案書を選択（PDF）</button>
+                <span class="muted" id="fileName">未選択</span>
+              </div>
+              <div class="field-error" id="fileErr">提案書ファイルを添付してください。</div>
+            </div>
+          </form>
+
+          <div class="page-title-row" style="justify-content:flex-end;margin-top:8px;">
+            <button class="btn" id="btnSave">一時保存</button>
+            <button class="btn btn-primary btn-lg" id="btnSubmit">回答を提出</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-title-row">
+        <a class="btn" href="eProcurement_RFX_Supplier_ProjectList.html">← 参加案件一覧へ戻る</a>
+        <a class="btn" href="eProcurement_RFX_QA_Supplier.html">💬 Q&amp;A掲示板</a>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<div class="modal-overlay" id="mSubmit">
+  <div class="modal-box">
+    <div class="modal-head">回答の提出確認<button class="close" data-close>×</button></div>
+    <div class="modal-body"><div class="alert alert-danger"><b>提出後は変更できません（BR-RFX-005）。</b>提出してよろしいですか？</div></div>
+    <div class="modal-foot"><button class="btn" data-close>戻る</button><button class="btn btn-primary" id="btnSubmitDo">提出する</button></div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'supplier', activeNav:'rfx', user:'富士 太郎', company:'富士クラウド株式会社' };
+  JienieLayout.init();
+  JienieDatepicker.init('#doneDate');
+
+  var hasFile=false;
+  document.getElementById('btnFile').addEventListener('click', function(){ hasFile=true; document.getElementById('fileName').textContent='提案書_富士クラウド.pdf（v1）'; document.getElementById('fileErr').classList.remove('show'); });
+  document.getElementById('btnSave').addEventListener('click', function(){ JienieLayout.toast('下書きを一時保存しました（未提出）。'); });
+
+  document.getElementById('btnSubmit').addEventListener('click', function(){
+    var ok=true;
+    document.querySelectorAll('#respForm [data-req]').forEach(function(el){
+      var err=el.parentNode.querySelector('.field-error');
+      if(!String(el.value).trim()){ el.classList.add('error'); if(err) err.classList.add('show'); ok=false; }
+      else { el.classList.remove('error'); if(err) err.classList.remove('show'); }
+    });
+    if(!hasFile){ document.getElementById('fileErr').classList.add('show'); ok=false; }
+    if(!ok){ JienieLayout.toast('必須項目を入力してください。'); return; }
+    JienieLayout.openModal('mSubmit');
+  });
+  document.getElementById('btnSubmitDo').addEventListener('click', function(){
+    JienieLayout.closeModal('mSubmit');
+    document.querySelector('#tab-rfp, .section .section-body') && (document.querySelector('.section .section-body').innerHTML='<div class="alert alert-info" style="margin:0;"><b>✓ RFP回答を提出しました。</b>提出日時：2026-07-31 16:02　｜　発注企業へ受領通知を送信しました。価格項目は評価時に自動換算されます。</div>');
+    JienieLayout.toast('回答を提出しました。発注企業へ通知しました。');
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-011 Award確定申請画面（Phase 2・拡張版・案件担当者） — Buyer Portal / RFXモジュール
+  アクター: 案件担当者 調達花子（購買部門リード）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-011, §3.2 RD-RFX-009, §2.2 BR-RFX-009/004/006
+    - phase_scope.md: SCR-011 Phase2差分 = BAFO連携ボタン・Award Scenario参照リンク
+    - Phase2 拡張機能: BAFO（ISSUE-RFX-006）, Award Scenario（Ariba調査）
+  Nguồn design: assets/layout.css|js, 参照: eProcurement_RFX_AwardRequest_phase1.html / eProcurement_RFX_ScoreResult_phase2.html
+  Demo data: _RFX_MOCKUP_SPEC.md（多軸ランキング・価格自動換算・承認者=経理雄之助）
+  Tự đề xuất / ■未確定:
+    - BAFO再提示期限・リードタイムは提案値。BAFOフローの詳細は Phase2 詳細設計で確定。
+    - Award Scenario の選択結果を承認申請へどう引き継ぐかは要確認。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Award確定申請（Phase 2） | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .cand-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--j2-th-border); border-radius:6px; margin-bottom:8px; }
+  .cand-row.top { background:#f6f8fc; }
+  .cand-row .rk { font-weight:bold; min-width:52px; }
+  .cand-row .nm { flex:1; }
+  .cand-row .sc { font-weight:bold; color:var(--j2-blue); }
+  .bafo-box { border:1px dashed var(--j2-blue); border-radius:6px; padding:14px; background:#f4f7ff; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase2.html">案件詳細・進行状況</a></li>
+      <li><a href="eProcurement_RFX_ScoreResult_phase2.html">評価結果・比較</a></li>
+      <li>Award確定申請</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">Award確定申請</h3>
+        <span class="phase-tag phase-2">Phase 2 拡張版</span>
+        <span class="status-badge st-blue">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_AwardRequest_phase1.html">← Phase 1版を見る</a>
+      </div>
+
+      <div class="alert alert-info">
+        <b>Phase 2 拡張版：</b>Phase 1 の承認申請フロー（BR-RFX-009）に加え、<b>BAFO（最終見積再提示要請）</b>と
+        <b>Award Scenario（落札シミュレーション）</b>参照が利用できます。Phase 1 の基本仕様は
+        <a href="eProcurement_RFX_AwardRequest_phase1.html">Phase 1版</a>を参照してください。
+      </div>
+      <div class="alert alert-warn">
+        <b>RFP 採用 ≠ 発注</b>：Award 確定後は選定サプライヤへ改めて見積依頼を行い、既存見積購買フローで発注します（BR-RFX-004）。
+      </div>
+
+      <!-- ランキングサマリ（多軸） -->
+      <div class="section">
+        <div class="section-head">評価ランキングサマリ（多軸・総合スコア降順）
+          <span class="sec-actions"><a class="btn btn-sm" href="eProcurement_RFX_ScoreResult_phase2.html">評価結果・Award Scenarioを見る</a></span>
+        </div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th class="center">順位</th><th>サプライヤ</th><th class="center">技術</th><th class="center">価格<br><span class="muted">(自動換算)</span></th><th class="center">サステナ</th><th class="center">総合</th><th class="center">推薦</th></tr></thead>
+            <tbody>
+              <tr><td class="center rank rank-1">🥇 1</td><td>日本デジタルソリューションズ株式会社</td><td class="center">82</td><td class="center">94.1</td><td class="center">86</td><td class="center"><b>86.4</b></td><td class="center"><span class="rec-flag">★2</span>/3</td></tr>
+              <tr><td class="center rank rank-2">🥈 2</td><td>富士クラウド株式会社</td><td class="center">88</td><td class="center">81.9</td><td class="center">80</td><td class="center"><b>84.6</b></td><td class="center"><span class="rec-flag">★2</span>/3</td></tr>
+              <tr><td class="center rank rank-3">🥉 3</td><td>さくらインフラ株式会社</td><td class="center">76</td><td class="center">100.0</td><td class="center">77</td><td class="center"><b>83.4</b></td><td class="center"><span class="rec-flag">★1</span>/3</td></tr>
+            </tbody>
+          </table>
+          <p class="muted" style="padding:8px 12px;">価格スコア＝最低価格(さくらI ¥39,800,000) ÷ 自社価格 × 100（自動換算・Phase2）。総合＝技術50% / 価格30% / サステナ20%。</p>
+        </div>
+      </div>
+
+      <!-- Award候補選択 -->
+      <div class="section">
+        <div class="section-head">Award 候補の選定（1社または複数社）<span class="chip-req">必須</span></div>
+        <div class="section-body">
+          <p class="muted">Award Scenario（<a href="eProcurement_RFX_ScoreResult_phase2.html">評価結果画面のシナリオパネル</a>）の比較結果を踏まえて候補を選定してください。</p>
+          <label class="cand-row top"><input type="checkbox" class="cand" value="日本デジタルソリューションズ株式会社" checked> <span class="rk">🥇 1位</span><span class="nm">日本デジタルソリューションズ株式会社</span><span class="sc">総合 86.4 / ¥42,300,000</span></label>
+          <label class="cand-row"><input type="checkbox" class="cand" value="富士クラウド株式会社"> <span class="rk">🥈 2位</span><span class="nm">富士クラウド株式会社</span><span class="sc">総合 84.6 / ¥48,600,000</span></label>
+          <label class="cand-row"><input type="checkbox" class="cand" value="さくらインフラ株式会社"> <span class="rk">🥉 3位</span><span class="nm">さくらインフラ株式会社</span><span class="sc">総合 83.4 / ¥39,800,000</span></label>
+          <div class="field-error" id="candErr">Award 候補を1社以上選択してください。</div>
+        </div>
+      </div>
+
+      <!-- BAFO -->
+      <div class="section">
+        <div class="section-head">BAFO（最終見積再提示要請）<span class="phase-tag phase-2">Phase 2</span></div>
+        <div class="section-body">
+          <div class="bafo-box">
+            <p style="margin-top:0;">Award候補サプライヤに対し、<b>最終見積（Best and Final Offer）の再提示</b>を要請できます（ISSUE-RFX-006）。交渉プロセスを記録し最終的な価格条件を確定します。BAFO実行後に承認申請へ進むことを推奨します。</p>
+            <button class="btn btn-primary" data-open-modal="mBafo">📨 BAFO（最終見積再提示要請）を実行</button>
+            <span class="muted" id="bafoState" style="margin-left:10px;">未実行</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 承認者・推薦コメント -->
+      <div class="section">
+        <div class="section-head">承認申請内容</div>
+        <div class="section-body">
+          <label class="req-lbl">承認者 <span class="chip-req">必須</span></label>
+          <div style="margin:4px 0 4px;">
+            <select id="approver">
+              <option value="経理雄之助">経理雄之助（購買担当役員）</option>
+              <option value="">— その他の承認者を選択 —</option>
+            </select>
+          </div>
+          <p class="muted" style="margin-top:0;">※ 承認者の指定方法は R-07 未確定。</p>
+          <label class="req-lbl" style="display:block;margin-top:12px;">推薦コメント <span class="chip-req">必須</span></label>
+          <textarea id="recComment" maxlength="1000" placeholder="Award候補の選定理由・Award Scenario/BAFO結果の総括を記載してください。">多軸評価総合1位の日本DSは技術・価格自動換算・サステナのバランスが最良。BAFO要請で最終価格を確定のうえ第一候補として承認を申請します。</textarea>
+          <div class="field-error" id="commentErr">推薦コメントを入力してください。</div>
+        </div>
+      </div>
+
+      <div class="page-title-row" style="justify-content:flex-end;">
+        <a class="btn" href="eProcurement_RFX_ScoreResult_phase2.html">← 評価結果へ戻る</a>
+        <button class="btn btn-primary btn-lg" id="btnSubmit">承認申請を送信</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- モーダル: BAFO -->
+<div class="modal-overlay" id="mBafo">
+  <div class="modal-box">
+    <div class="modal-head">BAFO（最終見積再提示要請）<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <p class="muted">選択した候補サプライヤへ最終見積の再提示を要請します。</p>
+      <div class="chk-row" style="flex-direction:column;gap:8px;">
+        <label><input type="checkbox" class="bafo-cand" value="日本デジタルソリューションズ株式会社" checked> 日本デジタルソリューションズ株式会社（現行 ¥42,300,000）</label>
+        <label><input type="checkbox" class="bafo-cand" value="富士クラウド株式会社"> 富士クラウド株式会社（現行 ¥48,600,000）</label>
+      </div>
+      <label class="req-lbl" style="display:block;margin-top:12px;">再提示期限 <span class="chip-req">必須</span></label>
+      <input type="text" id="bafoDeadline" placeholder="YYYY-MM-DD" value="2026-08-29" style="width:180px;">
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-primary" id="btnBafoDo">BAFO要請を送信</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 申請確認 -->
+<div class="modal-overlay" id="mSubmit">
+  <div class="modal-box">
+    <div class="modal-head">承認申請の送信<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">承認者（<b id="mApprover">経理雄之助</b>）へ承認依頼を送信します（BR-RFX-009）。</div>
+      <p><b>Award候補：</b><span id="mCands">—</span></p>
+      <p class="muted">送信後、案件ステータスは「Award承認待ち（500）」へ遷移します。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-primary" id="btnSubmitDo">承認申請を確定送信</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+  JienieDatepicker.init('#bafoDeadline');
+
+  var candErr = document.getElementById('candErr');
+  var commentErr = document.getElementById('commentErr');
+  var recComment = document.getElementById('recComment');
+  function selectedCands(){ return Array.prototype.slice.call(document.querySelectorAll('.cand:checked')).map(function(c){return c.value;}); }
+  document.querySelectorAll('.cand').forEach(function(c){ c.addEventListener('change', function(){ if(selectedCands().length>0) candErr.classList.remove('show'); }); });
+  recComment.addEventListener('input', function(){ if(recComment.value.trim()){ recComment.classList.remove('error'); commentErr.classList.remove('show'); } });
+
+  document.getElementById('btnBafoDo').addEventListener('click', function(){
+    var n = document.querySelectorAll('#mBafo .bafo-cand:checked').length;
+    if(n===0){ JienieLayout.toast('BAFO対象サプライヤを選択してください。'); return; }
+    var dl = document.getElementById('bafoDeadline').value;
+    JienieLayout.closeModal('mBafo');
+    document.getElementById('bafoState').innerHTML = '<span class="status-badge pill st-orange">BAFO要請中</span> '+n+'社・期限 '+dl;
+    JienieLayout.toast('BAFO要請を送信しました。対象サプライヤへ最終見積再提示を依頼しました。');
+  });
+
+  document.getElementById('btnSubmit').addEventListener('click', function(){
+    var cands = selectedCands(); var ok = true;
+    if(cands.length===0){ candErr.classList.add('show'); ok=false; }
+    if(!recComment.value.trim()){ recComment.classList.add('error'); commentErr.classList.add('show'); ok=false; }
+    if(!ok){ JienieLayout.toast('入力内容を確認してください。'); return; }
+    document.getElementById('mApprover').textContent = document.getElementById('approver').value || '（未選択）';
+    document.getElementById('mCands').textContent = cands.join(' ／ ');
+    JienieLayout.openModal('mSubmit');
+  });
+  document.getElementById('btnSubmitDo').addEventListener('click', function(){
+    JienieLayout.closeModal('mSubmit');
+    JienieLayout.toast('承認申請を送信しました。承認者へ通知しました。');
+    var badge = document.querySelector('.page-title-row .status-badge');
+    badge.className = 'status-badge st-pink'; badge.textContent = 'Award承認待ち';
+    var foot = document.getElementById('btnSubmit').parentNode;
+    foot.innerHTML = '<span class="status-badge pill st-pink">承認申請済（500）</span> <a class="btn" href="eProcurement_RFX_ProjectDetail_phase2.html">案件詳細へ戻る</a> <a class="btn btn-primary" href="eProcurement_RFX_AwardApproval.html">承認者ビューを見る（デモ）</a>';
+  });
+</script>
+</body>
+</html>

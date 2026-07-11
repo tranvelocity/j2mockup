@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-008 RFI/RFP回答・提出画面（Phase 1・固定フォーマット） — Supplier Portal / RFXモジュール
+  アクター: 参加サプライヤ 富士クラウド株式会社（富士 太郎）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-008, §3.2 RD-RFX-005（回答提出・提出後変更不可）, §2.2 BR-RFX-005
+    - Q-RD-RFX-002 確定: テキスト＋ファイルアップロード両方・固定フォーマット（Phase1）
+    - §8.5 セキュリティ（他社の提案は参照不可）, RD-RFX-011（添付バージョン管理）
+  Nguồn design: assets/layout.css|js（Supplier版 共有アセット）
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 発注企業ジーニーソリューションズ / 自社=富士クラウド）
+  Tự đề xuất / ■未確定:
+    - RFI提出済み日時・RFP受付中は提案例。固定フォーマットの項目構成は Q-RD-RFX-002 に基づく提案。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFI/RFP回答・提出（Phase 1） | 調達案件(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .tabbar { display:flex; gap:6px; border-bottom:2px solid var(--j2-border); margin-bottom:16px; }
+  .tabbar button { border:none; background:none; padding:10px 18px; cursor:pointer; font-size:.9rem; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  .tabbar button.active { color:var(--j2-blue); border-bottom-color:var(--j2-blue); font-weight:bold; }
+  .tabpane { display:none; } .tabpane.active { display:block; }
+  .filebox { border:1px dashed #b9c4d6; border-radius:6px; padding:14px; background:#fafcff; }
+  .lock-view { background:#f6f8fc; border:1px solid var(--j2-th-border); border-radius:6px; padding:14px 16px; white-space:pre-line; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_Supplier_ProjectList.html">調達案件(RFX)</a></li>
+      <li>RFI/RFP回答・提出</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">社内基幹システム刷新に伴うクラウド基盤調達</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_SupplierResponse_phase2.html">Phase 2版を見る ⇄</a>
+      </div>
+
+      <div class="alert alert-warn">
+        <b>提出後は内容を変更できません（BR-RFX-005）。</b>提出期限を過ぎると提出できません。
+      </div>
+      <div class="alert alert-info">
+        発注企業：<b>ジーニーソリューションズ株式会社</b>　｜　案件番号：RFX260700123　｜　Phase 1 は固定フォーマット（テキスト＋ファイル）です（Q-RD-RFX-002）。
+      </div>
+
+      <div class="tabbar">
+        <button class="active" data-tab="rfi">RFI回答（提出済み）</button>
+        <button data-tab="rfp">RFP回答（受付中）</button>
+      </div>
+
+      <!-- RFI（提出済み） -->
+      <div class="tabpane active" id="tab-rfi">
+        <div class="section">
+          <div class="section-head">RFI回答 <span class="status-badge pill st-moss" style="margin-left:8px;">提出済</span></div>
+          <div class="section-body">
+            <p class="muted">提出日時：2026-07-16 10:24　｜　提出後は変更できません（読み取り専用）。</p>
+            <div class="lock-view">・導入実績：クラウド基盤構築 直近5年で38件（金融・製造中心）
+・提案体制：PM1名／アーキテクト2名／SRE3名
+・保有認証：ISO27001, ISMSクラウドセキュリティ
+・概算規模感：初期＋5年運用で 45,000千円〜</div>
+            <p style="margin-top:12px;"><b>添付：</b>
+              <a href="#" data-nav="添付ダウンロード（service-file）">📎 会社概要_富士クラウド.pdf</a>
+              <a href="#" data-nav="添付ダウンロード（service-file）">📎 RFI回答書_富士クラウド.xlsx</a>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RFP（受付中） -->
+      <div class="tabpane" id="tab-rfp">
+        <div class="section">
+          <div class="section-head">RFP回答 <span class="status-badge pill st-orange" style="margin-left:8px;">未提出</span></div>
+          <div class="section-body">
+            <p class="muted">提案期限：2026-08-08　｜　固定フォーマット（提案概要テキスト＋提案書・見積書ファイル）。</p>
+
+            <label class="req-lbl">提案概要 <span class="chip-req">必須</span></label>
+            <textarea id="rpText" maxlength="4000" placeholder="提案の要点・体制・スケジュール・概算金額等を入力してください"></textarea>
+            <div class="field-error" id="rpTextErr">提案概要を入力してください。</div>
+
+            <div style="margin-top:14px;">
+              <label class="req-lbl">提案書ファイル <span class="chip-req">必須</span></label>
+              <div class="filebox" style="margin-top:6px;">
+                <button class="btn" id="btnFile1">📎 提案書を選択（PDF）</button>
+                <span class="muted" id="file1Name">未選択</span>
+                <div class="muted" style="margin-top:6px;">同名再アップロードで版が自動インクリメント（RD-RFX-011）。</div>
+              </div>
+              <div class="field-error" id="file1Err">提案書ファイルを添付してください。</div>
+            </div>
+
+            <div style="margin-top:14px;">
+              <label class="req-lbl">見積書ファイル <span class="chip-req">必須</span></label>
+              <div class="filebox" style="margin-top:6px;">
+                <button class="btn" id="btnFile2">📎 見積書を選択（Excel/PDF）</button>
+                <span class="muted" id="file2Name">未選択</span>
+              </div>
+              <div class="field-error" id="file2Err">見積書ファイルを添付してください。</div>
+            </div>
+
+            <div class="page-title-row" style="justify-content:flex-end;margin-top:18px;">
+              <button class="btn" id="btnSave">一時保存</button>
+              <button class="btn btn-primary btn-lg" id="btnSubmit">回答を提出</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-title-row">
+        <a class="btn" href="eProcurement_RFX_Supplier_ProjectList.html">← 参加案件一覧へ戻る</a>
+        <a class="btn" href="eProcurement_RFX_QA_Supplier.html">💬 Q&amp;A掲示板</a>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<div class="modal-overlay" id="mSubmit">
+  <div class="modal-box">
+    <div class="modal-head">回答の提出確認<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger"><b>提出後は内容を変更できません（BR-RFX-005）。</b>この内容で提出してよろしいですか？</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>戻る</button>
+      <button class="btn btn-primary" id="btnSubmitDo">提出する</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'supplier', activeNav:'rfx', user:'富士 太郎', company:'富士クラウド株式会社' };
+  JienieLayout.init();
+
+  // タブ
+  document.querySelectorAll('.tabbar button').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.tabbar button').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      document.getElementById('tab-'+b.getAttribute('data-tab')).classList.add('active');
+    });
+  });
+
+  var f1=false,f2=false;
+  document.getElementById('btnFile1').addEventListener('click', function(){ f1=true; document.getElementById('file1Name').textContent='提案書_富士クラウド.pdf（v1）'; document.getElementById('file1Err').classList.remove('show'); });
+  document.getElementById('btnFile2').addEventListener('click', function(){ f2=true; document.getElementById('file2Name').textContent='見積書_富士クラウド.xlsx（v1）'; document.getElementById('file2Err').classList.remove('show'); });
+  document.getElementById('btnSave').addEventListener('click', function(){ JienieLayout.toast('下書きを一時保存しました（未提出）。'); });
+
+  document.getElementById('btnSubmit').addEventListener('click', function(){
+    var t=document.getElementById('rpText'); var ok=true;
+    if(!t.value.trim()){ t.classList.add('error'); document.getElementById('rpTextErr').classList.add('show'); ok=false; }
+    if(!f1){ document.getElementById('file1Err').classList.add('show'); ok=false; }
+    if(!f2){ document.getElementById('file2Err').classList.add('show'); ok=false; }
+    if(!ok){ JienieLayout.toast('必須項目を入力してください。'); return; }
+    JienieLayout.openModal('mSubmit');
+  });
+  document.getElementById('rpText').addEventListener('input', function(){ if(this.value.trim()){ this.classList.remove('error'); document.getElementById('rpTextErr').classList.remove('show'); } });
+  document.getElementById('btnSubmitDo').addEventListener('click', function(){
+    JienieLayout.closeModal('mSubmit');
+    var pane=document.getElementById('tab-rfp');
+    pane.querySelector('.section-body').innerHTML='<div class="alert alert-info" style="margin:0;"><b>✓ RFP回答を提出しました。</b>提出日時：2026-07-31 15:10　｜　発注企業へ受領通知を送信しました。提出後は変更できません（BR-RFX-005）。</div>';
+    document.querySelector('[data-tab="rfp"]').innerHTML='RFP回答（提出済み）';
+    JienieLayout.toast('回答を提出しました。発注企業へ通知しました。');
+  });
+</script>
+</body>
+</html>

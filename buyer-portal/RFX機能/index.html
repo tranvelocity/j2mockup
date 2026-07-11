@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!--
+  RFX機能 モックアップ ナビゲーション（Buyer Portal）
+  全画面（Phase 1 / Phase 2 / 共通）への導線。出典: phase_scope.md 画面別フェーズ対応表 / 02_要件定義書.md §4.1。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFX機能 モックアップ一覧（Buyer Portal）</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .idx-note { margin-bottom:18px; }
+  table.data td .scr { font-family:monospace; color:#555; }
+  .ph { font-size:.72rem; font-weight:bold; border-radius:4px; padding:1px 8px; }
+  .ph1 { background:#e3f3e3; color:#2f7d32; } .ph2 { background:#e6efff; color:#21489c; } .phc { background:#f0f0f0; color:#555; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb"><li><a href="#" data-nav="ホーム">ホーム</a></li><li>調達ソーシング(RFX) モックアップ一覧</li></ul>
+    <div class="page-content">
+      <div class="page-title-row"><h3 class="page-title">RFX機能 モックアップ一覧</h3><span class="status-badge st-blue" style="min-width:auto;">Buyer Portal</span></div>
+      <div class="alert alert-info idx-note">
+        J2 ProcureSuite「RFX機能（RFI/RFP/RFQ統合調達ソーシング）」の画面モックアップです。<b>Phase 1（初期リリース）</b>と
+        <b>Phase 2（拡張版）</b>を収録。案件番号 <b>RFX260700123</b>／評価者3名／参加5社の共通デモデータで通しています。
+        Supplier / Provider の画面は各ポータルフォルダ（<span class="scr">../../supplier-portal/RFX機能/</span>・<span class="scr">../../provider-portal/RFX機能/</span>）を参照。
+      </div>
+
+      <div class="section">
+        <div class="section-head">Buyer Portal 画面（Phase 1・Phase 2・共通）</div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th class="center">画面ID</th><th>画面名</th><th class="center">区分</th><th class="center">Phase 1</th><th class="center">Phase 2</th></tr></thead>
+            <tbody>
+              <tr><td class="center"><span class="scr">SCR-RFX-001</span></td><td>調達案件一覧</td><td class="center"><span class="ph phc">共通</span></td><td class="center" colspan="2"><a href="eProcurement_RFX_ProjectList.html">開く</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-002</span></td><td>調達案件作成・設定</td><td class="center"><span class="ph ph1">P1</span>/<span class="ph ph2">P2</span></td><td class="center"><a href="eProcurement_RFX_ProjectCreate_phase1.html">P1</a></td><td class="center"><a href="eProcurement_RFX_ProjectCreate_phase2.html">P2</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-003</span></td><td>案件詳細・進行状況（ハブ）</td><td class="center"><span class="ph ph1">P1</span>/<span class="ph ph2">P2</span></td><td class="center"><a href="eProcurement_RFX_ProjectDetail_phase1.html">P1</a></td><td class="center"><a href="eProcurement_RFX_ProjectDetail_phase2.html">P2</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-004</span></td><td>RFI作成・送信</td><td class="center"><span class="ph phc">共通</span></td><td class="center" colspan="2"><a href="eProcurement_RFX_RFICreate.html">開く</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-005</span></td><td>RFP作成・送信</td><td class="center"><span class="ph ph1">P1</span>/<span class="ph ph2">P2</span></td><td class="center"><a href="eProcurement_RFX_RFPCreate_phase1.html">P1</a></td><td class="center"><a href="eProcurement_RFX_RFPCreate_phase2.html">P2</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-006</span></td><td>Q&amp;A掲示板（Buyer側）</td><td class="center"><span class="ph phc">共通</span></td><td class="center" colspan="2"><a href="eProcurement_RFX_QA.html">開く</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-009</span></td><td>評価シート入力 ★差分大</td><td class="center"><span class="ph ph1">P1</span>/<span class="ph ph2">P2</span></td><td class="center"><a href="eProcurement_RFX_ScoreSheet_phase1.html">P1</a></td><td class="center"><a href="eProcurement_RFX_ScoreSheet_phase2.html">P2</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-010</span></td><td>評価結果・比較 ★差分大</td><td class="center"><span class="ph ph1">P1</span>/<span class="ph ph2">P2</span></td><td class="center"><a href="eProcurement_RFX_ScoreResult_phase1.html">P1</a></td><td class="center"><a href="eProcurement_RFX_ScoreResult_phase2.html">P2</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-011</span></td><td>Award確定申請（担当者）</td><td class="center"><span class="ph ph1">P1</span>/<span class="ph ph2">P2</span></td><td class="center"><a href="eProcurement_RFX_AwardRequest_phase1.html">P1</a></td><td class="center"><a href="eProcurement_RFX_AwardRequest_phase2.html">P2</a></td></tr>
+              <tr><td class="center"><span class="scr">SCR-RFX-012</span></td><td>Award承認（承認者）</td><td class="center"><span class="ph phc">共通</span></td><td class="center" colspan="2"><a href="eProcurement_RFX_AwardApproval.html">開く</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">他ポータルの画面</div>
+        <div class="section-body">
+          <p>Supplier Portal（SCR-RFX-007 Q&amp;A・SCR-RFX-008 回答提出）: <span class="scr">mockup/supplier-portal/RFX機能/index.html</span></p>
+          <p>Provider Portal（SCR-RFX-P01 RFXシステム設定）: <span class="scr">mockup/provider-portal/RFX機能/index.html</span></p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+<script src="assets/layout.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+</script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: マスタ設定画面（route name：eProcurement_Settings_MasterManagement_MasterSetting）
+  — module Master, Provider Portal (src-vbizhw-common).
+  URL thật tham chiếu theo yêu cầu: https://j2.staging.jienie.com/eProcurement/Settings/MasterManagement/MasterSetting
+  (không truy cập trực tiếp staging trong phiên này — dựng lại 100% từ SOURCE CODE THẬT đọc được
+  trong repo, không suy đoán UI).
+
+  GHI CHÚ ĐỔI TÊN THƯ MỤC (theo yêu cầu user, cần nhớ cho các lần sau):
+    mockup/provider-supplier/ → mockup/provider-portal/ (user đã di chuyển thủ công các file
+    trong session trước: assets/layout.css, assets/layout.js, RFX機能/eProcurement_RFX_ProviderSettings.html
+    đều đã nằm trong provider-portal/). File mới này lưu trực tiếp tại provider-portal/ (không phải
+    RFX機能/) vì đây là trang chung của module Master, không thuộc riêng RFX機能.
+    ⚠️ mockup/index.html vẫn đang trỏ tới "provider-supplier/RFX機能/..." cho SCR-P01 — đường dẫn
+    này ĐÃ GÃY sau khi đổi tên thư mục, cần cập nhật lại "provider-portal/RFX機能/..." ở lần sửa kế tiếp.
+
+  NGUỒN THẬT (source code, đọc trực tiếp — KHÔNG suy đoán):
+    - Component: src-vbizhw-common/src/views/Management/Home.vue (template + script + style scoped
+      + style scss import từ src/modules/Master/assets/scss/Home.scss).
+    - Data model đầy đủ: src-vbizhw-common/src/constants/MasterSettingData.js — 2 masterType liên quan
+      Provider: "90" (サービス提供会社, items: COMPANY_GROUP／COMPANY／COUNTRY／USER／TAX_RATE／
+      COMPANY_GROUP_IDP／PURCHASE_STATUS) và "999" (COMMON, items: ROLE／PASSWORD_RULE／CURRENCY／
+      PAYMENT_SITE／BUYER_GROUP_PAYMENT_SITE) — CHỈ merge vào nhau khi setting_filter===PROVIDER (90),
+      xem src-vbizhw-common/src/mixin.js hàm masterSettingDataTypeGroup() dòng 112-131 (đã đọc và
+      tái hiện chính xác logic if/else if theo division code) và getGroupMaster() dòng 133-141
+      (thứ tự nhóm cố định: SYSTEM_ADMIN_GROUP → ORG_RELATED_SETTING → ACCOUNT_SETTING →
+      PURCHASE_BASIC_SETTING → PURCHASE_COMMON_SETTING → PURCHASE_FUNCTION_SETTING → NOTIFICATION_SETTING).
+    - Text tiếng Nhật NGUYÊN VĂN từ src-vbizhw-common/src/locales/prod/ja.json (đã grep đối chiếu
+      từng key, xem trong data model bên dưới): SYSTEM_ADMIN_GROUP="システム基本設定",
+      PURCHASE_FUNCTION_SETTING="購買取引機能設定", PURCHASE_BASIC_SETTING="購買基本設定",
+      LB_COMPANY_GROUP_CDCODE="サービス提供会社" (dùng làm tên tab 90 lẫn tên masterType),
+      BUYER="バイヤ" (tên tab 10), MENU_LINK_LIST="マスタメニューリンク一覧",
+      PRODUCT_CATEGORY_LB_043="キーワードで絞り込み" (placeholder ô tìm kiếm), và toàn bộ
+      title/description của từng item liệt kê trong data model JS bên dưới (mỗi item có comment
+      nguồn key i18n riêng).
+    - Icon: LẤY NGUYÊN VĂN nội dung file .svg thật tại
+      src-vbizhw-common/src/assets/img/eProcurement/master/{mastersettingicon7,mastersettingicon8,
+      flag,mastersettingicon12,calculator,info,roleCommon,mastersettingicon27,yen-sign,
+      mastersettingicon28,mastersettingicon29,sort-amount-up,userPlus,settingDisplaySupplier,
+      mastersettingicon21}.svg — copy path data + viewBox chính xác (chỉ rút gọn khai báo XML thừa),
+      màu fill #4169e1 giữ nguyên. NGOẠI LỆ: icon "logo_bizhiway.svg" (dùng cho BizHiway利用設定)
+      là ảnh PNG base64 nhúng trong SVG quá nặng để copy nguyên văn → THAY BẰNG icon "credit-card"
+      FontAwesome tương đương ý nghĩa (tự đề xuất, cần xác nhận nếu cần đúng 100% khi detailed design).
+    - Header/Sidebar: dùng chung ../assets/layout.css + ../assets/layout.js (provider-portal đã có
+      từ trước). ĐÃ CẬP NHẬT layout.js: mục sidebar "マスタ設定" đổi từ data-nav toast sang href THẬT
+      trỏ về file này (tier-1 theo MOCKUP_GENERATION_PROMPT.md — ưu tiên liên kết thật khi đích đã
+      tồn tại).
+
+  ĐIỂM TỰ ĐỀ XUẤT (cần xác nhận khi detailed design, KHÔNG có trong source thật):
+    - Demo 会社グループ trong dropdown "One Source" (dùng để Provider SSO sang môi trường Buyer cụ
+      thể — logic thật tại Home.vue methods.changeCompanyGroupHandler): dùng 3 client thật đã xuất
+      hiện trong tài liệu dự án (DAIKO様／オプテージ様／第一生命様) làm demo data — vì hành động SSO
+      thật không thể mô phỏng tĩnh, click chỉ hiện toast giải thích (tier-3 fallback hợp lý).
+    - Icon "credit-card" thay logo_bizhiway.svg (nêu trên).
+    - Demo Provider hiện đang xem tab mặc định "サービス提供会社"（90）do setting_filter khởi tạo
+      = companyDivisionCode của user (Provider = 90), đúng theo logic thật data() trong Home.vue.
+
+  SUB-FEATURE HOẠT ĐỘNG THẬT (tier 2 theo MOCKUP_GENERATION_PROMPT.md mục 4):
+    1. Chuyển tab バイヤ（10）⇄ サービス提供会社（90）: đổi TOÀN BỘ danh sách nhóm + item hiển thị
+       theo đúng data thật của từng masterType (KHÔNG chỉ ẩn/hiện css — build lại DOM theo dữ liệu),
+       đúng cách merge/không-merge COMMON(999) theo mixin.js đã đọc.
+    2. Ô tìm kiếm 「キーワードで絞り込み」: filter LIVE theo title+description (lowercase, trim) —
+       CHỈ áp dụng cho lưới card chính (groupFilter), KHÔNG áp dụng cho khối
+       「マスタメニューリンク一覧」phía trên (đúng theo Home.vue: groupItemHeader dùng
+       masterSettingDataType KHÔNG filter, groupItem dùng groupFilter CÓ filter).
+    3. Khối 「マスタメニューリンク一覧」: card có thể đóng/mở (click header, mũi tên đổi hướng),
+       mặc định ĐÓNG (isShow=false đúng theo data() thật).
+    4. Click từng master item (cả ở link-list thu gọn và card lưới chính) → data-nav toast mô phỏng
+       điều hướng tới màn hình chi tiết chung (chưa có mockup riêng): hiển thị đúng masterType +
+       masterDataType như route query thật ({ name: 'eProcurement_Settings_MasterManagement_MasterSettingItem',
+       query: { masterType, masterDataType } }).
+    5. Dropdown 会社グループ (One Source switch): chọn 1 client → toast mô phỏng SSO; chọn "------"
+       → không hành động (đúng logic thật).
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マスタメンテナンス</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; cursor: pointer; }
+  .breadcrumb .active { color: #111111; }
+
+  /* ===== Setting header (title on top-left, controls to the right) ===== */
+  .setting-header {
+    display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: .9rem 1rem;
+    padding: 1.2rem 0 1.6rem;
+  }
+  .setting-header .page-title-text { font-size: 2.1rem; font-weight: normal; color: #333; white-space: nowrap; }
+  .controls-group { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; }
+  .filter-label { color: #6c757d; font-size: .95rem; white-space: nowrap; }
+  .os-select {
+    width: 360px; max-width: 42vw; padding: .5rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .92rem; background: #fff; color: #6c757d;
+  }
+  .setting-filter { display: flex; border: 1px solid #d0d5dd; border-radius: 6px; overflow: hidden; }
+  .setting-filter .tab-btn {
+    padding: .55rem 1.1rem; font-size: .95rem; cursor: pointer; background: #fff; color: royalblue; border: none;
+    border-right: 1px solid #d0d5dd; white-space: nowrap;
+  }
+  .setting-filter .tab-btn:last-child { border-right: none; }
+  .setting-filter .tab-btn.active { background: royalblue; color: #fff; border-radius: 5px; }
+  .search-box { width: 220px; }
+  .search-box input { width: 100%; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .92rem; }
+
+  /* ===== マスタメニューリンク一覧 (collapsible) ===== */
+  .link-list-card { background: #edf1f6; margin-bottom: 2rem; }
+  .link-list-header {
+    background: royalblue; color: #ffffff; padding: 1rem 1.4rem; font-weight: bold; font-size: 1.35rem;
+    cursor: pointer; display: flex; align-items: center; gap: .7rem; user-select: none;
+  }
+  .link-list-header .chevron { transition: transform .2s; font-size: 1.1rem; color: #ffffff; line-height: 1; }
+  .link-list-header.open .chevron { transform: rotate(180deg); }
+  .link-list-body { display: none; padding: 1.2rem 1.4rem; }
+  .link-list-body.show { display: flex; flex-wrap: wrap; gap: 1.4rem 2rem; }
+  .link-list-group { min-width: 180px; flex: 1; }
+  .link-list-group h6 { color: #333; font-weight: bold; font-size: 1rem; margin: 0 0 .5rem; }
+  .link-list-group a {
+    display: block; font-size: .86rem; padding: .3rem 0; color: #111; cursor: pointer;
+  }
+  .link-list-group a::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: royalblue; display: inline-block; margin-right: 6px; }
+  .link-list-group a:hover { color: #4169e1; text-decoration: underline; }
+
+  /* ===== Group sections ===== */
+  .setting-group { margin-bottom: 2.2rem; }
+  .setting-group h5 { font-weight: bold; font-size: 1.15rem; margin: 0 0 .6rem; }
+  .setting-group hr { border: none; border-top: 1px solid #ddd; margin: 0 0 1.3rem; }
+  .setting-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem 0; }
+  @media (max-width: 1100px) { .setting-grid { grid-template-columns: repeat(2, 1fr); } }
+  .setting-item {
+    text-align: center; padding: 1.1rem .6rem; cursor: pointer; border-radius: 3px; transition: box-shadow .2s;
+  }
+  .setting-item:hover { box-shadow: 0 1px 2px 1px rgba(65,105,225,.5); }
+  .setting-item .icon-wrap { width: 30%; max-width: 64px; margin: 0 auto .6rem; }
+  .setting-item .icon-wrap svg { width: 100%; height: 100%; }
+  .setting-item .item-title { font-size: 1.05rem; margin-bottom: .5rem; }
+  .setting-item .item-desc {
+    font-size: .8rem; color: #6c757d; max-width: 220px; margin: 0 auto;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .empty-note { text-align: center; color: #888; padding: 3rem 0; font-size: .95rem; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li class="active">マスタメンテナンス</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="setting-header">
+        <div class="page-title-text">マスタメンテナンス</div>
+        <div class="controls-group">
+          <span class="filter-label">絞り込み条件</span>
+          <select class="os-select" id="osSelect">
+            <option value="">------</option>
+            <option value="andy-hd">アンディホールディングス</option>
+            <option value="j2demo">J2Demo株式会社</option>
+            <option value="jienie-lab">ジーニーラボ株式会社</option>
+          </select>
+          <div class="setting-filter" id="settingFilter">
+            <button type="button" class="tab-btn" data-tab="10">バイヤ</button>
+            <button type="button" class="tab-btn active" data-tab="90">サービス提供会社</button>
+          </div>
+          <div class="search-box">
+            <input type="text" id="filterText" maxlength="100" placeholder="キーワードで絞り込み">
+          </div>
+        </div>
+      </div>
+
+      <div class="link-list-card">
+        <div class="link-list-header" id="linkListHeader">
+          <span class="chevron">&#8743;</span>
+          <span>マスタメニューリンク一覧</span>
+        </div>
+        <div class="link-list-body" id="linkListBody"></div>
+      </div>
+
+      <div id="groupSections"></div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script>
+  JienieLayout.init();
+
+  // ===== ICONS (SVG path/viewBox copy nguyen van tu file .svg thuc, fill #4169e1) =====
+  var ICONS = {
+    icon7: '<svg viewBox="0 0 121 121"><g transform="translate(-20,130) scale(0.14,-0.133)" fill="#4169e1"><path d="M373 861 l-203 -106 0 -42 0 -43 405 0 405 0 0 43 c0 50 20 35 -220 159 l-185 96 -202 -107z"/><path d="M260 430 l0 -150 60 0 60 0 0 150 0 150 -60 0 -60 0 0 -150z"/><path d="M520 430 l0 -150 60 0 60 0 0 150 0 150 -60 0 -60 0 0 -150z"/><path d="M780 430 l0 -150 60 0 60 0 0 150 0 150 -60 0 -60 0 0 -150z"/><path d="M170 130 l0 -60 405 0 405 0 0 60 0 60 -405 0 -405 0 0 -60z"/></g></svg>',
+    icon8: '<svg viewBox="0 0 128 128"><g transform="translate(0,128) scale(0.1,-0.1)" fill="#4169e1"><path d="M190 580 l0 -450 500 0 500 0 0 350 0 350 -255 0 -255 0 0 100 0 100 -245 0 -245 0 0 -450z m200 300 l0 -50 -55 0 -55 0 0 50 0 50 55 0 55 0 0 -50z m200 0 l0 -50 -55 0 -55 0 0 50 0 50 55 0 55 0 0 -50z m-202 -202 l-3 -53 -52 -3 -53 -3 0 55 0 56 56 0 55 0 -3 -52z m200 0 l-3 -53 -50 0 -50 0 -3 53 -3 52 56 0 56 0 -3 -52z m502 -203 l0 -255 -205 0 -205 0 0 55 0 55 50 0 50 0 0 44 0 45 -47 3 -48 3 -3 53 -3 52 50 0 51 0 0 44 0 45 -47 3 -48 3 -3 53 -3 52 205 0 206 0 0 -255z m-702 3 l-3 -53 -52 -3 -53 -3 0 55 0 56 56 0 55 0 -3 -52z m200 0 l-3 -53 -50 0 -50 0 -3 53 -3 52 56 0 56 0 -3 -52z m-198 -203 l0 -55 -55 0 -55 0 0 55 0 55 55 0 55 0 0 -55z m200 0 l0 -55 -55 0 -55 0 0 55 0 55 55 0 55 0 0 -55z"/><path d="M890 575 l0 -45 45 0 45 0 0 45 0 45 -45 0 -45 0 0 -45z"/><path d="M890 375 l0 -45 45 0 45 0 0 45 0 45 -45 0 -45 0 0 -45z"/></g></svg>',
+    flag: '<svg viewBox="0 0 512 512"><path fill="#4169e1" d="M336.174 80c-49.132 0-93.305-32-161.913-32-31.301 0-58.303 6.482-80.721 15.168a48.04 48.04 0 0 0 2.142-20.727C93.067 19.575 74.167 1.594 51.201.104 23.242-1.71 0 20.431 0 48c0 17.764 9.657 33.262 24 41.562V496c0 8.837 7.163 16 16 16h16c8.837 0 16-7.163 16-16v-83.443C109.869 395.28 143.259 384 199.826 384c49.132 0 93.305 32 161.913 32 58.479 0 101.972-22.617 128.548-39.981C503.846 367.161 512 352.051 512 335.855V95.937c0-34.459-35.264-57.768-66.904-44.117C409.193 67.309 371.641 80 336.174 80zM464 336c-21.783 15.412-60.824 32-102.261 32-59.945 0-102.002-32-161.913-32-43.361 0-96.379 9.403-127.826 24V128c21.784-15.412 60.824-32 102.261-32 59.945 0 102.002 32 161.913 32 43.271 0 96.32-17.366 127.826-32v240z"/></svg>',
+    userCog: '<svg viewBox="0 0 640 512"><path fill="#4169e1" d="M610.5 373.3c2.6-14.1 2.6-28.5 0-42.6l25.8-14.9c3-1.7 4.3-5.2 3.3-8.5-6.7-21.6-18.2-41.2-33.2-57.4-2.3-2.5-6-3.1-9-1.4l-25.8 14.9c-10.9-9.3-23.4-16.5-36.9-21.3v-29.8c0-3.4-2.4-6.4-5.7-7.1-22.3-5-45-4.8-66.2 0-3.3.7-5.7 3.7-5.7 7.1v29.8c-13.5 4.8-26 12-36.9 21.3l-25.8-14.9c-2.9-1.7-6.7-1.1-9 1.4-15 16.2-26.5 35.8-33.2 57.4-1 3.3.4 6.8 3.3 8.5l25.8 14.9c-2.6 14.1-2.6 28.5 0 42.6l-25.8 14.9c-3 1.7-4.3 5.2-3.3 8.5 6.7 21.6 18.2 41.1 33.2 57.4 2.3 2.5 6 3.1 9 1.4l25.8-14.9c10.9 9.3 23.4 16.5 36.9 21.3v29.8c0 3.4 2.4 6.4 5.7 7.1 22.3 5 45 4.8 66.2 0 3.3-.7 5.7-3.7 5.7-7.1v-29.8c13.5-4.8 26-12 36.9-21.3l25.8 14.9c2.9 1.7 6.7 1.1 9-1.4 15-16.2 26.5-35.8 33.2-57.4 1-3.3-.4-6.8-3.3-8.5l-25.8-14.9zM496 400.5c-26.8 0-48.5-21.8-48.5-48.5s21.8-48.5 48.5-48.5 48.5 21.8 48.5 48.5-21.7 48.5-48.5 48.5zM224 256c70.7 0 128-57.3 128-128S294.7 0 224 0 96 57.3 96 128s57.3 128 128 128zm201.2 226.5c-2.3-1.2-4.6-2.6-6.8-3.9l-7.9 4.6c-6 3.4-12.8 5.3-19.6 5.3-10.9 0-21.4-4.6-28.9-12.6-18.3-19.8-32.3-43.9-40.2-69.6-5.5-17.7 1.9-36.4 17.9-45.7l7.9-4.6c-.1-2.6-.1-5.2 0-7.8l-7.9-4.6c-16-9.2-23.4-28-17.9-45.7.9-2.9 2.2-5.8 3.2-8.7-3.8-.3-7.5-1.2-11.4-1.2h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 288 0 348.2 0 422.4V464c0 26.5 21.5 48 48 48h352c10.1 0 19.5-3.2 27.2-8.5-1.2-3.8-2-7.7-2-11.8v-9.2z"/></svg>',
+    table: '<svg viewBox="0 0 448 512"><path fill="#4169e1" d="M400 0H48C22.4 0 0 22.4 0 48v416c0 25.6 22.4 48 48 48h352c25.6 0 48-22.4 48-48V48c0-25.6-22.4-48-48-48zM128 435.2c0 6.4-6.4 12.8-12.8 12.8H76.8c-6.4 0-12.8-6.4-12.8-12.8v-38.4c0-6.4 6.4-12.8 12.8-12.8h38.4c6.4 0 12.8 6.4 12.8 12.8v38.4zm0-128c0 6.4-6.4 12.8-12.8 12.8H76.8c-6.4 0-12.8-6.4-12.8-12.8v-38.4c0-6.4 6.4-12.8 12.8-12.8h38.4c6.4 0 12.8 6.4 12.8 12.8v38.4zm128 128c0 6.4-6.4 12.8-12.8 12.8h-38.4c-6.4 0-12.8-6.4-12.8-12.8v-38.4c0-6.4 6.4-12.8 12.8-12.8h38.4c6.4 0 12.8 6.4 12.8 12.8v38.4zm0-128c0 6.4-6.4 12.8-12.8 12.8h-38.4c-6.4 0-12.8-6.4-12.8-12.8v-38.4c0-6.4 6.4-12.8 12.8-12.8h38.4c6.4 0 12.8 6.4 12.8 12.8v38.4zm128 128c0 6.4-6.4 12.8-12.8 12.8h-38.4c-6.4 0-12.8-6.4-12.8-12.8V268.8c0-6.4 6.4-12.8 12.8-12.8h38.4c6.4 0 12.8 6.4 12.8 12.8v166.4zm0-256c0 6.4-6.4 12.8-12.8 12.8H76.8c-6.4 0-12.8-6.4-12.8-12.8V76.8C64 70.4 70.4 64 76.8 64h294.4c6.4 0 12.8 6.4 12.8 12.8v102.4z"/></svg>',
+    info: '<svg viewBox="0 0 512 512"><path fill="#4169e1" d="M256 8C119.043 8 8 119.083 8 256c0 136.997 111.043 248 248 248s248-111.003 248-248C504 119.083 392.957 8 256 8zm0 110c23.196 0 42 18.804 42 42s-18.804 42-42 42-42-18.804-42-42 18.804-42 42-42zm56 254c0 6.627-5.373 12-12 12h-88c-6.627 0-12-5.373-12-12v-24c0-6.627 5.373-12 12-12h12v-64h-12c-6.627 0-12-5.373-12-12v-24c0-6.627 5.373-12 12-12h64c6.627 0 12 5.373 12 12v100h12c6.627 0 12 5.373 12 12v24z"/></svg>',
+    userTag: '<svg viewBox="0 0 640 512"><path fill="#4169e1" d="M630.6 364.9l-90.3-90.2c-12-12-28.3-18.7-45.3-18.7h-79.3c-17.7 0-32 14.3-32 32v79.2c0 17 6.7 33.2 18.7 45.2l90.3 90.2c12.5 12.5 32.8 12.5 45.3 0l92.5-92.5c12.6-12.5 12.6-32.7.1-45.2zm-182.8-21c-13.3 0-24-10.7-24-24s10.7-24 24-24 24 10.7 24 24c0 13.2-10.7 24-24 24zm-223.8-88c70.7 0 128-57.3 128-128C352 57.3 294.7 0 224 0S96 57.3 96 128c0 70.6 57.3 127.9 128 127.9zm127.8 111.2V294c-12.2-3.6-24.9-6.2-38.2-6.2h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 287.9 0 348.1 0 422.3v41.6c0 26.5 21.5 48 48 48h352c15.5 0 29.1-7.5 37.9-18.9l-58-58c-18.1-18.1-28.1-42.2-28.1-67.9z"/></svg>',
+    key: '<svg viewBox="0 0 512 512"><path fill="#4169e1" d="M315.4 15.5C309.7 5.9 299.2 0 288 0s-21.7 5.9-27.4 15.5l-96 160c-5.9 9.9-6.1 22.2-.4 32.2s16.3 16.2 27.8 16.2H384c11.5 0 22.2-6.2 27.8-16.2s5.5-22.3-.4-32.2l-96-160zM288 312V456c0 22.1 17.9 40 40 40H472c22.1 0 40-17.9 40-40V312c0-22.1-17.9-40-40-40H328c-22.1 0-40 17.9-40 40zM128 512a128 128 0 1 0 0-256 128 128 0 1 0 0 256z"/></svg>',
+    yen: '<svg viewBox="0 0 384 512"><path fill="#4169e1" d="M351.2 32h-65.3c-4.6 0-8.8 2.6-10.8 6.7l-55.4 113.2c-14.5 34.7-27.1 71.9-27.1 71.9h-1.3s-12.6-37.2-27.1-71.9L108.8 38.7c-2-4.1-6.2-6.7-10.8-6.7H32.8c-9.1 0-14.8 9.7-10.6 17.6L102.3 200H44c-6.6 0-12 5.4-12 12v32c0 6.6 5.4 12 12 12h88.2l19.8 37.2V320H44c-6.6 0-12 5.4-12 12v32c0 6.6 5.4 12 12 12h108v92c0 6.6 5.4 12 12 12h56c6.6 0 12-5.4 12-12v-92h108c6.6 0 12-5.4 12-12v-32c0-6.6-5.4-12-12-12H232v-26.8l19.8-37.2H340c6.6 0 12-5.4 12-12v-32c0-6.6-5.4-12-12-12h-58.3l80.1-150.4c4.3-7.9-1.5-17.6-10.6-17.6z"/></svg>',
+    idBadge: '<svg viewBox="0 0 512 512"><path fill="#4169e1" d="M280 64h40c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V128C0 92.7 28.7 64 64 64h40 9.6C121 27.5 153.3 0 192 0s71 27.5 78.4 64H280zM64 112c-8.8 0-16 7.2-16 16V448c0 8.8 7.2 16 16 16H320c8.8 0 16-7.2 16-16V128c0-8.8-7.2-16-16-16H304v24c0 13.3-10.7 24-24 24H192 104c-13.3 0-24-10.7-24-24V112H64zm128-8a24 24 0 1 0 0-48 24 24 0 1 0 0 48z"/></svg>',
+    sortUp: '<svg viewBox="0 0 512 512"><path fill="#4169e1" d="M304 416h-64a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h64a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h48v304a16 16 0 0 0 16 16h32a16 16 0 0 0 16-16V160h48c14.21 0 21.38-17.24 11.31-27.31l-80-96a16 16 0 0 0-22.62 0l-80 96C-5.35 142.74 1.77 160 16 160zm416 0H240a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h192a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm-64 128H240a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h128a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM496 32H240a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h256a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16z"/></svg>',
+    userPlus: '<svg viewBox="0 0 640 512"><path fill="#4169e1" d="M624 208h-64v-64c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v64h-64c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h64v64c0 8.8 7.2 16 16 16h32c8.8 0 16-7.2 16-16v-64h64c8.8 0 16-7.2 16-16v-32c0-8.8-7.2-16-16-16zm-400 48c70.7 0 128-57.3 128-128S294.7 0 224 0 96 57.3 96 128s57.3 128 128 128zm89.6 32h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 288 0 348.2 0 422.4V464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48v-41.6c0-74.2-60.2-134.4-134.4-134.4z"/></svg>',
+    clipboardList: '<svg viewBox="0 0 384 512"><path fill="#4169e1" d="M336 64h-80c0-35.3-28.7-64-64-64s-64 28.7-64 64H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zM96 424c-13.3 0-24-10.7-24-24s10.7-24 24-24 24 10.7 24 24-10.7 24-24 24zm0-96c-13.3 0-24-10.7-24-24s10.7-24 24-24 24 10.7 24 24-10.7 24-24 24zm0-96c-13.3 0-24-10.7-24-24s10.7-24 24-24 24 10.7 24 24-10.7 24-24 24zm96-192c13.3 0 24 10.7 24 24s-10.7 24-24 24-24-10.7-24-24 10.7-24 24-24zm128 368c0 4.4-3.6 8-8 8H168c-4.4 0-8-3.6-8-8v-16c0-4.4 3.6-8 8-8h144c4.4 0 8 3.6 8 8v16zm0-96c0 4.4-3.6 8-8 8H168c-4.4 0-8-3.6-8-8v-16c0-4.4 3.6-8 8-8h144c4.4 0 8 3.6 8 8v16zm0-96c0 4.4-3.6 8-8 8H168c-4.4 0-8-3.6-8-8v-16c0-4.4 3.6-8 8-8h144c4.4 0 8 3.6 8 8v16z"/></svg>',
+    circle: '<svg viewBox="0 0 512 512"><path fill="#4169e1" d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8z"/></svg>',
+    // Tu de xuat thay logo_bizhiway.svg (PNG base64 qua nang, khong copy nguyen van)
+    creditCard: '<svg viewBox="0 0 576 512"><path fill="#4169e1" d="M0 432c0 26.5 21.5 48 48 48h480c26.5 0 48-21.5 48-48V256H0v176zm192-68c0-6.6 5.4-12 12-12h136c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H204c-6.6 0-12-5.4-12-12v-40zm-128 0c0-6.6 5.4-12 12-12h72c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zM576 80v48H0V80c0-26.5 21.5-48 48-48h480c26.5 0 48 21.5 48 48z"/></svg>'
+  };
+
+  // ===== DATA MODEL (copy tu MasterSettingData.js + ja.json, thu gon chi con field can dung) =====
+  // group label: SYSTEM_ADMIN_GROUP="システム基本設定", PURCHASE_BASIC_SETTING="購買基本設定", PURCHASE_FUNCTION_SETTING="購買取引機能設定"
+  var GROUP_LABEL = { SYSTEM_ADMIN_GROUP: "システム基本設定", PURCHASE_BASIC_SETTING: "購買基本設定", PURCHASE_FUNCTION_SETTING: "購買取引機能設定" };
+  var GROUP_ORDER = ["SYSTEM_ADMIN_GROUP", "PURCHASE_BASIC_SETTING", "PURCHASE_FUNCTION_SETTING"];
+
+  var MASTER_DATA = {
+    // masterType "90" — サービス提供会社（Provider）
+    "90": [
+      { id: "COMPANY_GROUP", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.icon7, title: "サービス提供会社グループ管理", desc: "" },
+      { id: "COMPANY", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.icon8, title: "サービス提供会社管理", desc: "" },
+      { id: "COUNTRY", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.flag, title: "対応国管理", desc: "" },
+      { id: "USER", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.userCog, title: "サービス提供会社 ユーザー管理", desc: "" },
+      { id: "TAX_RATE", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.table, title: "税率管理", desc: "" },
+      { id: "COMPANY_GROUP_IDP", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.info, title: "IDプロバイダー管理", desc: "" },
+      { id: "PURCHASE_STATUS", group: "PURCHASE_FUNCTION_SETTING", icon: ICONS.sortUp, title: "購買ステータス", desc: "購買担当者画面で見積の進捗状況を把握するためのステータスを管理します。" }
+    ],
+    // masterType "999" — COMMON（chi merge khi xem tab 90, dung logic thuc mixin.js）
+    "999": [
+      { id: "ROLE", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.userTag, title: "権限設定", desc: "ユーザーの利用権限・承認権限等の付与設定を行います。" },
+      { id: "PASSWORD_RULE", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.key, title: "パスワードルール設定", desc: "パスワードルールを設定します。" },
+      { id: "CURRENCY", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.yen, title: "対応通貨管理", desc: "" },
+      { id: "PAYMENT_SITE", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.idBadge, title: "サービス提供会社支払サイトカテゴリ管理", desc: "システムとして共通で使用する支払サイトカテゴリの登録・管理を行います。" },
+      { id: "BUYER_GROUP_PAYMENT_SITE", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.idBadge, title: "サービス提供会社支払サイト管理", desc: "システムとして共通で使用する支払サイトの登録・管理を行います。" }
+    ],
+    // masterType "10" — バイヤ（KHONG merge COMMON, dung logic thuc mixin.js）
+    "10": [
+      { id: "COMPANY_GROUP", group: "SYSTEM_ADMIN_GROUP", icon: ICONS.icon7, title: "会社グループ基本情報設定", desc: "会社グループで共通の基本情報を設定します。" },
+      { id: "DIRECT_TRADING", group: "PURCHASE_BASIC_SETTING", icon: ICONS.userPlus, title: "サプライヤ情報登録", desc: "サプライヤ情報の登録や取引に利用する設定をおこないます。" },
+      { id: "BIZ_TRADING", group: "PURCHASE_FUNCTION_SETTING", icon: ICONS.circle, title: "サプライヤ一覧・Biz取引", desc: "BizHiwayで取引するサプライヤを管理します。" },
+      { id: "SETTING_DISPLAY_SUPPLIER", group: "PURCHASE_FUNCTION_SETTING", icon: ICONS.clipboardList, title: "サプライヤ一覧表示設定", desc: "サプライヤリコメンデーション機能にてリコメンド時に表示するサプライヤ情報項目とリコメンドロジックの優先順を設定します。" },
+      { id: "BIZ_PAYMENT", group: "PURCHASE_FUNCTION_SETTING", icon: ICONS.creditCard, title: "BizHiway利用設定", desc: "BizHiwayで利用する支払先コード等を設定します。" }
+    ]
+  };
+
+  function currentItems(tab) {
+    // dung dung logic mixin.js: 90 -> merge(90, 999) ; 10 -> chi 10
+    if (tab === "90") return MASTER_DATA["90"].map(function (i) { return Object.assign({ masterType: "90" }, i); })
+      .concat(MASTER_DATA["999"].map(function (i) { return Object.assign({ masterType: "999" }, i); }));
+    return MASTER_DATA["10"].map(function (i) { return Object.assign({ masterType: "10" }, i); });
+  }
+
+  function groupBy(items) {
+    var byGroup = {};
+    items.forEach(function (item) { (byGroup[item.group] = byGroup[item.group] || []).push(item); });
+    return GROUP_ORDER.filter(function (g) { return byGroup[g]; }).map(function (g) { return { group: g, items: byGroup[g] }; });
+  }
+
+  var state = { tab: "90", keyword: "" };
+
+  function itemCardHtml(item) {
+    return '<div class="setting-item" data-nav="マスタ設定詳細画面（eProcurement_Settings_MasterManagement_MasterSettingItem, masterType=' + item.masterType + ', masterDataType=' + item.id + '）">' +
+      '<div class="icon-wrap">' + item.icon + '</div>' +
+      '<div class="item-title">' + item.title + '</div>' +
+      (item.desc ? '<div class="item-desc" title="' + item.desc + '">' + item.desc + '</div>' : '') +
+      '</div>';
+  }
+
+  function linkListHtml(item) {
+    return '<a href="#" data-nav="マスタ設定詳細画面（eProcurement_Settings_MasterManagement_MasterSettingItem, masterType=' + item.masterType + ', masterDataType=' + item.id + '）">' + item.title + '</a>';
+  }
+
+  function render() {
+    var allItems = currentItems(state.tab);
+
+    // マスタメニューリンク一覧 -- KHONG filter theo keyword (dung logic thuc: groupItemHeader dung masterSettingDataType)
+    var linkGroups = groupBy(allItems);
+    document.getElementById('linkListBody').innerHTML = linkGroups.map(function (g) {
+      return '<div class="link-list-group"><h6>' + GROUP_LABEL[g.group] + '</h6>' + g.items.map(linkListHtml).join('') + '</div>';
+    }).join('');
+
+    // Luoi card chinh -- CO filter theo keyword (dung logic thuc: groupFilter)
+    var kw = state.keyword.trim().toLowerCase();
+    var filtered = allItems.filter(function (item) {
+      if (!kw) return true;
+      return item.title.toLowerCase().includes(kw) || (item.desc && item.desc.toLowerCase().includes(kw));
+    });
+    var mainGroups = groupBy(filtered);
+    var sectionsEl = document.getElementById('groupSections');
+    if (mainGroups.length === 0) {
+      sectionsEl.innerHTML = '<div class="empty-note">該当するマスタ設定項目が見つかりません。</div>';
+    } else {
+      sectionsEl.innerHTML = mainGroups.map(function (g) {
+        return '<div class="setting-group"><h5>' + GROUP_LABEL[g.group] + '</h5><hr>' +
+          '<div class="setting-grid">' + g.items.map(itemCardHtml).join('') + '</div></div>';
+      }).join('');
+    }
+    JienieLayout.bindDataNavToasts();
+  }
+
+  // ===== Tab switch =====
+  document.querySelectorAll('#settingFilter .tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#settingFilter .tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      state.tab = btn.getAttribute('data-tab');
+      render();
+    });
+  });
+
+  // ===== Search filter (live) =====
+  document.getElementById('filterText').addEventListener('input', function (e) {
+    state.keyword = e.target.value;
+    render();
+  });
+
+  // ===== Collapsible link list (mac dinh dong, dung theo data() thuc isShow=false) =====
+  document.getElementById('linkListHeader').addEventListener('click', function () {
+    this.classList.toggle('open');
+    document.getElementById('linkListBody').classList.toggle('show');
+  });
+
+  // ===== One Source company group select =====
+  document.getElementById('osSelect').addEventListener('change', function (e) {
+    if (!e.target.value) return;
+    var label = e.target.options[e.target.selectedIndex].text;
+    JienieLayout.toast('実際の画面では「' + label + '」のBuyer環境へSSO遷移します');
+    e.target.value = "";
+  });
+
+  render();
+</script>
+
+</body>
+</html>

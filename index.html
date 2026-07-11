@@ -17,6 +17,9 @@
   --brand-border: #bfdbfe;
   --wip: #94a3b8;
   --wip-bg: #f1f5f9;
+  --new: #ef4444;
+  --new-bg: #fef2f2;
+  --new-border: #fecaca;
   --shadow: 0 1px 3px rgba(15,23,42,0.08), 0 4px 14px rgba(15,23,42,0.05);
 }
 
@@ -97,6 +100,11 @@ body {
 .topnav a.wip { color: var(--wip); font-weight: 500; }
 .topnav a.wip:hover { background: var(--wip-bg); color: var(--wip); }
 .topnav a.active { background: var(--brand-soft); color: var(--brand); }
+.nav-new-chip {
+  display: inline-block; font-size: 9px; font-weight: 800; color: #fff;
+  background: var(--new); border-radius: 8px; padding: 1px 5px; margin-left: 5px;
+  letter-spacing: 0.02em; vertical-align: 1px;
+}
 
 /* ===== HERO ===== */
 .hero {
@@ -145,6 +153,11 @@ body {
 .badge-wip {
   font-size: 11px; font-weight: 600; color: var(--wip);
   background: var(--wip-bg); border: 1px solid var(--line);
+  border-radius: 20px; padding: 2px 10px;
+}
+.badge-new {
+  font-size: 11px; font-weight: 700; color: var(--new);
+  background: var(--new-bg); border: 1px solid var(--new-border);
   border-radius: 20px; padding: 2px 10px;
 }
 
@@ -371,21 +384,23 @@ body {
 
 <script>
 /* ============ DATA MODEL ============ */
-const RFX = "buyer/RFX機能/";
+const RFX = "buyer-portal/RFX機能/";
 const FEATURES = [
   {
     id: "home", nav: "ログイン・ホーム", icon: "🏠",
     desc: "システムへのアクセスと、各機能への起点となる画面群です。",
     portals: {
       buyer: [
-        { name: "ログイン画面", url: "buyer/eProcurement_Login.html", role: "ユーザー認証を行うシステムの入口画面です。ID・パスワードによる本人確認とアクセス制御を担い、権限に応じたポータルへ導きます。" },
-        { name: "ホーム画面", url: "buyer/eProcurement_Home.html", role: "ログイン後の起点となるダッシュボードです。各機能への導線、通知、担当タスクのサマリーを一覧で確認できます。" }
+        { name: "ログイン画面", url: "buyer-portal/eProcurement_Login.html", role: "ユーザー認証を行うシステムの入口画面です。ID・パスワードによる本人確認とアクセス制御を担い、権限に応じたポータルへ導きます。" },
+        { name: "ホーム画面", url: "buyer-portal/eProcurement_Home.html", role: "ログイン後の起点となるダッシュボードです。各機能への導線、通知、担当タスクのサマリーを一覧で確認できます。" }
       ],
-      supplier: [], provider: []
+      supplier: [
+        { name: "トップページ／メインメニュー", url: "supplier-portal/BHW_MainMenu.html", role: "サプライヤーがログイン後に見る起点画面です。回答待ち・受注・検収・支払申請などのステータスをカウンター表示し、各業務機能への導線をまとめています。" }
+      ], provider: []
     }
   },
   {
-    id: "rfx", nav: "RFX機能", icon: "📋",
+    id: "rfx", nav: "RFX機能", icon: "📋", isNew: true,
     desc: "RFI／RFPの作成から評価・Award確定まで、戦略的調達プロセス全体を管理する機能です。",
     portals: {
       buyer: [
@@ -396,11 +411,20 @@ const FEATURES = [
         { name: "RFP作成・送信", id: "SCR-005", url: RFX+"eProcurement_RFX_RFPCreate.html", role: "提案依頼（RFP）を作成し、要件・評価基準とともにサプライヤーへ配信する画面です。" },
         { name: "Q&A掲示板（Buyer）", id: "SCR-006", url: RFX+"eProcurement_RFX_QA.html", role: "サプライヤーからの質問に回答し、案件全体でQ&Aを共有する掲示板です。公平な情報開示を担保します。" },
         { name: "評価シート入力", id: "SCR-009", url: RFX+"eProcurement_RFX_ScoreSheet.html", role: "各サプライヤーの提案を評価基準に沿って採点・記録する画面です。定量・定性の両面から評価します。" },
+        { name: "評価シート入力【Phase 1】", id: "SCR-009-P1", url: RFX+"eProcurement_RFX_ScoreSheet_phase1.html", role: "Phase 1版の評価シート入力画面です。評価軸は技術提案／価格の2軸固定。重みは評価フェーズ開始時にロック（BR-RFX-010）。スコアは両軸とも手動入力（0〜100）。" },
+        { name: "評価シート入力【Phase 2】", id: "SCR-009-P2", url: RFX+"eProcurement_RFX_ScoreSheet_phase2.html", role: "Phase 2版の評価シート入力画面です。3軸可変（技術提案50%／環境20%／価格30%）、価格スコアは入札価格から自動換算、封筒方式により技術→価格の2段階フェーズ管理が加わります。" },
         { name: "評価結果・比較", id: "SCR-010", url: RFX+"eProcurement_RFX_ScoreResult.html", role: "複数提案のスコアを横並びで比較し、最適なサプライヤーを選定する画面です。" },
+        { name: "評価結果・比較【Phase 1】", id: "SCR-010-P1", url: RFX+"eProcurement_RFX_ScoreResult_phase1.html", role: "Phase 1版の評価結果・比較画面です。2軸固定スコアの集計・ランキング表示。Award Scenarioパネルは非対応（Phase 2機能）。" },
+        { name: "評価結果・比較【Phase 2】", id: "SCR-010-P2", url: RFX+"eProcurement_RFX_ScoreResult_phase2.html", role: "Phase 2版の評価結果・比較画面です。3軸スコアの軸別表示・封筒方式フェーズ切替タブ（技術評価フェーズ結果 ／ 総合評価結果）・Award Scenarioパネル（複数発注シナリオ比較）を追加します。" },
         { name: "Award確定申請", id: "SCR-011", url: RFX+"eProcurement_RFX_AwardRequest.html", role: "落札者の確定を担当者が申請し、承認フローへ回す画面です。選定の根拠とともに上程します。" },
         { name: "Award承認", id: "SCR-012", url: RFX+"eProcurement_RFX_AwardApproval.html", role: "承認者が落札決定を最終承認し、発注を確定する画面です。承認をもって調達が確定します。" }
       ],
-      supplier: [], provider: []
+      supplier: [
+        { name: "Q&A掲示板（Supplier）", id: "SCR-007", url: "supplier-portal/RFX機能/eProcurement_RFX_QA_Supplier.html", role: "サプライヤーが質問を投稿し、公開済みのQ&Aと自社の質問状況を確認する画面です。全参加サプライヤーへの公平な情報開示を実現します。" },
+        { name: "RFI/RFP回答・提出", id: "SCR-008", url: "supplier-portal/RFX機能/eProcurement_RFX_ResponseSubmit.html", role: "サプライヤーがRFI/RFPへの回答・提案書・見積書を提出する画面です。提出後は内容の変更ができません。" }
+      ], provider: [
+        { name: "RFXシステム設定", id: "SCR-P01", url: "provider-portal/RFX機能/eProcurement_RFX_ProviderSettings.html", role: "リマインド送信タイミング・添付ファイルサイズ上限・評価軸デフォルトウェイトなど、RFX機能のシステム全体設定を管理する画面です。Provider（システム管理者）のみ編集可能です。" }
+      ]
     }
   },
   {
@@ -408,23 +432,29 @@ const FEATURES = [
     desc: "現場からの見積依頼の起票・追跡・検収までを一元管理する機能です。",
     portals: {
       buyer: [
-        { name: "依頼一覧（全件）", url: "buyer/eProcurement_Requester_All.html", role: "全ての見積依頼を横断的に一覧・検索する画面です。依頼状況を漏れなく把握できます。" },
-        { name: "申請者別依頼一覧", url: "buyer/eProcurement_Requester_EstimateApplicationApplicantList.html", role: "申請者ごとに見積依頼を分類して管理する画面です。担当単位での進捗確認に適しています。" },
-        { name: "発注済み一覧", url: "buyer/eProcurement_Requester_Ordered.html", role: "発注が完了した依頼のステータスを追跡する画面です。発注後の進行を可視化します。" },
-        { name: "検収待ち一覧", url: "buyer/eProcurement_Requester_WaitingAcceptance.html", role: "納品後の検収待ち案件を管理し、検収処理を促進する画面です。" }
+        { name: "依頼一覧（全件）", url: "buyer-portal/eProcurement_Requester_All.html", role: "全ての見積依頼を横断的に一覧・検索する画面です。依頼状況を漏れなく把握できます。" },
+        { name: "申請者別依頼一覧", url: "buyer-portal/eProcurement_Requester_EstimateApplicationApplicantList.html", role: "申請者ごとに見積依頼を分類して管理する画面です。担当単位での進捗確認に適しています。" },
+        { name: "発注済み一覧", url: "buyer-portal/eProcurement_Requester_Ordered.html", role: "発注が完了した依頼のステータスを追跡する画面です。発注後の進行を可視化します。" },
+        { name: "検収待ち一覧", url: "buyer-portal/eProcurement_Requester_WaitingAcceptance.html", role: "納品後の検収待ち案件を管理し、検収処理を促進する画面です。" }
       ],
-      supplier: [], provider: []
+      supplier: [
+        { name: "見積案件照会", url: "supplier-portal/eProcurement_EstimateSupplier_All.html", role: "見積依頼を受けたサプライヤーが、回答前・回答済みの案件を一覧・管理する画面です。見積内容の確認や回答の入力、添付ファイルのやり取りもこの画面から行います。" }
+      ], provider: []
     }
   },
   { id: "catalog", nav: "カタログ購買機能", icon: "🛒", wip: true,
     desc: "登録カタログから商品を選択し、迅速に購買・発注を行う機能です。", portals: { buyer: [], supplier: [], provider: [] } },
-  { id: "approval", nav: "グループ承認機能", icon: "✅", wip: true,
+  { id: "approval", nav: "グループ承認機能", icon: "✅", wip: true, isNew: true,
     desc: "組織階層に応じた多段階の承認ワークフローを制御する機能です。", portals: { buyer: [], supplier: [], provider: [] } },
-  { id: "return", nav: "返品・返金管理機能", icon: "↩️", wip: true,
+  { id: "return", nav: "返品・返金管理機能", icon: "↩️", wip: true, isNew: true,
     desc: "納品後の返品申請から返金処理までのプロセスを管理する機能です。", portals: { buyer: [], supplier: [], provider: [] } },
-  { id: "invoice", nav: "Invoice発行機能", icon: "🧾", wip: true,
+  { id: "project", nav: "プロジェクト管理機能", icon: "🗂️", wip: true, isNew: true,
+    desc: "複数タスク・担当者・進行状況を横断的に管理するプロジェクト管理機能です。", portals: { buyer: [], supplier: [], provider: [] } },
+  { id: "estimate-split", nav: "見積明細分割機能", icon: "✂️", wip: true, isNew: true,
+    desc: "1件の見積明細を複数の発注・支払単位へ分割管理する機能です。", portals: { buyer: [], supplier: [], provider: [] } },
+  { id: "invoice", nav: "Invoice発行機能", icon: "🧾", wip: true, isNew: true,
     desc: "取引実績に基づく請求書の自動発行・管理を行う機能です。", portals: { buyer: [], supplier: [], provider: [] } },
-  { id: "inventory", nav: "在庫管理機能", icon: "📦", wip: true,
+  { id: "inventory", nav: "在庫管理機能", icon: "📦", wip: true, isNew: true,
     desc: "在庫の入出庫・棚卸・適正在庫の可視化を行う機能です。", portals: { buyer: [], supplier: [], provider: [] } }
 ];
 
@@ -476,7 +506,7 @@ function renderSections() {
   const heroTags = document.getElementById("hero-tags");
 
   nav.innerHTML = FEATURES.map(f =>
-    `<a href="#sec-${f.id}" class="${f.wip ? "wip" : ""}" data-target="sec-${f.id}">${esc(f.nav)}</a>`
+    `<a href="#sec-${f.id}" class="${f.wip ? "wip" : ""}" data-target="sec-${f.id}">${esc(f.nav)}${f.isNew ? '<span class="nav-new-chip">NEW</span>' : ""}</a>`
   ).join("");
 
   sec.innerHTML = FEATURES.map(f => `
@@ -484,7 +514,7 @@ function renderSections() {
       <div class="feature-head">
         <div class="feature-icon">${f.icon}</div>
         <div class="feature-heading">
-          <h2>${esc(f.nav)} ${f.wip ? '<span class="badge-wip">準備中</span>' : ""}</h2>
+          <h2>${esc(f.nav)} ${f.isNew ? '<span class="badge-new">NEW</span>' : ""} ${f.wip ? '<span class="badge-wip">準備中</span>' : ""}</h2>
           <div class="desc">${esc(f.desc)}</div>
         </div>
       </div>

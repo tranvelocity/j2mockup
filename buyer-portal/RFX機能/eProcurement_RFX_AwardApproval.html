@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-012 Award承認画面（承認者・共通） — Buyer Portal / RFXモジュール
+  Vai trò người dùng（アクター）: 承認者 経理雄之助（購買担当役員）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-012（承認者がAward内容＝案件名/落札候補/担当者推薦コメントを確認し承認 or 差し戻し。
+      承認→Award正式確定・全参加サプライヤへ結果通知（選定/非選定）。差し戻し→コメント付きで担当者へ通知・ステータス「評価中」へ戻す）
+    - §3.2 RD-RFX-009（③承認→承認待ち500→完了600・全サプライヤ通知 ④差し戻し→評価中へ）
+    - §2.2 BR-RFX-009（Award確定は承認者の承認が必須・単独確定不可）, BR-RFX-004（Award確定後「見積依頼を作成」で既存見積購買フローへ誘導）
+  Nguồn design: assets/layout.css|js, 参照: eProcurement_RFX_ProjectDetail_phase1.html / eProcurement_RFX_AwardRequest_phase1.html
+  Demo data: _RFX_MOCKUP_SPEC.md（落札候補=日本DS 総合83.2・担当者=調達花子・承認者=経理雄之助）
+  Tự đề xuất / ■未確定:
+    - display code「RFX260700123」は提案（DBはUUID）。承認者指定方法（R-07）未確定。
+    - SCR-RFX-012 は 共通画面（Phase 1/2 差分なし）。承認/差戻しUIは BR-RFX-009・RD-RFX-009 から逆算した自己提案。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Award承認 | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .award-hero {
+    background:linear-gradient(135deg,#f6f9ff,#eef4ff); border:1px solid #cfe0ff;
+    border-radius:8px; padding:16px 18px; margin-bottom:18px;
+  }
+  .award-hero .win-name { font-size:1.3rem; font-weight:bold; }
+  .award-hero .win-score { color:var(--j2-blue); font-weight:bold; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="#" data-nav="承認タスク一覧（SCR-RFX-003 承認者タスク）">承認タスク</a></li>
+      <li>Award承認</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">Award承認</h3>
+        <span class="status-badge st-pink" id="apStatus">Award承認待ち</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_AwardRequest_phase1.html">← 承認申請元を見る</a>
+      </div>
+
+      <div class="alert alert-info">
+        あなた（<b>経理雄之助</b>・購買担当役員）宛の <b>Award 承認依頼</b>です。内容を確認のうえ、<b>承認</b>または<b>差し戻し</b>を行ってください。承認するとAwardが正式確定します（BR-RFX-009）。
+      </div>
+
+      <!-- 落札候補 hero -->
+      <div class="award-hero">
+        <div class="muted">落札候補（Award候補）</div>
+        <div class="win-name">日本デジタルソリューションズ株式会社</div>
+        <div style="margin-top:4px;">総合スコア <span class="win-score">83.2</span> ／ 総合ランキング <b>1位</b>（3社中）／ 全評価者推薦 <span class="rec-flag">★3</span>/3名</div>
+      </div>
+
+      <!-- 案件情報 -->
+      <div class="section">
+        <div class="section-head">案件情報</div>
+        <div class="section-body">
+          <div class="kv-grid">
+            <div class="k">案件番号</div><div class="v">RFX260700123</div>
+            <div class="k">案件名</div><div class="v">社内基幹システム刷新に伴うクラウド基盤調達</div>
+            <div class="k">対象カテゴリ</div><div class="v">ITインフラ / クラウドサービス</div>
+            <div class="k">案件担当者</div><div class="v">調達花子（購買部門リード）</div>
+            <div class="k">評価軸ウェイト</div><div class="v">技術60% / 価格40% <span class="status-badge pill st-gray" style="margin-left:6px;">🔒 ロック済</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 担当者推薦コメント -->
+      <div class="section">
+        <div class="section-head">担当者の推薦コメント</div>
+        <div class="section-body">
+          <p style="margin:0;">総合スコア1位の日本DSは全評価者が推薦しており、技術・価格のバランスが最良。第一候補として承認を申請します。</p>
+          <p class="muted" style="margin-top:8px;">申請者：調達花子（購買部門リード）／申請日時：2026-07-11 10:22</p>
+        </div>
+      </div>
+
+      <!-- 評価ランキングサマリ -->
+      <div class="section">
+        <div class="section-head">評価ランキングサマリ（総合スコア降順）
+          <span class="sec-actions"><a class="btn btn-sm" href="eProcurement_RFX_ScoreResult_phase1.html">評価結果の詳細</a></span>
+        </div>
+        <div class="section-body" style="padding:0;">
+          <table class="data">
+            <thead><tr><th class="center">順位</th><th>サプライヤ</th><th class="center">技術</th><th class="center">価格</th><th class="center">総合スコア</th><th class="center">Award候補</th></tr></thead>
+            <tbody>
+              <tr><td class="center rank rank-1">🥇 1</td><td>日本デジタルソリューションズ株式会社</td><td class="center">82</td><td class="center">85</td><td class="center"><b>83.2</b></td><td class="center"><span class="status-badge pill st-moss">候補</span></td></tr>
+              <tr><td class="center rank rank-2">🥈 2</td><td>富士クラウド株式会社</td><td class="center">88</td><td class="center">72</td><td class="center"><b>81.6</b></td><td class="center">—</td></tr>
+              <tr><td class="center rank rank-3">🥉 3</td><td>さくらインフラ株式会社</td><td class="center">76</td><td class="center">90</td><td class="center"><b>81.6</b></td><td class="center">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 承認後に表示される発注誘導（初期非表示） -->
+      <div class="section" id="postAward" style="display:none;">
+        <div class="section-head">Award完了 — 次のステップ</div>
+        <div class="section-body">
+          <div class="alert alert-info" style="margin-bottom:12px;">Award を確定しました。RFP採用は発注確定ではありません。選定サプライヤへ改めて見積依頼を行い、既存の見積購買フローで発注してください（BR-RFX-004）。</div>
+          <a class="btn btn-primary" href="#" data-nav="見積依頼作成（既存見積購買フロー / estimate-request）">🧾 見積依頼を作成</a>
+        </div>
+      </div>
+
+      <!-- 承認アクション -->
+      <div class="section" id="actionSec">
+        <div class="section-head">承認アクション</div>
+        <div class="section-body">
+          <p class="muted">承認するとAwardが正式確定し全参加サプライヤへ結果通知（選定/非選定）が送信されます。差し戻すと案件は「評価中」へ戻り担当者へ通知されます（BR-RFX-009）。</p>
+          <div class="page-title-row" style="justify-content:flex-end;margin:0;">
+            <button class="btn btn-danger" id="btnReject">差し戻す</button>
+            <button class="btn btn-primary btn-lg" data-open-modal="mApprove">承認する</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- モーダル: 承認確認 -->
+<div class="modal-overlay" id="mApprove">
+  <div class="modal-box">
+    <div class="modal-head">Awardの承認<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">承認すると <b>日本デジタルソリューションズ株式会社</b> の Award が正式確定します。全参加サプライヤへ結果通知（選定/非選定）が自動送信されます。</div>
+      <p class="muted">確定後は Award 候補を変更できません（RD-RFX-009）。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-primary" id="btnApproveDo">承認を確定する</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 差し戻し -->
+<div class="modal-overlay" id="mReject">
+  <div class="modal-box">
+    <div class="modal-head">Awardの差し戻し<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-warn">差し戻すと案件ステータスが「評価中」へ戻り、担当者（調達花子）へ差し戻しコメント付きで通知されます。</div>
+      <label class="req-lbl">差し戻しコメント <span class="chip-req">必須</span></label>
+      <textarea id="rejectComment" maxlength="1000" placeholder="例：2位・3位との差が僅少のため、価格交渉後に再評価を依頼します。"></textarea>
+      <div class="field-error" id="rejectErr">差し戻しコメントを入力してください。</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-danger" id="btnRejectDo">差し戻しを確定</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'経理雄之助', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  // 承認
+  document.getElementById('btnApproveDo').addEventListener('click', function(){
+    JienieLayout.closeModal('mApprove');
+    var b = document.getElementById('apStatus');
+    b.className = 'status-badge st-moss'; b.textContent = 'Award完了';
+    document.getElementById('actionSec').style.display = 'none';
+    document.getElementById('postAward').style.display = '';
+    JienieLayout.toast('Awardを確定しました。全参加サプライヤへ結果通知（選定/非選定）を送信しました。');
+  });
+
+  // 差し戻し
+  document.getElementById('btnReject').addEventListener('click', function(){ JienieLayout.openModal('mReject'); });
+  var rc = document.getElementById('rejectComment');
+  rc.addEventListener('input', function(){ if(rc.value.trim()){ rc.classList.remove('error'); document.getElementById('rejectErr').classList.remove('show'); } });
+  document.getElementById('btnRejectDo').addEventListener('click', function(){
+    if(!rc.value.trim()){ rc.classList.add('error'); document.getElementById('rejectErr').classList.add('show'); return; }
+    JienieLayout.closeModal('mReject');
+    var b = document.getElementById('apStatus');
+    b.className = 'status-badge st-blue'; b.textContent = '評価中';
+    document.getElementById('actionSec').style.display = 'none';
+    JienieLayout.toast('差し戻しました。担当者へ通知しました（ステータス→評価中）。');
+  });
+</script>
+</body>
+</html>

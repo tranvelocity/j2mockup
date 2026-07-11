@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-006 Q&A掲示板画面（Buyer側・共通） — Buyer Portal / RFXモジュール
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-006, §3.2 RD-RFX-006（Q&A掲示板）, §5 REQ-RFX-005
+    - BR-RFX-002（公開ルール：質問投稿時は非公開→Buyer回答後デフォルト公開・Q&Aごとに非公開選択可。米谷社長 2026-07-03 確定）
+    - RD-RFX-006 受入基準：回答登録・公開/非公開選択・全件履歴（質問/回答/投稿日時）参照
+    - BD-RFX-006 追加仕様（phase_scope.md / feedback_log.md）:
+        FB-001 = Q&A公開非公開切替 + 切替履歴保持（rfx_qa_visibility_log 仮称：qa_id/changed_by/changed_at/from_status/to_status）
+        FB-002 = 質問修正機能 + 編集前テキスト履歴保持（rfx_qa_history 仮称：qa_id/field_name/before_text/after_text/edited_by/edited_at）。公開前に限りBuyerが回答テキスト修正可
+  Nguồn design: MOCKUP_GENERATION_PROMPT.md §3, assets/layout.css|js, _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 5社）
+  Tự đề xuất / ■未確定:
+    - 案件表示コード「RFX260700123」は display code 提案（DBはUUID）。要確認。
+    - 切替履歴/編集履歴のモーダル表現・タイムスタンプ書式は提案。R-12（Q&A匿名化）は未確定のためサプライヤ名は現状表示。
+    - Supplier側画面はクロスポータルのため data-nav トーストで案内（実ファイル: ../../supplier-portal/RFX機能/eProcurement_RFX_QA_Supplier.html）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q&A掲示板（Buyer側） | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .qa-card { border:1px solid var(--j2-border); border-radius:6px; margin-bottom:16px; overflow:hidden; background:#fff; }
+  .qa-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 14px; background:#f6f8fc; border-bottom:1px solid var(--j2-border); }
+  .qa-head .qa-no { font-weight:bold; color:#555; }
+  .qa-head .qa-supplier { font-weight:bold; }
+  .qa-head .qa-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .qa-body { padding:14px; }
+  .qa-q { display:flex; gap:10px; margin-bottom:12px; }
+  .qa-q .qa-badge { flex:0 0 auto; }
+  .qbadge { display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; border-radius:4px; font-weight:bold; color:#fff; font-size:.8rem; }
+  .qbadge.q { background:#7a5cc4; }
+  .qbadge.a { background:var(--j2-blue); }
+  .qa-text { flex:1; }
+  .qa-meta { font-size:.74rem; color:#999; margin-top:3px; }
+  .qa-a { display:flex; gap:10px; background:#f7faff; border:1px solid #dde7f7; border-radius:5px; padding:10px 12px; }
+  .qa-a.unanswered { background:#fff8e6; border-color:#ffce54; }
+  .qa-actions { display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .qa-actions .spacer { flex:1; }
+  /* toggle switch */
+  .vis-toggle { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:.82rem; user-select:none; }
+  .switch { position:relative; width:46px; height:24px; background:#bbb; border-radius:14px; transition:background .18s; flex:0 0 auto; }
+  .switch::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .18s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .vis-toggle.on .switch { background:var(--st-green); }
+  .vis-toggle.on .switch::after { left:24px; }
+  .vis-label { font-weight:bold; min-width:44px; }
+  .ans-form { margin-top:10px; }
+  .ans-form textarea { width:100%; }
+  .count-badge { background:var(--st-danger); color:#fff; border-radius:11px; padding:1px 9px; font-size:.76rem; font-weight:bold; }
+  .count-badge.zero { background:#999; }
+  .log-list { list-style:none; margin:0; padding:0; }
+  .log-list li { padding:8px 4px; border-bottom:1px dashed var(--j2-border); font-size:.82rem; }
+  .log-list li:last-child { border-bottom:none; }
+  .log-list .lg-time { color:#888; font-size:.74rem; }
+  .diff-old { background:#fdeff0; padding:8px 10px; border-radius:5px; border:1px solid #f1b6bb; white-space:pre-wrap; font-size:.82rem; margin:4px 0 10px; }
+  .diff-new { background:#e3f3e3; padding:8px 10px; border-radius:5px; border:1px solid #8fd28f; white-space:pre-wrap; font-size:.82rem; margin:4px 0 0; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li>Q&amp;A掲示板</li>
+    </ul>
+    <div class="page-content">
+
+      <p style="margin:0 0 8px;"><a href="eProcurement_RFX_ProjectDetail_phase1.html">← 案件詳細に戻る</a></p>
+
+      <div class="page-title-row">
+        <h3 class="page-title">Q&amp;A掲示板</h3>
+        <span class="status-badge st-blue">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="#" data-nav="Q&A掲示板・Supplier側（SCR-RFX-007 / ../../supplier-portal/RFX機能/eProcurement_RFX_QA_Supplier.html）">Supplier側の見え方 ⇄</a>
+      </div>
+
+      <div class="alert alert-info">
+        案件番号 <b>RFX260700123</b>（社内基幹システム刷新に伴うクラウド基盤調達）。
+        <b>公開ルール（BR-RFX-002）：</b>質問の投稿段階では全参加者に非公開。Buyerが回答を登録するとデフォルトで公開されますが、Q&amp;Aごとに非公開を選択できます。
+        <hr style="border:none;border-top:1px solid #cfe0f5;margin:8px 0;">
+        <b>FB-001：</b>公開/非公開の切替は履歴として保持します（<code>rfx_qa_visibility_log</code>）。「切替履歴」から確認できます。
+        <b>FB-002：</b>回答テキストは<b>公開前に限り</b>修正でき、修正前テキストは履歴として保持します（<code>rfx_qa_history</code>）。「編集履歴」から確認できます。
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <span>Q&amp;A 全 <b>5</b> 件</span>
+        <span>未回答 <span class="count-badge" id="unansweredBadge">1</span></span>
+        <div style="flex:1;"></div>
+        <span class="muted">担当：調達花子（案件担当者のみ回答・公開操作が可能）</span>
+      </div>
+
+      <!-- ===== Entry 1: 富士C / 回答済・公開 ===== -->
+      <div class="qa-card" data-qa="1" data-public="1">
+        <div class="qa-head">
+          <span class="qa-no">Q&amp;A #1</span>
+          <span class="qa-supplier">富士クラウド株式会社</span>
+          <div class="qa-right">
+            <span class="status-badge pill st-moss vis-state">公開中</span>
+          </div>
+        </div>
+        <div class="qa-body">
+          <div class="qa-q">
+            <span class="qa-badge"><span class="qbadge q">Q</span></span>
+            <div class="qa-text">クラウドのリージョン指定は必須ですか？特定リージョンへの制約があればご教示ください。
+              <div class="qa-meta">投稿：2026-07-06 09:12 / 富士クラウド株式会社</div>
+            </div>
+          </div>
+          <div class="qa-a">
+            <span class="qa-badge"><span class="qbadge a">A</span></span>
+            <div class="qa-text answer-text">データは国内リージョンでの保管を必須とします。リージョンの冗長構成は提案に含めてください。
+              <div class="qa-meta">回答：2026-07-06 15:40 / 調達花子</div>
+            </div>
+          </div>
+          <div class="qa-actions">
+            <label class="vis-toggle on" data-toggle="1"><span class="switch"></span><span class="vis-label">公開</span></label>
+            <button class="btn btn-sm" data-open-modal="mVisLog" data-log="1">切替履歴</button>
+            <div class="spacer"></div>
+            <button class="btn btn-sm btn-edit" data-edit="1" disabled title="公開済みのため回答テキストは修正できません（FB-002）">回答を編集</button>
+            <button class="btn btn-sm" data-open-modal="mEditHist" data-hist="1" disabled title="編集履歴はありません">編集履歴</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Entry 2: 日本DS / 回答済・公開・編集履歴あり ===== -->
+      <div class="qa-card" data-qa="2" data-public="1">
+        <div class="qa-head">
+          <span class="qa-no">Q&amp;A #2</span>
+          <span class="qa-supplier">日本デジタルソリューションズ株式会社</span>
+          <div class="qa-right">
+            <span class="status-badge pill st-moss vis-state">公開中</span>
+          </div>
+        </div>
+        <div class="qa-body">
+          <div class="qa-q">
+            <span class="qa-badge"><span class="qbadge q">Q</span></span>
+            <div class="qa-text">保守時間帯の希望はありますか？夜間帯のメンテナンス可否も知りたいです。
+              <div class="qa-meta">投稿：2026-07-06 11:03 / 日本デジタルソリューションズ株式会社</div>
+            </div>
+          </div>
+          <div class="qa-a">
+            <span class="qa-badge"><span class="qbadge a">A</span></span>
+            <div class="qa-text answer-text">24時間365日の監視を前提とし、計画メンテナンスは事前申請の上、平日夜間（22:00〜翌6:00）に実施可能です。
+              <div class="qa-meta">回答：2026-07-07 10:20 / 調達花子（v2・公開前に修正）</div>
+            </div>
+          </div>
+          <div class="qa-actions">
+            <label class="vis-toggle on" data-toggle="2"><span class="switch"></span><span class="vis-label">公開</span></label>
+            <button class="btn btn-sm" data-open-modal="mVisLog" data-log="2">切替履歴</button>
+            <div class="spacer"></div>
+            <button class="btn btn-sm btn-edit" data-edit="2" disabled title="公開済みのため回答テキストは修正できません（FB-002）">回答を編集</button>
+            <button class="btn btn-sm" data-open-modal="mEditHist" data-hist="2">編集履歴</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Entry 3: さくらI / 回答済・非公開 ===== -->
+      <div class="qa-card" data-qa="3" data-public="0">
+        <div class="qa-head">
+          <span class="qa-no">Q&amp;A #3</span>
+          <span class="qa-supplier">さくらインフラ株式会社</span>
+          <div class="qa-right">
+            <span class="status-badge pill st-gray vis-state">非公開</span>
+          </div>
+        </div>
+        <div class="qa-body">
+          <div class="qa-q">
+            <span class="qa-badge"><span class="qbadge q">Q</span></span>
+            <div class="qa-text">既存資産の移行範囲はどこまでを想定していますか？個別最適化された旧システムも対象でしょうか。
+              <div class="qa-meta">投稿：2026-07-07 14:31 / さくらインフラ株式会社</div>
+            </div>
+          </div>
+          <div class="qa-a">
+            <span class="qa-badge"><span class="qbadge a">A</span></span>
+            <div class="qa-text answer-text">移行範囲は会計・人事・購買の3系統を対象とします（詳細は個別調整）。本件は他社に不公平が生じ得るため当面は非公開とします。
+              <div class="qa-meta">回答：2026-07-08 09:05 / 調達花子</div>
+            </div>
+          </div>
+          <div class="qa-actions">
+            <label class="vis-toggle" data-toggle="3"><span class="switch"></span><span class="vis-label">非公開</span></label>
+            <button class="btn btn-sm" data-open-modal="mVisLog" data-log="3">切替履歴</button>
+            <div class="spacer"></div>
+            <button class="btn btn-sm btn-edit" data-edit="3" title="公開前のため回答テキストを修正できます（FB-002）">回答を編集</button>
+            <button class="btn btn-sm" data-open-modal="mEditHist" data-hist="3" disabled title="編集履歴はありません">編集履歴</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Entry 4: 富士C / 未回答 ===== -->
+      <div class="qa-card" data-qa="4" data-public="0" data-answered="0">
+        <div class="qa-head">
+          <span class="qa-no">Q&amp;A #4</span>
+          <span class="qa-supplier">富士クラウド株式会社</span>
+          <div class="qa-right">
+            <span class="status-badge pill st-orange vis-state">未回答</span>
+          </div>
+        </div>
+        <div class="qa-body">
+          <div class="qa-q">
+            <span class="qa-badge"><span class="qbadge q">Q</span></span>
+            <div class="qa-text">提案書のページ数上限はありますか？図表を多く用いる予定です。
+              <div class="qa-meta">投稿：2026-07-10 16:48 / 富士クラウド株式会社</div>
+            </div>
+          </div>
+          <div class="qa-a unanswered">
+            <span class="qa-badge"><span class="qbadge a">A</span></span>
+            <div class="qa-text">
+              <b>未回答</b>
+              <div class="ans-form">
+                <textarea id="ansInput4" placeholder="回答を入力してください（登録すると既定で公開されます・BR-RFX-002）"></textarea>
+                <div class="field-error" id="ansErr4">回答を入力してください。</div>
+              </div>
+            </div>
+          </div>
+          <div class="qa-actions">
+            <span class="muted">質問投稿時は非公開。回答登録で公開されます（BR-RFX-002）。</span>
+            <div class="spacer"></div>
+            <button class="btn btn-sm btn-primary" id="btnAnswer4">回答を登録</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Entry 5: 日本DS / 回答済・公開 ===== -->
+      <div class="qa-card" data-qa="5" data-public="1">
+        <div class="qa-head">
+          <span class="qa-no">Q&amp;A #5</span>
+          <span class="qa-supplier">日本デジタルソリューションズ株式会社</span>
+          <div class="qa-right">
+            <span class="status-badge pill st-moss vis-state">公開中</span>
+          </div>
+        </div>
+        <div class="qa-body">
+          <div class="qa-q">
+            <span class="qa-badge"><span class="qbadge q">Q</span></span>
+            <div class="qa-text">見積の有効期限はどの程度を想定すればよいですか？
+              <div class="qa-meta">投稿：2026-07-09 13:22 / 日本デジタルソリューションズ株式会社</div>
+            </div>
+          </div>
+          <div class="qa-a">
+            <span class="qa-badge"><span class="qbadge a">A</span></span>
+            <div class="qa-text answer-text">提案提出日から90日以上の有効期限を設定してください。
+              <div class="qa-meta">回答：2026-07-09 17:55 / 調達花子</div>
+            </div>
+          </div>
+          <div class="qa-actions">
+            <label class="vis-toggle on" data-toggle="5"><span class="switch"></span><span class="vis-label">公開</span></label>
+            <button class="btn btn-sm" data-open-modal="mVisLog" data-log="5">切替履歴</button>
+            <div class="spacer"></div>
+            <button class="btn btn-sm btn-edit" data-edit="5" disabled title="公開済みのため回答テキストは修正できません（FB-002）">回答を編集</button>
+            <button class="btn btn-sm" data-open-modal="mEditHist" data-hist="5" disabled title="編集履歴はありません">編集履歴</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- モーダル: 切替履歴（FB-001 rfx_qa_visibility_log） -->
+<div class="modal-overlay" id="mVisLog">
+  <div class="modal-box">
+    <div class="modal-head">公開/非公開 切替履歴 <span class="muted" style="margin-left:8px;font-weight:normal;font-size:.8rem;">rfx_qa_visibility_log（FB-001）</span><button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <p class="muted" style="margin-top:0;">Q&amp;A <span id="visLogNo">#1</span> の公開状態の変更履歴です。</p>
+      <ul class="log-list" id="visLogList"></ul>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>閉じる</button></div>
+  </div>
+</div>
+
+<!-- モーダル: 編集履歴（FB-002 rfx_qa_history） -->
+<div class="modal-overlay" id="mEditHist">
+  <div class="modal-box">
+    <div class="modal-head">回答テキスト 編集履歴 <span class="muted" style="margin-left:8px;font-weight:normal;font-size:.8rem;">rfx_qa_history（FB-002）</span><button class="close" data-close>×</button></div>
+    <div class="modal-body" id="editHistBody"></div>
+    <div class="modal-foot"><button class="btn" data-close>閉じる</button></div>
+  </div>
+</div>
+
+<!-- モーダル: 回答編集（FB-002・公開前のみ） -->
+<div class="modal-overlay" id="mEditAns">
+  <div class="modal-box">
+    <div class="modal-head">回答テキストの修正 <span class="muted" style="margin-left:8px;font-weight:normal;font-size:.8rem;">公開前のみ・FB-002</span><button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-top:0;">修正前のテキストは編集履歴（rfx_qa_history）に自動保存されます。公開後は修正できません。</div>
+      <label class="req-lbl">回答テキスト</label>
+      <textarea id="editAnsInput" style="min-height:120px;"></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="btnEditSave">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  var NOW = '2026-07-11 10:30';
+
+  // ---- 切替履歴データ（FB-001） ----
+  var visLogs = {
+    '1': [ {t:'2026-07-06 09:12', by:'システム', txt:'投稿時：非公開（質問登録・BR-RFX-002）'},
+           {t:'2026-07-06 15:40', by:'調達花子', txt:'非公開 → 公開（回答登録に伴い既定公開）'} ],
+    '2': [ {t:'2026-07-06 11:03', by:'システム', txt:'投稿時：非公開（質問登録）'},
+           {t:'2026-07-07 09:40', by:'調達花子', txt:'回答登録（非公開のまま・下書き）'},
+           {t:'2026-07-07 10:20', by:'調達花子', txt:'非公開 → 公開（テキスト修正後に公開）'} ],
+    '3': [ {t:'2026-07-07 14:31', by:'システム', txt:'投稿時：非公開（質問登録）'},
+           {t:'2026-07-08 09:05', by:'調達花子', txt:'回答登録（公平性配慮のため非公開を選択）'} ],
+    '5': [ {t:'2026-07-09 13:22', by:'システム', txt:'投稿時：非公開（質問登録）'},
+           {t:'2026-07-09 17:55', by:'調達花子', txt:'非公開 → 公開（回答登録に伴い既定公開）'} ]
+  };
+
+  // ---- 編集履歴データ（FB-002） ----
+  var editHist = {
+    '2': [ { by:'調達花子', t:'2026-07-07 10:20',
+             before:'24時間365日の監視を前提とします。計画メンテナンスの時間帯は追ってご案内します。',
+             after:'24時間365日の監視を前提とし、計画メンテナンスは事前申請の上、平日夜間（22:00〜翌6:00）に実施可能です。' } ]
+  };
+
+  function pad(n){ return (n<10?'0':'')+n; }
+
+  // ---- 切替履歴モーダル ----
+  document.querySelectorAll('[data-log]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = b.getAttribute('data-log');
+      document.getElementById('visLogNo').textContent = '#'+id;
+      var list = document.getElementById('visLogList');
+      var rows = visLogs[id] || [];
+      list.innerHTML = rows.map(function(r){
+        return '<li><div>'+r.txt+'</div><div class="lg-time">'+r.t+' / '+r.by+'</div></li>';
+      }).join('') || '<li class="muted">履歴はありません。</li>';
+    });
+  });
+
+  // ---- 編集履歴モーダル ----
+  document.querySelectorAll('[data-hist]').forEach(function(b){
+    b.addEventListener('click', function(){
+      if(b.disabled) return;
+      var id = b.getAttribute('data-hist');
+      var body = document.getElementById('editHistBody');
+      var rows = editHist[id] || [];
+      if(!rows.length){ body.innerHTML = '<p class="muted">編集履歴はありません。</p>'; return; }
+      body.innerHTML = rows.map(function(r,i){
+        return '<div style="margin-bottom:14px;"><div class="lg-time" style="margin-bottom:4px;">修正 '+(i+1)+'：'+r.t+' / '+r.by+'</div>'+
+               '<div class="muted">修正前</div><div class="diff-old">'+r.before+'</div>'+
+               '<div class="muted">修正後</div><div class="diff-new">'+r.after+'</div></div>';
+      }).join('');
+    });
+  });
+
+  // ---- 公開/非公開トグル（FB-001：DOM更新＋履歴追記） ----
+  document.querySelectorAll('.vis-toggle').forEach(function(tg){
+    tg.addEventListener('click', function(){
+      var id = tg.getAttribute('data-toggle');
+      var card = document.querySelector('.qa-card[data-qa="'+id+'"]');
+      var wasPublic = tg.classList.contains('on');
+      var nowPublic = !wasPublic;
+      tg.classList.toggle('on', nowPublic);
+      tg.querySelector('.vis-label').textContent = nowPublic ? '公開' : '非公開';
+      // state badge
+      var st = card.querySelector('.vis-state');
+      st.textContent = nowPublic ? '公開中' : '非公開';
+      st.className = 'status-badge pill vis-state ' + (nowPublic ? 'st-moss' : 'st-gray');
+      card.setAttribute('data-public', nowPublic ? '1':'0');
+      // 編集ボタン：公開前のみ活性（FB-002）
+      var edit = card.querySelector('.btn-edit');
+      if(edit){
+        edit.disabled = nowPublic;
+        edit.title = nowPublic ? '公開済みのため回答テキストは修正できません（FB-002）' : '公開前のため回答テキストを修正できます（FB-002）';
+      }
+      // 切替履歴に追記
+      if(!visLogs[id]) visLogs[id]=[];
+      visLogs[id].push({ t:NOW, by:'調達花子', txt:(wasPublic?'公開 → 非公開':'非公開 → 公開')+'（手動切替）' });
+      JienieLayout.toast('Q&A #'+id+' を'+(nowPublic?'公開':'非公開')+'にしました。切替履歴に記録しました（FB-001）。'+(nowPublic?' 全参加サプライヤへ通知を送信しました。':''));
+    });
+  });
+
+  // ---- 回答編集（FB-002・公開前のみ） ----
+  var editingId = null;
+  document.querySelectorAll('.btn-edit').forEach(function(b){
+    b.addEventListener('click', function(){
+      if(b.disabled) return;
+      editingId = b.getAttribute('data-edit');
+      var card = document.querySelector('.qa-card[data-qa="'+editingId+'"]');
+      var at = card.querySelector('.answer-text');
+      // 本文（メタ行を除く）を取得
+      var clone = at.cloneNode(true);
+      var meta = clone.querySelector('.qa-meta'); if(meta) meta.remove();
+      document.getElementById('editAnsInput').value = clone.textContent.trim();
+      JienieLayout.openModal('mEditAns');
+    });
+  });
+  document.getElementById('btnEditSave').addEventListener('click', function(){
+    var v = document.getElementById('editAnsInput').value.trim();
+    if(!v || !editingId){ JienieLayout.toast('回答テキストを入力してください。'); return; }
+    var card = document.querySelector('.qa-card[data-qa="'+editingId+'"]');
+    var at = card.querySelector('.answer-text');
+    var meta = at.querySelector('.qa-meta');
+    var before = (function(){ var c=at.cloneNode(true); var m=c.querySelector('.qa-meta'); if(m)m.remove(); return c.textContent.trim(); })();
+    // 履歴追記
+    if(!editHist[editingId]) editHist[editingId]=[];
+    editHist[editingId].push({ by:'調達花子', t:NOW, before:before, after:v });
+    // 本文差し替え（メタは残す・更新）
+    at.textContent = v;
+    if(meta){ meta.textContent = '回答：'+NOW+' / 調達花子（修正）'; at.appendChild(meta); }
+    // 編集履歴ボタン活性化
+    var hb = card.querySelector('[data-hist]');
+    if(hb){ hb.disabled=false; hb.title=''; }
+    JienieLayout.closeModal('mEditAns');
+    JienieLayout.toast('回答テキストを修正しました。修正前テキストを編集履歴に保存しました（FB-002）。');
+    editingId = null;
+  });
+
+  // ---- 未回答カウント更新 ----
+  function updateUnanswered(){
+    var n = document.querySelectorAll('.qa-card[data-answered="0"]').length;
+    var b = document.getElementById('unansweredBadge');
+    b.textContent = n;
+    b.classList.toggle('zero', n===0);
+  }
+
+  // ---- Entry4 回答登録（→回答済＋公開） ----
+  document.getElementById('btnAnswer4').addEventListener('click', function(){
+    var ta = document.getElementById('ansInput4');
+    if(!ta.value.trim()){ ta.classList.add('error'); document.getElementById('ansErr4').classList.add('show'); return; }
+    ta.classList.remove('error'); document.getElementById('ansErr4').classList.remove('show');
+    var card = document.querySelector('.qa-card[data-qa="4"]');
+    var answer = ta.value.trim();
+    // 回答ブロックを確定表示に置換
+    var aBlock = card.querySelector('.qa-a');
+    aBlock.classList.remove('unanswered');
+    aBlock.querySelector('.qa-text').innerHTML =
+      '<div class="answer-text">'+answer.replace(/</g,'&lt;')+
+      '<div class="qa-meta">回答：'+NOW+' / 調達花子</div></div>';
+    // 状態：公開（既定）
+    var st = card.querySelector('.vis-state');
+    st.textContent = '公開中'; st.className = 'status-badge pill vis-state st-moss';
+    card.setAttribute('data-public','1'); card.setAttribute('data-answered','1');
+    // アクション行を通常表示へ差し替え
+    var actions = card.querySelector('.qa-actions');
+    actions.innerHTML =
+      '<label class="vis-toggle on" data-toggle="4"><span class="switch"></span><span class="vis-label">公開</span></label>'+
+      '<button class="btn btn-sm" data-open-modal="mVisLog" data-log="4">切替履歴</button>'+
+      '<div class="spacer"></div>'+
+      '<button class="btn btn-sm btn-edit" data-edit="4" disabled title="公開済みのため回答テキストは修正できません（FB-002）">回答を編集</button>'+
+      '<button class="btn btn-sm" data-open-modal="mEditHist" data-hist="4" disabled title="編集履歴はありません">編集履歴</button>';
+    // 履歴初期化＋新規bind
+    visLogs['4'] = [ {t:'2026-07-10 16:48', by:'システム', txt:'投稿時：非公開（質問登録）'},
+                     {t:NOW, by:'調達花子', txt:'非公開 → 公開（回答登録に伴い既定公開）'} ];
+    rebind(actions);
+    updateUnanswered();
+    JienieLayout.toast('Q&A #4 に回答を登録し、公開しました（BR-RFX-002）。全参加サプライヤへ通知を送信しました。');
+  });
+
+  // 動的生成した要素へ再bind（modal open / toggle / log）
+  function rebind(scope){
+    scope.querySelectorAll('[data-open-modal]').forEach(function(btn){
+      btn.addEventListener('click', function(){ JienieLayout.openModal(btn.getAttribute('data-open-modal')); });
+    });
+    scope.querySelectorAll('[data-log]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id=b.getAttribute('data-log');
+        document.getElementById('visLogNo').textContent='#'+id;
+        var list=document.getElementById('visLogList');
+        var rows=visLogs[id]||[];
+        list.innerHTML=rows.map(function(r){return '<li><div>'+r.txt+'</div><div class="lg-time">'+r.t+' / '+r.by+'</div></li>';}).join('')||'<li class="muted">履歴はありません。</li>';
+      });
+    });
+    var tg = scope.querySelector('.vis-toggle');
+    if(tg){
+      tg.addEventListener('click', function(){
+        var id=tg.getAttribute('data-toggle');
+        var card=document.querySelector('.qa-card[data-qa="'+id+'"]');
+        var wasPublic=tg.classList.contains('on'); var nowPublic=!wasPublic;
+        tg.classList.toggle('on',nowPublic);
+        tg.querySelector('.vis-label').textContent=nowPublic?'公開':'非公開';
+        var st=card.querySelector('.vis-state');
+        st.textContent=nowPublic?'公開中':'非公開';
+        st.className='status-badge pill vis-state '+(nowPublic?'st-moss':'st-gray');
+        card.setAttribute('data-public',nowPublic?'1':'0');
+        var edit=card.querySelector('.btn-edit');
+        if(edit){ edit.disabled=nowPublic; edit.title=nowPublic?'公開済みのため回答テキストは修正できません（FB-002）':'公開前のため回答テキストを修正できます（FB-002）'; }
+        if(!visLogs[id])visLogs[id]=[];
+        visLogs[id].push({t:NOW,by:'調達花子',txt:(wasPublic?'公開 → 非公開':'非公開 → 公開')+'（手動切替）'});
+        JienieLayout.toast('Q&A #'+id+' を'+(nowPublic?'公開':'非公開')+'にしました。切替履歴に記録しました（FB-001）。');
+      });
+    }
+    var eb = scope.querySelector('.btn-edit');
+    if(eb){
+      eb.addEventListener('click', function(){
+        if(eb.disabled) return;
+        editingId=eb.getAttribute('data-edit');
+        var card=document.querySelector('.qa-card[data-qa="'+editingId+'"]');
+        var at=card.querySelector('.answer-text');
+        var c=at.cloneNode(true); var m=c.querySelector('.qa-meta'); if(m)m.remove();
+        document.getElementById('editAnsInput').value=c.textContent.trim();
+        JienieLayout.openModal('mEditAns');
+      });
+    }
+  }
+
+  updateUnanswered();
+</script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-004 RFI作成・送信画面（共通 / Phase 1 & 2）— Buyer Portal / RFXモジュール
+  RFI（情報収集依頼）を作成し参加確定サプライヤへ一斉送信する。SCR-RFX-003（ハブ）から起動・帰着。
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-004（タイトル・質問項目・回答期限・添付資料を入力→一斉送信。送信後変更不可アラート）
+    - §3.2 RD-RFX-003（入力: RFIタイトル/質問項目(複数)/回答期限/添付(任意)。処理: rfx_event生成→通知。受入: 一斉送信・変更不可・回答状況一覧・リマインド）
+    - §3.2 RD-RFX-011（添付ファイルのバージョン管理：版番号・更新日時・更新者）
+    - §2.2 BR-RFX-005（送信後は内容変更不可・再作成が必要）, BR-RFX-001（RFIは任意フェーズ）
+    - phase_scope.md: 画面別フェーズ対応表（SCR-RFX-004 = Phase 1・2 共通・差分なし）
+  Nguồn design: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 参加確定4社: 富士C・日本DS・さくらI・GTech / みらいN不参加）, assets/layout.css|layout.js|datepicker.js
+  Tự đề xuất / ■未確定:
+    - 「今日」= 2026-07-11。回答期限は本日以降（提案）。既定 2026-07-18（案件スケジュール整合）。
+    - 質問項目の「回答形式（テキスト/選択式/数値/ファイル）」は提案（RD-RFX-003 は固定フォーマット前提・詳細設計で確認）。
+    - リマインド送信タイミングは Provider 設定（SCR-RFX-P01）・Q-RD-RFX-004 参照で■未確定。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFI作成・送信 | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .form-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .form-row > .lbl { width: 160px; flex: 0 0 160px; font-weight: bold; font-size: .84rem; padding-top: 8px; }
+  .form-row > .ctrl { flex: 1; min-width: 0; }
+  .form-row input[type=text] { width: 100%; max-width: 560px; }
+  .form-row .date-input { max-width: 220px; }
+  .note { font-size: .78rem; color: #888; margin-top: 4px; }
+  .char-count { float: right; font-size: .74rem; color: #999; }
+  .q-item { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+  .q-item .q-no { flex: 0 0 30px; font-weight: bold; color: var(--j2-blue); padding-top: 8px; }
+  .q-item .q-text { flex: 1; min-width: 0; }
+  .q-item textarea { min-height: 44px; }
+  .q-item .q-fmt { flex: 0 0 150px; }
+  .q-item .q-fmt select { width: 100%; }
+  .q-item .icon-remove { background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem; padding-top: 6px; }
+  .q-item .icon-remove:hover { color: var(--st-danger); }
+  .add-row { margin-top: 8px; }
+  .add-row button { background: none; border: none; color: var(--j2-link); cursor: pointer; font-weight: bold; font-size: .86rem; }
+  .file-chip-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .file-chip { display: flex; align-items: center; gap: 10px; background: var(--j2-card-bg); border: 1px solid var(--j2-border); border-radius: 5px; padding: 6px 10px; font-size: .82rem; }
+  .file-chip .fc-name { flex: 1; }
+  .file-chip .fc-remove { background: none; border: none; color: #999; cursor: pointer; }
+  .form-foot { display: flex; gap: 12px; justify-content: flex-end; margin: 22px 0 10px; }
+  .form-foot .spacer { flex: 1; }
+  .sent-banner { display: none; }
+  .sent-banner.show { display: block; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li>RFI作成・送信</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">RFI作成・送信</h3>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ProjectDetail_phase1.html">‹ 案件詳細へ戻る</a>
+      </div>
+
+      <!-- 案件情報（読み取り専用） -->
+      <div class="section">
+        <div class="section-head">対象案件</div>
+        <div class="section-body">
+          <div class="kv-grid">
+            <div class="k">案件番号</div><div class="v">RFX260700123</div>
+            <div class="k">案件名</div><div class="v">社内基幹システム刷新に伴うクラウド基盤調達</div>
+            <div class="k">案件担当者</div><div class="v">調達花子（購買部門リード）</div>
+            <div class="k">対象カテゴリ</div><div class="v">ITインフラ / クラウドサービス</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warn" id="warnBr005">
+        <b>ご注意（BR-RFX-005）：</b>送信後は内容を変更できません。変更が必要な場合は本RFIをキャンセルして再作成する必要があります。
+      </div>
+
+      <!-- 送信完了バナー -->
+      <div class="alert alert-info sent-banner" id="sentBanner">
+        <b>✓ RFIを送信しました。</b> 送信日時：<span id="sentAt">-</span> ／ 回答期限：<span id="sentDl">-</span>。
+        送信後は内容を変更できません（BR-RFX-005）。回答状況は案件詳細・進行状況画面（SCR-RFX-003）で確認できます。
+      </div>
+
+      <form id="rfiForm" novalidate>
+
+        <!-- ===== RFI基本情報 ===== -->
+        <div class="section">
+          <div class="section-head">RFI基本情報</div>
+          <div class="section-body">
+            <div class="form-row">
+              <div class="lbl">RFIタイトル <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fTitle">
+                <input type="text" id="titleInput" maxlength="200" placeholder="例：クラウド基盤に関する情報提供依頼（RFI）">
+                <div class="note">最大200文字<span class="char-count" id="titleCount">0 / 200</span></div>
+                <div class="field-error" id="errTitle">RFIタイトルを入力してください。</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">回答期限 <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fDl">
+                <input type="text" class="date-input" id="dlInput" placeholder="YYYY-MM-DD" value="2026-07-18">
+                <div class="note">本日（2026-07-11）以降の日付を選択してください。回答期限の数日前に自動リマインドを送信します（Provider設定・Q-RD-RFX-004）。</div>
+                <div class="field-error" id="errDl">回答期限は本日以降の日付を選択してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 質問項目 ===== -->
+        <div class="section">
+          <div class="section-head">質問項目 <span class="chip-req" style="margin-left:8px;">必須・1件以上</span></div>
+          <div class="section-body">
+            <div id="qList"></div>
+            <div class="field-error" id="errQ">質問項目を1件以上入力してください（空欄は無効です）。</div>
+            <div class="add-row"><button type="button" id="addQ">＋ 質問項目を追加</button></div>
+          </div>
+        </div>
+
+        <!-- ===== 添付資料 ===== -->
+        <div class="section">
+          <div class="section-head">添付資料 <span class="chip-opt" style="margin-left:8px;">任意</span></div>
+          <div class="section-body">
+            <button type="button" class="btn" id="fileBtn">📎 ファイルを選択</button>
+            <input type="file" id="fileInput" multiple style="display:none;">
+            <div class="note" style="margin-top:6px;">添付ファイルはバージョン管理されます（版番号・更新日時・更新者を記録／RD-RFX-011）。実体は service-file 連携（本モックはファイル名のみ保持）。</div>
+            <div class="file-chip-list" id="fileList"></div>
+          </div>
+        </div>
+
+        <!-- ===== 送信対象 ===== -->
+        <div class="section">
+          <div class="section-head">送信対象サプライヤ（全参加サプライヤ）</div>
+          <div class="section-body" style="padding:0;">
+            <table class="data">
+              <thead><tr><th>サプライヤ</th><th class="center" style="width:140px;">招待状態</th><th class="center" style="width:140px;">送信対象</th></tr></thead>
+              <tbody>
+                <tr><td>富士クラウド株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">✓</td></tr>
+                <tr><td>日本デジタルソリューションズ株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">✓</td></tr>
+                <tr><td>さくらインフラ株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">✓</td></tr>
+                <tr><td>グローバルテック株式会社</td><td class="center"><span class="status-badge pill st-green">参加確定</span></td><td class="center">✓</td></tr>
+                <tr><td>みらいネットワークス株式会社</td><td class="center"><span class="status-badge pill st-gray">不参加</span></td><td class="center">対象外</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="section-body" style="padding-top:12px;">
+            <p class="muted" style="margin:0;">RFIは「参加確定」済みの全サプライヤ（<b>4社</b>）が対象です。招待中・不参加のサプライヤは対象外です（RD-RFX-002）。</p>
+          </div>
+        </div>
+
+        <div class="form-foot">
+          <button type="button" class="btn" id="draftBtn">下書き保存</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-primary btn-lg" id="sendBtn" disabled>RFIを送信</button>
+        </div>
+        <div class="muted" id="reqHint" style="text-align:right;"></div>
+
+      </form>
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- ===== 送信確認モーダル ===== -->
+<div class="modal-overlay" id="mSend">
+  <div class="modal-box">
+    <div class="modal-head">RFI送信の確認<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div id="sendSummary"></div>
+      <div class="alert alert-danger" style="margin-top:14px;margin-bottom:0;">
+        <b>重要（BR-RFX-005）：一度送信したRFIの内容は変更できません。</b>
+        変更が必要な場合は本RFIをキャンセルして再作成する必要があります。送信してよろしいですか？
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>戻る</button>
+      <button class="btn btn-primary" id="sendOk">送信する</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+  JienieDatepicker.init('#dlInput');
+
+  (function () {
+    var TODAY = '2026-07-11';
+    var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    var sent = false;
+    var files = [];
+    var qCount = 0;
+
+    // ---- タイトル文字数 ----
+    (function () {
+      var inp = document.getElementById('titleInput'), lb = document.getElementById('titleCount');
+      function upd() { lb.textContent = inp.value.length + ' / 200'; }
+      inp.addEventListener('input', function () { upd(); document.getElementById('errTitle').classList.remove('show'); inp.classList.remove('error'); refresh(); });
+      upd();
+    })();
+
+    // ---- 質問項目 ----
+    var qList = document.getElementById('qList');
+    function addQ(text) {
+      qCount++;
+      var row = document.createElement('div');
+      row.className = 'q-item';
+      row.innerHTML =
+        '<div class="q-no">Q' + qCount + '</div>' +
+        '<div class="q-text"><textarea placeholder="質問文を入力してください（例：貴社の同種案件の導入実績をご教示ください）"></textarea></div>' +
+        '<div class="q-fmt"><select class="q-format">' +
+          '<option>テキスト</option><option>選択式</option><option>数値</option><option>ファイル</option>' +
+        '</select></div>' +
+        '<button type="button" class="icon-remove" title="削除">×</button>';
+      qList.appendChild(row);
+      var ta = row.querySelector('textarea');
+      if (text) ta.value = text;
+      ta.addEventListener('input', function () { document.getElementById('errQ').classList.remove('show'); refresh(); });
+      row.querySelector('.icon-remove').addEventListener('click', function () { row.remove(); renumber(); refresh(); });
+    }
+    function renumber() { qList.querySelectorAll('.q-item').forEach(function (r, i) { r.querySelector('.q-no').textContent = 'Q' + (i + 1); }); }
+    function validQ() { return Array.prototype.slice.call(qList.querySelectorAll('textarea')).filter(function (t) { return t.value.trim(); }).length; }
+    document.getElementById('addQ').addEventListener('click', function () { addQ(''); });
+    addQ('貴社が提供可能なクラウド基盤（IaaS/PaaS）の構成・提供リージョンをご教示ください。');
+    addQ('公共・大規模基幹システム向けの導入実績と可用性SLAをご教示ください。');
+
+    // ---- 添付資料 ----
+    document.getElementById('fileBtn').addEventListener('click', function () { document.getElementById('fileInput').click(); });
+    document.getElementById('fileInput').addEventListener('change', function (e) {
+      Array.prototype.forEach.call(e.target.files, function (f) { files.push({ name: f.name, size: f.size }); });
+      renderFiles(); e.target.value = '';
+    });
+    function renderFiles() {
+      var box = document.getElementById('fileList'); box.innerHTML = '';
+      files.forEach(function (f, i) {
+        var chip = document.createElement('div');
+        chip.className = 'file-chip';
+        chip.innerHTML = '<span class="fc-name">📄 ' + f.name + '</span><span class="muted">' + (f.size / 1024).toFixed(1) + ' KB ・ v1</span><button type="button" class="fc-remove">×</button>';
+        chip.querySelector('.fc-remove').addEventListener('click', function () { files.splice(i, 1); renderFiles(); });
+        box.appendChild(chip);
+      });
+    }
+
+    // ---- 回答期限 validate ----
+    function validateDl(show) {
+      var v = document.getElementById('dlInput').value.trim();
+      var ok = DATE_RE.test(v) && v >= TODAY;
+      if (show) { document.getElementById('errDl').classList.toggle('show', !ok); document.getElementById('dlInput').classList.toggle('error', !ok); }
+      return ok;
+    }
+    document.getElementById('dlInput').addEventListener('blur', function () { validateDl(true); refresh(); });
+    document.getElementById('dlInput').addEventListener('input', refresh);
+
+    // ---- 送信ボタン活性制御 ----
+    function missing() {
+      var m = [];
+      if (!document.getElementById('titleInput').value.trim()) m.push('RFIタイトル');
+      if (!validateDl(false)) m.push('回答期限（本日以降）');
+      if (validQ() === 0) m.push('質問項目（1件以上）');
+      return m;
+    }
+    function refresh() {
+      if (sent) return;
+      var m = missing();
+      document.getElementById('sendBtn').disabled = m.length > 0;
+      document.getElementById('reqHint').innerHTML = m.length
+        ? '<span style="color:var(--st-danger);">未入力：' + m.join('・') + '</span>'
+        : '<span style="color:var(--st-green);font-weight:bold;">✓ 送信可能です</span>';
+    }
+
+    // ---- 下書き保存 ----
+    document.getElementById('draftBtn').addEventListener('click', function () {
+      if (!sent) JienieLayout.toast('下書きを保存しました（作成中のまま・未送信）。');
+    });
+
+    // ---- 送信 → 確認モーダル ----
+    document.getElementById('sendBtn').addEventListener('click', function () {
+      var ok = true;
+      if (!document.getElementById('titleInput').value.trim()) { document.getElementById('errTitle').classList.add('show'); document.getElementById('titleInput').classList.add('error'); ok = false; }
+      if (!validateDl(true)) ok = false;
+      if (validQ() === 0) { document.getElementById('errQ').classList.add('show'); ok = false; }
+      if (!ok) { refresh(); JienieLayout.toast('入力内容にエラーがあります。赤字の項目を確認してください。'); return; }
+      document.getElementById('sendSummary').innerHTML =
+        '<p style="margin-top:0;">以下の内容で <b>参加確定4社</b> へRFIを送信します。</p>' +
+        '<table class="data">' +
+        '<tr><th style="width:150px;">RFIタイトル</th><td>' + document.getElementById('titleInput').value.trim() + '</td></tr>' +
+        '<tr><th>回答期限</th><td>' + document.getElementById('dlInput').value.trim() + '</td></tr>' +
+        '<tr><th>質問項目</th><td>' + validQ() + ' 件</td></tr>' +
+        '<tr><th>添付資料</th><td>' + (files.length ? files.map(function (f) { return f.name; }).join('、') : 'なし') + '</td></tr>' +
+        '<tr><th>送信先</th><td>富士クラウド、日本デジタルソリューションズ、さくらインフラ、グローバルテック（4社）</td></tr>' +
+        '</table>';
+      JienieLayout.openModal('mSend');
+    });
+
+    // ---- 送信確定 → ロック ----
+    document.getElementById('sendOk').addEventListener('click', function () {
+      sent = true;
+      JienieLayout.closeModal('mSend');
+      // フォームをロック（BR-RFX-005）
+      document.querySelectorAll('#rfiForm input, #rfiForm textarea, #rfiForm select, #rfiForm button').forEach(function (el) { el.disabled = true; });
+      document.getElementById('warnBr005').style.display = 'none';
+      document.getElementById('sentAt').textContent = TODAY + ' 15:40';
+      document.getElementById('sentDl').textContent = document.getElementById('dlInput').value.trim();
+      document.getElementById('sentBanner').classList.add('show');
+      document.getElementById('reqHint').textContent = '';
+      document.getElementById('sentBanner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      JienieLayout.toast('RFIを4社へ送信しました。参加サプライヤへ通知を送信します（service-notification 経由）。');
+    });
+
+    refresh();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+/*
+  layout.css — Header + Sidebar dung chung cho cac trang mockup PROVIDER PORTAL
+  (src-vbizhw-common, companyDivisionCode=90, module Master/LogMessage/Schedule).
+
+  NGUON THAT (source code, khong suy doan — doi chieu voi buyer-portal/supplier-portal
+  vi day la CUNG 1 component Vue dung chung cho ca 3 role qua v-if companyDivisionCode):
+    - Header: src-vbizhw-common/src/layouts/eProcurement/LoggedHeader.vue
+      Nhanh Provider (companyDivisionCode != 20, isSupplierLogin=false):
+        * KHONG hien khoi "会社コード" 3-cot (dong 79 v-if company Division Code==20 — chi Supplier).
+        * Hien: logo (toDefautScreen), トップページ (HOME.TITLE), chuong お知らせ (MASTER_SETTING.LB_NOTICE,
+          dong 52-63 — badge = noticeNum), khoi user 2 dong [組織名(organizationName)] [氏名(user.name)]
+          (dong 88-102, nhanh KHONG isSupplierAccountCreated), banh rang dropdown (dong 123-141).
+        * KHONG co cart/so sanh (v-if roles['SHOPPING_CART']/['PRODUCTS_COMPARE'] + buyerSwitch.isCatalogPurchasing
+          — Provider khong co cac role nay).
+    - Sidebar: src-vbizhw-common/src/layouts/eProcurement/LoggedSidebar.vue, nhom
+      "マスタ管理" (id="a-menuMasterManagement", dong 384-458): icon FA "cogs", nhan
+      MASTER_SETTING.TITLE. Day la nhom DUY NHAT Provider (role Master module) dung —
+      cac nhom khac (requester/purchaser/supplier/...) deu la cua Buyer/Supplier, Provider
+      khong co role tuong ung nen KHONG hien thi (allowMenu() tra false).
+      Submenu THEO DUNG THU TU template (dong 396-457): マスタ設定 / バイヤー切替 / 案件設定
+      (PROJECT_SETTING) / アップロード履歴 / 権限管理(ROLE_MANAGEMENT) / マスタ照会設定
+      (MASTER_VIEW_SETTING) / メールテンプレート設定（共通/個別） / 多言語設定（言語/多言語）/
+      スケジュールジョブ一覧(SCHEDULE_JOB_LIST) / ログ監視ダッシュボード(LOG_MESSAGE_DASHBOARD).
+      → RFX設定 la MUC MOI duoc THEM VAO cuoi nhom nay theo 02_要件定義書.md v0.9 §4.3
+        ("既存 Masterメニュー拡張「RFX設定」サブメニュー追加") — danh dau NEW trong sidebar.
+  KHUNG (kich thuoc/mau) COPY NGUYEN VAN tu buyer-portal/supplier-portal (da doi chieu
+  staging 2026-07, dung chung 1 he thong thiet ke J2 cho ca 3 portal):
+    - Header cao 70px, bg #03041f, border-bottom 4px #ffb300. Logo-area rong 296px.
+    - Sidebar 84px thu gon <-> 296px mo rong OVERLAY (content margin-left co dinh 84px).
+    - Mo rong: icon + label #03041f + chevron; nhom mo: nen #4169e1 chu trang, chevron xoay 180°.
+*/
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  color: #111111;
+  line-height: 1.43;
+  font-size: 14px;
+  background: #ffffff;
+}
+a { text-decoration: none; color: inherit; }
+
+/* ===== Header — LoggedHeader.vue (nhanh Provider) ===== */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 70px;
+  min-height: 70px;
+  display: flex;
+  z-index: 1000;
+  background: #03041f;
+  color: #ffffff;
+  border-bottom: #ffb300 solid 4px;
+}
+.header .logo-area {
+  width: 296px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-left: 28px;
+  border-right: 1px solid #37384c;
+  flex-shrink: 0;
+}
+.header .logo-area img { height: 38px; }
+.header .nav-panel { flex: 1; display: flex; align-items: center; height: 100%; }
+.header .home-top { display: flex; align-items: center; gap: 10px; font-size: .9rem; margin-left: 40px; color: #ffffff; }
+.header .home-top svg { width: 20px; height: 20px; fill: #ffffff; }
+.header .menu-top { flex: 1; display: flex; align-items: stretch; justify-content: flex-end; height: 100%; }
+.header .nav-item {
+  padding: 0 1.5rem;
+  border-left: 1px solid rgba(55, 56, 76, 0.6);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 12px;
+  position: relative;
+  cursor: pointer;
+}
+.header .nav-item svg { width: 1.6rem; height: 1.6rem; fill: #ffffff; }
+.header .nav-item:hover svg { fill: #cccccc; }
+.header .icon-number {
+  background-color: #ef5350;
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+}
+.header .login-info {
+  border-left: 1px solid rgba(55, 56, 76, 0.6);
+  padding: 0 1.2rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+.header .avatar svg { width: 2.5rem; height: 2.5rem; fill: #c4c4c4; margin-right: .6rem; }
+/* Provider: 2 khoi text [組織名] [氏名] — LoggedHeader.vue dong 88-102 (khong co company code) */
+.header .user-name { font-size: 1.05rem; line-height: 1.35; text-align: center; margin-right: 1rem; }
+.header .setting-user { margin-left: .5rem; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.header .setting-user svg { width: 20px; height: 20px; fill: #ffffff; }
+.header .setting-user .caret { font-size: .6rem; color: #ffffff; }
+
+.dropdown-panel {
+  display: none; position: absolute; top: 60px; right: 24px; min-width: 210px;
+  background: #ffffff; color: #111111; border-radius: 6px; overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,.3); z-index: 1100;
+}
+.dropdown-panel.show { display: block; }
+.dropdown-panel a { display: block; padding: .7rem 1.1rem; font-size: .85rem; color: #045eb4; }
+.dropdown-panel a:hover { background: #f2f5fa; }
+.dropdown-panel .dp-divider { border-top: 1px solid #eee; margin: 0; }
+
+/* ===== Sidebar — LoggedSidebar.vue (nhom マスタ管理 duy nhat cho Provider) ===== */
+#wrapper { position: relative; top: 70px; display: flex; }
+#wrapper-sidebar {
+  position: fixed;
+  top: 70px;
+  bottom: 0;
+  left: 0;
+  width: 84px;
+  background: #eeeeee;
+  box-shadow: 2px 0 2px rgba(153, 153, 153, 0.9);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 900;
+  transition: width .25s ease;
+}
+body.sidebar-open #wrapper-sidebar { width: 296px; }
+
+#wrapper-sidebar .sidebar-top {
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px 0 12px;
+}
+body.sidebar-open #wrapper-sidebar .sidebar-top { justify-content: flex-end; padding: 16px 22px 12px; }
+.toggle-sidebar-burger {
+  background: none; border: none; color: #4169e1; font-size: 1.6rem; line-height: 1; cursor: pointer; padding: 0;
+}
+body.sidebar-open .toggle-sidebar-burger { display: none; }
+.toggle-sidebar-x {
+  display: none;
+  background: none; border: none; font-size: 1.7rem; line-height: 1; color: #4169e1; cursor: pointer; padding: 0;
+}
+body.sidebar-open .toggle-sidebar-x { display: inline-block; }
+
+#wrapper-sidebar ul { list-style: none; margin: 0; padding: 0; }
+#wrapper-sidebar li { border-bottom: 0; }
+
+/* --- Thu gon (mac dinh): CHI icon --- */
+#wrapper-sidebar a.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 50px;
+  padding: 14px 20px;
+  color: #03041f;
+  position: relative;
+  transition: background .15s;
+  white-space: nowrap;
+}
+#wrapper-sidebar a.menu-item svg { width: 1.25rem; height: 1.25rem; fill: #4169e1; flex-shrink: 0; }
+#wrapper-sidebar a.menu-item:hover,
+#wrapper-sidebar a.menu-item.active { background: #4169e1; color: #ffffff; }
+#wrapper-sidebar a.menu-item:hover svg,
+#wrapper-sidebar a.menu-item.active svg { fill: #ffffff; }
+
+/* --- Mo rong: icon + label + chevron --- */
+body.sidebar-open #wrapper-sidebar a.menu-item {
+  justify-content: flex-start;
+  padding: 14px 20px 14px 30px;
+  gap: 16px;
+}
+#wrapper-sidebar .menu-label { display: none; font-size: .96rem; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+body.sidebar-open #wrapper-sidebar .menu-label { display: inline-block; }
+#wrapper-sidebar .mi-chevron { display: none; font-size: .75rem; color: #4169e1; transition: transform .2s; }
+body.sidebar-open #wrapper-sidebar .mi-chevron { display: inline-block; }
+#wrapper-sidebar li.nav-group.open > a.menu-item { background: #4169e1; color: #fff; }
+#wrapper-sidebar li.nav-group.open > a.menu-item svg { fill: #fff; }
+#wrapper-sidebar li.nav-group.open > a.menu-item .mi-chevron { color: #fff; transform: rotate(180deg); }
+
+#wrapper-sidebar .submenu { display: none; background: #ffffff; list-style: none; margin: 0; padding: 0; }
+body.sidebar-open #wrapper-sidebar li.nav-group.open > .submenu { display: block; }
+#wrapper-sidebar .submenu a { display: block; padding: 10px 20px 10px 60px; font-size: .9rem; color: #03041f; position: relative; }
+#wrapper-sidebar .submenu a:hover { background: #f5f5f5; color: #4169e1; }
+#wrapper-sidebar .submenu a.active { background: #eaf0ff; color: #4169e1; font-weight: bold; }
+#wrapper-sidebar .submenu .new-tag {
+  background: #ff3333; color: #fff; font-size: 9px; font-weight: bold;
+  border-radius: 3px; padding: 1px 4px; margin-left: 6px; vertical-align: middle;
+}
+
+/* ===== Main content shell ===== */
+#wrapper-content { margin-left: 84px; width: calc(100% - 84px); padding: 0 0 4rem 0; }
+
+/* ===== Breadcrumb ===== */
+ul.breadcrumb {
+  background: #f7f7f7; display: block; list-style-type: none; clear: both;
+  padding: .5em 1em; margin: 0; font-size: 12px;
+}
+ul.breadcrumb li { display: inline-block; }
+ul.breadcrumb li a[href] { color: #111111; text-decoration: underline; }
+ul.breadcrumb > li:not(:first-child):before { margin: 0 .5em; content: "›"; }
+
+/* ===== Back-to-top ===== */
+.back-to-top {
+  position: fixed; right: 24px; bottom: 24px; width: 44px; height: 44px; border-radius: 50%;
+  background: #4169e1; color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3); cursor: pointer; z-index: 800;
+}
+.back-to-top svg { width: 18px; height: 18px; fill: #fff; }
+
+/* ===== Toast dieu huong dung chung ([data-nav]) ===== */
+#mockToast {
+  position: fixed; left: 50%; bottom: 84px; transform: translate(-50%, 16px);
+  background: #1a1a2e; color: #fff; padding: .7rem 1.3rem; border-radius: 6px;
+  font-size: .85rem; opacity: 0; pointer-events: none; transition: all .25s;
+  z-index: 3000; box-shadow: 0 4px 14px rgba(0,0,0,.3); max-width: 90%; text-align: center;
+}
+#mockToast.show { opacity: 1; transform: translate(-50%, 0); }

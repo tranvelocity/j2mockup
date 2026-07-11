@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: BHW_MainMenu (Supplier Portal - トップページ / メインメニュー)
+  URL thật: https://j2.osaka.jienie.com/eProcurement/supplier/manage
+  Màn hình ĐÃ TỒN TẠI → mô phỏng theo source thật (không suy đoán):
+    - Route:   src-vbizhw-common/src/modules/Supplier/router.js
+               (path "manage", name "BHW_MainMenu", meta.code SUPPLIER_MANAGE_HOME)
+    - Page:    src-vbizhw-common/src/modules/OpenSupplier/pages/manage/MainMenu.vue
+    - ToDo:    src-vbizhw-common/src/modules/OpenSupplier/components/dashboard/Todo.vue
+    - Menu:    src-vbizhw-common/src/modules/OpenSupplier/components/main-menu/MainMenu.vue
+    - Style:   src-vbizhw-common/src/modules/OpenSupplier/assets/css/main.scss
+               (.page padding 1em, h2 20px, .menu-grid 4 cột 25%, .main-menu-button
+                icon fill #4169e1 max-width 70px height 63px, h3 18px, p 14px,
+                hover box-shadow 0 1px 2px 1px rgba(65,105,225,.5))
+    - Header/Sidebar: assets/layout.js (nhánh supplier của LoggedHeader/LoggedSidebar.vue)
+  Text tiếng Nhật lấy NGUYÊN VĂN từ src/locales/prod/ja.json (đã grep đối chiếu từng key,
+  key ghi tại comment từng chỗ). KHÔNG đối chiếu được DOM staging trực tiếp lần này
+  (chưa có phiên đăng nhập supplier) — cấu trúc bám 100% template Vue.
+
+  TRẠNG THÁI DEMO (điển hình, nhất quán với các mockup khác):
+    - Supplier: 株式会社NSKシステムズ (trùng supplier demo trong mockup RFX của buyer),
+      đăng ký HOÀN TẤT: status.isCompleted=true, isRegistrationCompleted=true,
+      isSpotSupplier=false, isOpenSupplier=true, isUpdateContractInfo=false
+      → KHÔNG hiển thị: RegistrationFlow, ReExamination, AddressVerification,
+        cảnh báo GO_TO_CONTRACT, nút 情報登録を継続 (đều gắn v-if trạng thái chưa hoàn tất).
+    - User demo: 受注太郎 (đề xuất) có đủ role ST01+S001+SC004+S999+SB20+UR002+UR003
+      → hiển thị ĐẦY ĐỦ các khối ToDo + menu card như tài khoản demo staging.
+      Card/khối bị giới hạn role được ghi chú điều kiện ngay tại comment từng phần tử.
+    - Trang top KHÔNG có breadcrumb (giống eProcurement_Home.html của buyer).
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - お知らせ: nhóm theo buyer (>5 mục → もっと見る/戻る toggle thật — MainMenu.vue isShowMore);
+      click こちら → modal chi tiết (title/body/関連URL/添付ファイル + nút 確認 cam #ef6e47,
+      nút × xanh đậm #1d416b — đúng style trong MainMenu.vue), click nền ngoài để đóng.
+    - Chuông お知らせ trên header cuộn tới #Notification (toDefautScreenAsNotification).
+    - Mọi nút/đích chưa có mockup → data-nav toast (tên route theo sitemap provider-supplier).
+  LƯU Ý VỊ TRÍ FILE: đặt tại documents/design/supplier-portal/ theo chỉ định công việc;
+  sitemap.md (mockup/provider-supplier) đang trỏ mặc định về documents/design/provider-supplier/
+  → khi gom về một chỗ chỉ cần di chuyển file, không cần sửa nội dung.
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>トップページ</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  /* ===== CSS RIÊNG của trang (main.scss + Todo.vue + MainMenu.vue) — không lặp CSS header/sidebar ===== */
+
+  /* --- ToDo (Todo.vue) — nền #EDF1F6 từng khối, bo góc dưới 2.5px, cách nhau 2.5px --- */
+  .todo { display: flex; }
+  .todo-body { flex: 1; display: flex; align-items: center; }
+  .todo-item {
+    background: #EDF1F6; padding: 1rem; border-radius: 0 0 2.5px 2.5px;
+    min-height: 92px; margin-right: 2.5px; display: flex; align-items: flex-start;
+  }
+  .todo-item.fill { flex: 1; }
+  .todo-item:last-child { margin-right: 0; }
+  .todo-label { border-right: 1px solid #cccccc; min-width: 89px; text-align: center; padding-right: 8px; }
+  /* icon tròn xanh #4169e1 glyph trắng (circle-title) */
+  .circle-title {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 32px; width: 32px; border-radius: 50%; background: #4169e1;
+  }
+  .circle-title svg { width: 16px; height: 16px; fill: #ffffff; }
+  .todo-counter { min-width: 60px; text-align: center; margin-left: .5rem; }
+  .todo-counter a { color: #000; }
+  /* Đồng hồ đo (half-circle): sprite icon_meter — đen mặc định / đỏ khi is-active.
+     Base64 lấy nguyên gốc từ mockup buyer eProcurement_Home.html (cùng bộ ảnh assets thật). */
+  .half-circle {
+    display: flex; align-items: center; justify-content: center;
+    width: 35px; height: 32px; margin: 0 auto 6px; font-weight: bold;
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFYAAAAgCAYAAACILY8rAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RjM2MEYxQkNCQTcxMTFFOUEzNDVEQTQ1NkJFRjg2NjIiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RjM2MEYxQkRCQTcxMTFFOUEzNDVEQTQ1NkJFRjg2NjIiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpGMzYwRjFCQUJBNzExMUU5QTM0NURBNDU2QkVGODY2MiIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpGMzYwRjFCQkJBNzExMUU5QTM0NURBNDU2QkVGODY2MiIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PoN2gwMAAAfMSURBVHjazFoNVFTV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");
+    background-position: 0 0;
+  }
+  .half-circle.is-active { background-position: -49px 0; }
+  .half-circle span { font-size: 1rem; color: #111111; }
+  /* Nhãn counter (counter-tag): viền + chữ cùng màu — xanh lá #437643 / cam đỏ #ff4500 */
+  .counter-tag { border: 1px solid; border-radius: 2px; padding: 0 4px; font-size: 12px; white-space: nowrap; }
+  .counter-tag.no-border { border: none; font-weight: bold; display: inline-block; margin-top: 4px; }
+  .counter-tag.is-green { border-color: #437643; color: #437643; }
+  .counter-tag.is-orange { border-color: #ff4500; color: #ff4500; }
+
+  /* --- Khối nội dung (.page — main.scss) --- */
+  .page { padding: 1em; }
+  .page h2 { font-size: 20px; margin: 1rem 0 .5rem; }
+
+  /* --- Menu card (MainMenu.vue <style scoped>) --- */
+  .menu-grid { display: grid; grid-template-columns: 25% 25% 25% 25%; margin-top: 1rem; }
+  .main-menu-button {
+    display: block; text-decoration: none; color: #111111; text-align: center;
+    padding: 1rem; transition: all .2s ease-in;
+  }
+  .main-menu-button:hover { box-shadow: 0px 1px 2px 1px rgba(65, 105, 225, 0.5); }
+  .main-menu-button svg { max-width: 70px; height: 63px; fill: rgba(65, 105, 225, 1); }
+  .main-menu-button h3 { font-size: 18px; margin: 1rem 0 .5rem; font-weight: bold; }
+  .main-menu-button p { font-size: 14px; text-align: center; margin: 0; }
+
+  /* --- お知らせ (MainMenu.vue template #Notification) --- */
+  #Notification { word-break: break-word; padding: 0 1em 1em; }
+  #Notification h2 { font-size: 20px; }
+  .notice-group { margin: 0 0 1rem 1rem; }
+  .notice-group > .group-title { display: block; margin-bottom: .5rem; }
+  .notice-item { margin-bottom: 1rem; }
+  .notice-item .body { margin-left: 1rem; }
+  .notice-item a { color: #045eb4; }
+  .notice-item a b { font-weight: bold; }
+  .notice-item a:hover { text-decoration: underline; }
+  .notice-more { margin-top: .25rem; margin-left: 90px; }
+  .notice-more a { color: #045eb4; cursor: pointer; }
+  .notice-hidden { display: none; }
+  .notice-hidden.show { display: block; }
+
+  /* --- Modal chi tiết お知らせ (MainMenu.vue #modalNoticeDetail) --- */
+  .notice-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000;
+    align-items: center; justify-content: center;
+  }
+  .notice-modal-overlay.show { display: flex; }
+  .notice-modal {
+    background: #fff; width: 1100px; max-width: 92%; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  .notice-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.2rem; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1.1rem;
+  }
+  /* nút × xanh đậm #1d416b — đúng style scoped trong MainMenu.vue */
+  .notice-modal-close {
+    background: #1d416b; border: none; width: 36px; min-width: 36px; height: 36px;
+    color: #ffffff; font-size: 1.6rem; line-height: 1; border-radius: 5px; cursor: pointer;
+  }
+  .notice-modal-body { padding: 1.2rem; height: 250px; overflow-y: auto; white-space: pre-line; font-size: .95rem; }
+  .notice-modal-body a { color: #045eb4; margin-left: 1rem; display: inline-block; }
+  .notice-modal-body a:hover { text-decoration: underline; }
+  .notice-modal-footer { padding: .8rem 1.2rem; text-align: center; border-top: 1px solid #eee; }
+  /* nút 確認 màu cam #ef6e47 — inline style thật trong MainMenu.vue (khác nút xanh chuẩn J2) */
+  .notice-modal-footer button {
+    background-color: #ef6e47; border: 1px solid #ef6e47; color: #fff;
+    min-width: 160px; padding: .5rem 1.5rem; border-radius: 4px; cursor: pointer; font-size: .95rem;
+    box-shadow: 1px 1px 1px 1px rgba(204, 204, 204, 0.5);
+  }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <!-- Trang top không có breadcrumb (theo trang thật — giống buyer Home) -->
+    <div class="page-content">
+
+      <!-- ===== ToDo (Todo.vue) — hiện khi (S001|ST01|UR002|UR003) && isCompleted ===== -->
+      <div class="todo">
+        <div class="todo-body">
+          <!-- 見積ToDo (HOME.LB_ESTIMATE_TODO) — role S001/ST01. Icon FA file-alt.
+               Màu class gán CỨNG theo source: 回答待ち=is-active+is-orange, 回答済み/採用=is-green -->
+          <div class="todo-item">
+            <div class="todo-label">
+              <span class="circle-title"><svg viewBox="0 0 384 512"><path d="M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm64 236c0 6.6-5.4 12-12 12H108c-6.6 0-12-5.4-12-12v-8c0-6.6 5.4-12 12-12h168c6.6 0 12 5.4 12 12v8zm0-64c0 6.6-5.4 12-12 12H108c-6.6 0-12-5.4-12-12v-8c0-6.6 5.4-12 12-12h168c6.6 0 12 5.4 12 12v8zm0-72v8c0 6.6-5.4 12-12 12H108c-6.6 0-12-5.4-12-12v-8c0-6.6 5.4-12 12-12h168c6.6 0 12 5.4 12 12zm96-114.1v6.1H256V0h6.1c6.4 0 12.5 2.5 17 7l97.9 98c4.5 4.5 7 10.6 7 16.9z"/></svg></span>
+              <br>
+              <span class="counter-tag no-border">見積ToDo</span>
+            </div>
+            <div class="todo-counter" data-nav="見積案件照会_回答前（eProcurement_EstimateSupplier_BeforeAnswer）">
+              <a href="#"><div class="half-circle is-active"><span>3</span></div><span class="counter-tag is-orange">回答待ち</span></a>
+            </div>
+            <div class="todo-counter" data-nav="見積案件照会_回答済み（eProcurement_EstimateSupplier_AfterAnswer）">
+              <a href="#"><div class="half-circle"><span>12</span></div><span class="counter-tag is-green">回答済み</span></a>
+            </div>
+            <!-- 採用 (PURCHASER_COMPARISON_TO_ESTIMATE.LB_025) — source điều hướng cùng màn 回答済み -->
+            <div class="todo-counter" data-nav="見積案件照会_回答済み（eProcurement_EstimateSupplier_AfterAnswer）">
+              <a href="#"><div class="half-circle"><span>5</span></div><span class="counter-tag is-green">採用</span></a>
+            </div>
+          </div>
+
+          <!-- 受注・納品ToDo (HOME.LB_SUPPLIER_TODO) — role S001 && !isSpotSupplier. Icon FA truck.
+               未受注/未納品=is-active+is-orange, 検収待ち/検収完了=is-green (gán cứng theo source) -->
+          <div class="todo-item">
+            <div class="todo-label">
+              <span class="circle-title"><svg viewBox="0 0 640 512"><path d="M624 352h-16V243.9c0-12.7-5.1-24.9-14.1-33.9L494 110.1c-9-9-21.2-14.1-33.9-14.1H416V48c0-26.5-21.5-48-48-48H48C21.5 0 0 21.5 0 48v320c0 26.5 21.5 48 48 48h16c0 53 43 96 96 96s96-43 96-96h128c0 53 43 96 96 96s96-43 96-96h48c8.8 0 16-7.2 16-16v-32c0-8.8-7.2-16-16-16zM160 464c-26.5 0-48-21.5-48-48s21.5-48 48-48 48 21.5 48 48-21.5 48-48 48zm320 0c-26.5 0-48-21.5-48-48s21.5-48 48-48 48 21.5 48 48-21.5 48-48 48zm80-208H416V144h44.1l99.9 99.9V256z"/></svg></span>
+              <br>
+              <span class="counter-tag no-border">受注・納品ToDo</span>
+            </div>
+            <!-- Nhãn = SUPPLIER_SEARCH_ORDER.CB_STATUS_260/290/300/330 nguyên văn ja.json -->
+            <div class="todo-counter" data-nav="受注案件照会_受注（eProcurement_Supplier_AcceptingOrder）">
+              <a href="#"><div class="half-circle is-active"><span>2</span></div><span class="counter-tag is-orange">未受注</span></a>
+            </div>
+            <div class="todo-counter" data-nav="受注案件照会_未納品（eProcurement_Supplier_WaitingDelivery）">
+              <a href="#"><div class="half-circle is-active"><span>4</span></div><span class="counter-tag is-orange">未納品</span></a>
+            </div>
+            <div class="todo-counter" data-nav="受注案件照会_納品済み（eProcurement_Supplier_CompletedDelivery）">
+              <a href="#"><div class="half-circle"><span>7</span></div><span class="counter-tag is-green">検収待ち</span></a>
+            </div>
+            <div class="todo-counter" data-nav="受注案件照会_検収完了（eProcurement_Supplier_CompletedAcceptance）">
+              <a href="#"><div class="half-circle"><span>28</span></div><span class="counter-tag is-green">検収完了</span></a>
+            </div>
+          </div>
+
+          <!-- 商品登録Todo (COMMON_MULTI_LANG.LB_PRODUCT_REGISTRATION_TODO) — role UR002/UR003. Icon FA check.
+               Class động theo source: 申請待ち đỏ khi UR002&&>0; 社内承認待ち đỏ khi UR003&&申請待ち>0
+               (điều kiện dùng numberWaitApplicant — giữ đúng theo code); còn lại xanh lá.
+               Đích: /MallSupplier/ProductApplicationList?tabId=1..5 (CMS26) -->
+          <div class="todo-item">
+            <div class="todo-label">
+              <span class="circle-title"><svg viewBox="0 0 512 512"><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.4c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+              <br>
+              <span class="counter-tag no-border">商品登録Todo</span>
+            </div>
+            <div class="todo-counter" data-nav="商品登録／変更 申請状況一覧 tab1（CMS26・別タブ）">
+              <a href="#"><div class="half-circle is-active"><span>1</span></div><span class="counter-tag is-orange">申請待ち</span></a>
+            </div>
+            <div class="todo-counter" data-nav="商品登録／変更 申請状況一覧 tab2（CMS26・別タブ）">
+              <a href="#"><div class="half-circle is-active"><span>1</span></div><span class="counter-tag is-orange">社内承認待ち</span></a>
+            </div>
+            <div class="todo-counter" data-nav="商品登録／変更 申請状況一覧 tab3（CMS26・別タブ）">
+              <a href="#"><div class="half-circle"><span>2</span></div><span class="counter-tag is-green">お客様承認待ち</span></a>
+            </div>
+            <div class="todo-counter" data-nav="商品登録／変更 申請状況一覧 tab4（CMS26・別タブ）">
+              <a href="#"><div class="half-circle"><span>0</span></div><span class="counter-tag is-green">社内差戻し</span></a>
+            </div>
+            <div class="todo-counter" data-nav="商品登録／変更 申請状況一覧 tab5（CMS26・別タブ）">
+              <a href="#"><div class="half-circle"><span>0</span></div><span class="counter-tag is-green">お客様差戻し</span></a>
+            </div>
+          </div>
+
+          <div class="todo-item fill"></div>
+        </div>
+      </div>
+
+      <div class="page">
+        <!-- ===== 取引関連情報 (SUPPLIER_ALL.LB_HEADER_MENU_JRTC) ===== -->
+        <h2>取引関連情報</h2>
+        <div class="menu-grid">
+          <!-- 見積案件照会 — role ST01/S001, icon FA file-invoice (path thật từ MainMenu.vue) -->
+          <div class="menu-col">
+            <a href="eProcurement_EstimateSupplier_All.html" class="main-menu-button">
+              <svg viewBox="0 0 384 512"><path d="M288 256H96v64h192v-64zm89-151L279.1 7c-4.5-4.5-10.6-7-17-7H256v128h128v-6.1c0-6.3-2.5-12.4-7-16.9zm-153 31V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zM64 72c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16c0 4.42-3.58 8-8 8H72c-4.42 0-8-3.58-8-8V72zm0 64c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16c0 4.42-3.58 8-8 8H72c-4.42 0-8-3.58-8-8v-16zm256 304c0 4.42-3.58 8-8 8h-80c-4.42 0-8-3.58-8-8v-16c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16zm0-200v96c0 8.84-7.16 16-16 16H80c-8.84 0-16-7.16-16-16v-96c0-8.84 7.16-16 16-16h224c8.84 0 16 7.16 16 16z"/></svg>
+              <h3>見積案件照会</h3>
+              <p>現在取引中・または過去の見積案件の確認または見積回答をおこないます。</p>
+            </a>
+          </div>
+          <!-- 受注案件照会 — role S001, icon FA calendar-check -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="受注案件照会_すべて（eProcurement_Supplier_All）">
+              <svg viewBox="0 0 448 512"><path d="M436 160H12c-6.627 0-12-5.373-12-12v-36c0-26.51 21.49-48 48-48h48V12c0-6.627 5.373-12 12-12h40c6.627 0 12 5.373 12 12v52h128V12c0-6.627 5.373-12 12-12h40c6.627 0 12 5.373 12 12v52h48c26.51 0 48 21.49 48 48v36c0 6.627-5.373 12-12 12zM12 192h424c6.627 0 12 5.373 12 12v260c0 26.51-21.49 48-48 48H48c-26.51 0-48-21.49-48-48V204c0-6.627 5.373-12 12-12zm333.296 95.947l-28.169-28.398c-4.667-4.705-12.265-4.736-16.97-.068L194.12 364.665l-45.98-46.352c-4.667-4.705-12.266-4.736-16.971-.068l-28.397 28.17c-4.705 4.667-4.736 12.265-.068 16.97l82.601 83.269c4.667 4.705 12.265 4.736 16.97.068l142.953-141.805c4.705-4.667 4.736-12.265.068-16.97z"/></svg>
+              <h3>受注案件照会</h3>
+              <p>取引中・または過去の受注案件の確認と受注・納品処理をおこないます。</p>
+            </a>
+          </div>
+          <!-- 支払通知 (HISTORY_SENT_FAX.LB_6) — role SC004, icon FA money-bill -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="支払通知画面（eProcurement_Supplier_PaymentManagement）">
+              <svg viewBox="0 0 640 512"><path d="M608 64H32C14.33 64 0 78.33 0 96v320c0 17.67 14.33 32 32 32h576c17.67 0 32-14.33 32-32V96c0-17.67-14.33-32-32-32zM48 400v-64c35.35 0 64 28.65 64 64H48zm0-224v-64h64c0 35.35-28.65 64-64 64zm272 176c-44.19 0-80-42.99-80-96 0-53.02 35.82-96 80-96s80 42.98 80 96c0 53.03-35.83 96-80 96zm272 48h-64c0-35.35 28.65-64 64-64v64zm0-224c-35.35 0-64-28.65-64-64h64v64z"/></svg>
+              <h3>支払通知</h3>
+              <p>現在または過去に取引をしていた企業の取引実績や支払情報を確認します。</p>
+            </a>
+          </div>
+        </div>
+
+        <!-- Hàng card カタログ — role UR002/UR003 && isCompleted (trang thật mở tab MallSupplier mới) -->
+        <div class="menu-grid">
+          <!-- カタログ管理 (MASTER_SETTING.LB_CATALOG_ADMIN_CM), icon FA book -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="商品情報更新ステータス一覧（CMS23・別タブ）">
+              <svg viewBox="0 0 448 512"><path d="M448 360V24c0-13.3-10.7-24-24-24H96C43 0 0 43 0 96v320c0 53 43 96 96 96h328c13.3 0 24-10.7 24-24v-16c0-7.5-3.5-14.3-8.9-18.7-4.2-15.4-4.2-59.3 0-74.7 5.4-4.3 8.9-11.1 8.9-18.6zM128 134c0-3.3 2.7-6 6-6h212c3.3 0 6 2.7 6 6v20c0 3.3-2.7 6-6 6H134c-3.3 0-6-2.7-6-6v-20zm0 64c0-3.3 2.7-6 6-6h212c3.3 0 6 2.7 6 6v20c0 3.3-2.7 6-6 6H134c-3.3 0-6-2.7-6-6v-20zm253.4 250H96c-17.7 0-32-14.3-32-32 0-17.6 14.4-32 32-32h285.4c-1.9 17.1-1.9 46.9 0 64z"/></svg>
+              <h3>カタログ管理</h3>
+              <p>バイヤ企業ごとの社内カタログに掲載する商品の登録および情報の編集をおこないます。</p>
+            </a>
+          </div>
+          <!-- 商品情報更新ステータス, icon FA store-alt -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="商品情報更新ステータス一覧（CMS23・別タブ）">
+              <svg viewBox="0 0 640 512"><path d="M320 384H128V224H64v256c0 17.7 14.3 32 32 32h256c17.7 0 32-14.3 32-32V224h-64v160zm314.6-241.8l-85.3-128c-6-8.9-16-14.2-26.7-14.2H117.4c-10.7 0-20.7 5.3-26.6 14.2l-85.3 128c-14.2 21.3 1 49.8 26.6 49.8H608c25.5 0 40.7-28.5 26.6-49.8zM512 496c0 8.8 7.2 16 16 16h32c8.8 0 16-7.2 16-16V224h-64v272z"/></svg>
+              <h3>商品情報更新ステータス</h3>
+              <p>マーケットプレイスに出品する商品の登録および情報の編集をおこないます。</p>
+            </a>
+          </div>
+        </div>
+
+        <!-- ===== 利用登録情報 (COMMON_MULTI_LANG.HEADER_MASTER_INFO) — role S999 ===== -->
+        <h2>利用登録情報</h2>
+        <div class="menu-grid">
+          <!-- 会社情報 (ABOUT_US) — icon path thật từ MainMenu.vue -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="会社情報画面（BHW_CompanyInfo）">
+              <svg viewBox="2 3 69.542 62.588"><path d="M 36.77099609375 16.90839767456055 L 36.77099609375 3.000000476837158 L 2 3.000000476837158 L 2 65.58779907226563 L 71.5419921875 65.58779907226563 L 71.5419921875 16.90839767456055 L 36.77099609375 16.90839767456055 Z M 15.90839958190918 58.63359832763672 L 8.954198837280273 58.63359832763672 L 8.954198837280273 51.67939758300781 L 15.90839958190918 51.67939758300781 L 15.90839958190918 58.63359832763672 Z M 15.90839958190918 44.72519683837891 L 8.954198837280273 44.72519683837891 L 8.954198837280273 37.77099990844727 L 15.90839958190918 37.77099990844727 L 15.90839958190918 44.72519683837891 Z M 15.90839958190918 30.81679725646973 L 8.954198837280273 30.81679725646973 L 8.954198837280273 23.86259841918945 L 15.90839958190918 23.86259841918945 L 15.90839958190918 30.81679725646973 Z M 15.90839958190918 16.90839767456055 L 8.954198837280273 16.90839767456055 L 8.954198837280273 9.954198837280273 L 15.90839958190918 9.954198837280273 L 15.90839958190918 16.90839767456055 Z M 29.81679725646973 58.63359832763672 L 22.86259841918945 58.63359832763672 L 22.86259841918945 51.67939758300781 L 29.81679725646973 51.67939758300781 L 29.81679725646973 58.63359832763672 Z M 29.81679725646973 44.72519683837891 L 22.86259841918945 44.72519683837891 L 22.86259841918945 37.77099990844727 L 29.81679725646973 37.77099990844727 L 29.81679725646973 44.72519683837891 Z M 29.81679725646973 30.81679725646973 L 22.86259841918945 30.81679725646973 L 22.86259841918945 23.86259841918945 L 29.81679725646973 23.86259841918945 L 29.81679725646973 30.81679725646973 Z M 29.81679725646973 16.90839767456055 L 22.86259841918945 16.90839767456055 L 22.86259841918945 9.954198837280273 L 29.81679725646973 9.954198837280273 L 29.81679725646973 16.90839767456055 Z M 64.58779144287109 58.63359832763672 L 36.77099609375 58.63359832763672 L 36.77099609375 51.67939758300781 L 43.72519302368164 51.67939758300781 L 43.72519302368164 44.72519683837891 L 36.77099609375 44.72519683837891 L 36.77099609375 37.77099990844727 L 43.72519302368164 37.77099990844727 L 43.72519302368164 30.81679725646973 L 36.77099609375 30.81679725646973 L 36.77099609375 23.86259841918945 L 64.58779144287109 23.86259841918945 L 64.58779144287109 58.63359832763672 Z M 57.63359451293945 30.81679725646973 L 50.67939376831055 30.81679725646973 L 50.67939376831055 37.77099990844727 L 57.63359451293945 37.77099990844727 L 57.63359451293945 30.81679725646973 Z M 57.63359451293945 44.72519683837891 L 50.67939376831055 44.72519683837891 L 50.67939376831055 51.67939758300781 L 57.63359451293945 51.67939758300781 L 57.63359451293945 44.72519683837891 Z"/></svg>
+              <h3>会社情報</h3>
+              <p>企業の登録内容の確認または編集をします。</p>
+            </a>
+          </div>
+          <!-- 担当者情報 (NON_TRADEABLE_SUPPLIERS_LIST.LB_003) -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="担当者情報画面（BHW_UserInfo）">
+              <svg viewBox="2 2 66.465 66.465"><path d="M 35.23266220092773 2 C 16.88823318481445 2 2 16.88823318481445 2 35.23266220092773 C 2 53.57709503173828 16.88823318481445 68.46533203125 35.23266220092773 68.46533203125 C 53.57709503173828 68.46533203125 68.46533203125 53.57709503173828 68.46533203125 35.23266220092773 C 68.46533203125 16.88823318481445 53.57709503173828 2 35.23266220092773 2 Z M 35.23266220092773 11.96979999542236 C 40.74928665161133 11.96979999542236 45.20246505737305 16.42297744750977 45.20246505737305 21.93959808349609 C 45.20246505737305 27.45621871948242 40.74928665161133 31.90939712524414 35.23266220092773 31.90939712524414 C 29.71604156494141 31.90939712524414 25.26286697387695 27.45621871948242 25.26286697387695 21.93959808349609 C 25.26286697387695 16.42297744750977 29.71604156494141 11.96979999542236 35.23266220092773 11.96979999542236 Z M 35.23266220092773 59.16018676757813 C 26.92449951171875 59.16018676757813 19.580078125 54.90640258789063 15.29306507110596 48.45926666259766 C 15.3927640914917 41.84596633911133 28.58613204956055 38.22360610961914 35.23266220092773 38.22360610961914 C 41.84596252441406 38.22360610961914 55.07256317138672 41.84596633911133 55.17226409912109 48.45926666259766 C 50.88524627685547 54.90640258789063 43.54082870483398 59.16018676757813 35.23266220092773 59.16018676757813 Z"/></svg>
+              <h3>担当者情報</h3>
+              <p>担当者情報の変更やサブ担当者を追加します。</p>
+            </a>
+          </div>
+          <!-- 取扱品目カテゴリ (HANDLING_ITEM_CATEGORY) — icon FA th-large -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="取扱品目カテゴリ画面（BHW_CategoryInfo）">
+              <svg viewBox="0 0 512 512"><path d="M296 32h192c13.255 0 24 10.745 24 24v160c0 13.255-10.745 24-24 24H296c-13.255 0-24-10.745-24-24V56c0-13.255 10.745-24 24-24zm-80 0H24C10.745 32 0 42.745 0 56v160c0 13.255 10.745 24 24 24h192c13.255 0 24-10.745 24-24V56c0-13.255-10.745-24-24-24zM0 296v160c0 13.255 10.745 24 24 24h192c13.255 0 24-10.745 24-24V296c0-13.255-10.745-24-24-24H24c-13.255 0-24 10.745-24 24zm296 184h192c13.255 0 24-10.745 24-24V296c0-13.255-10.745-24-24-24H296c-13.255 0-24 10.745-24 24v160c0 13.255 10.745 24 24 24z"/></svg>
+              <h3>取扱品目カテゴリ</h3>
+              <p>貴社で対応する品目カテゴリを登録します。</p>
+            </a>
+          </div>
+          <!-- 品名辞書登録 (PRODUCT_NAME_DICTIONARY_REGISTRATION) — icon local_offer thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="品名辞書登録画面（BHW_ProductNameInfo）">
+              <svg viewBox="0 0 69.412 69.413"><path d="M 67.36457824707031 36.16435623168945 L 36.12907028198242 67.40036010742188 C 34.8796501159668 68.64979553222656 33.14434432983398 69.41334533691406 31.23550605773926 69.41334533691406 L 6.941223621368408 69.41334533691406 C 3.123551368713379 69.41334533691406 0 66.28974151611328 0 62.47201156616211 L 0 38.17734146118164 C 0 36.26847076416016 0.7635345458984375 34.53313827514648 2.04766058921814 33.24899673461914 L 33.28316497802734 2.012985467910767 C 34.53258514404297 0.7635448575019836 36.26789093017578 0 38.17673110961914 0 C 40.08556747436523 0 41.82087326049805 0.7635448575019836 43.07029342651367 2.047695398330688 L 67.36457824707031 26.34236526489258 C 68.64870452880859 27.59180450439453 69.41223907470703 29.3271369934082 69.41223907470703 31.23600578308105 C 69.41223907470703 33.14487457275391 68.61399078369141 34.91491317749023 67.36457824707031 36.16435623168945 Z M 12.147141456604 52.06000900268555 C 9.266532897949219 52.06000900268555 6.941223621368408 54.38535690307617 6.941223621368408 57.26601028442383 C 6.941223621368408 60.14666366577148 9.266532897949219 62.47201156616211 12.147141456604 62.47201156616211 C 15.02774906158447 62.47201156616211 17.35305976867676 60.14666366577148 17.35305976867676 57.26601028442383 C 17.35305976867676 54.38535690307617 15.02774906158447 52.06000900268555 12.147141456604 52.06000900268555 Z"/></svg>
+              <h3>品名辞書登録</h3>
+              <p>取扱品目カテゴリに対応する代表的な品名を登録します。</p>
+            </a>
+          </div>
+          <!-- 納品可能地域 (DELIVERY_AREA) — icon path thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="納品可能地域画面（BHW_DeliveryLocationInfo）">
+              <svg viewBox="0 0 576 512"><path d="M288 0c-69.59 0-126 56.41-126 126 0 56.26 82.35 158.8 113.9 196.02 6.39 7.54 17.82 7.54 24.2 0C331.65 284.8 414 182.26 414 126 414 56.41 357.59 0 288 0zm0 168c-23.2 0-42-18.8-42-42s18.8-42 42-42 42 18.8 42 42-18.8 42-42 42zM20.12 215.95A32.006 32.006 0 0 0 0 245.66v250.32c0 11.32 11.43 19.06 21.94 14.86L160 448V214.92c-8.84-15.98-16.07-31.54-21.25-46.42L20.12 215.95zM288 359.67c-14.07 0-27.38-6.18-36.51-16.96-19.66-23.2-40.57-49.62-59.49-76.72v182l192 64V266c-18.92 27.09-39.82 53.52-59.49 76.72-9.13 10.77-22.44 16.95-36.51 16.95zm266.06-198.51L416 224v288l139.88-55.95A31.996 31.996 0 0 0 576 426.34V176.02c0-11.32-11.43-19.06-21.94-14.86z"/></svg>
+              <h3>納品可能地域</h3>
+              <p>納品対応が可能な地域を設定します。</p>
+            </a>
+          </div>
+          <!-- 許認可・認証・特許情報 (LICENSE_CERTIFICATION_PATENT_INFORMATION) — icon wb_incandescent thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="許認可・認証・特許情報画面（BHW_VerificationInfo）">
+              <svg viewBox="1 1.5 72.465 69.004"><path d="M 9.399391174316406 14.37858772277832 L 14.0437593460083 9.73438835144043 L 19.93980026245117 15.66314792633057 L 15.29543304443359 20.30734062194824 L 9.399391174316406 14.37858772277832 Z M 33.93878555297852 1.499999642372131 L 40.52654647827148 1.499999642372131 L 40.52654647827148 11.21658039093018 L 33.93878555297852 11.21658039093018 L 33.93878555297852 1.499999642372131 Z M 10.88163566589355 40.86038208007813 L 0.9999999403953552 40.86038208007813 L 0.9999999403953552 34.27286911010742 L 10.88163566589355 34.27286911010742 L 10.88163566589355 40.86038208007813 Z M 47.11430358886719 54.66121673583984 L 47.11430358886719 70.50418090820313 L 27.35102844238281 70.50418090820313 L 27.35102844238281 54.66121673583984 C 21.45498657226563 51.23571395874023 17.46939086914063 44.87876510620117 17.46939086914063 37.56662750244141 C 17.46939086914063 26.66429710388184 26.32992744445801 17.80409240722656 37.23266220092773 17.80409240722656 C 48.13539886474609 17.80409240722656 56.99593734741211 26.66429710388184 56.99593734741211 37.56662750244141 C 56.99593734741211 44.87876510620117 53.01034927368164 51.23571395874023 47.11430358886719 54.66121673583984 Z M 63.58369827270508 40.86038208007813 L 63.58369827270508 34.27286911010742 L 73.46533203125 34.27286911010742 L 73.46533203125 40.86038208007813 L 63.58369827270508 40.86038208007813 Z M 54.49259185791016 15.63021564483643 L 60.38862609863281 9.701456069946289 L 65.03299713134766 14.34565448760986 L 59.10401916503906 20.24147987365723 L 54.49259185791016 15.63022136688232 Z"/></svg>
+              <h3>許認可・認証・特許情報</h3>
+              <p>貴社の許認可、認証、および特許情報を登録します。</p>
+            </a>
+          </div>
+          <!-- 振込口座情報 (TRANSFER_ACCOUNT_INFORMATION) — chỉ hiển thị khi isOpenSupplier (demo=true). Icon credit_card thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="振込口座情報画面（BHW_PaymentAccountInfo）">
+              <svg viewBox="2 4 74.078 59.263"><path d="M 68.67031860351563 3.999999046325684 L 9.407812118530273 3.999999046325684 C 5.296476364135742 3.999999046325684 2.037038803100586 7.296475410461426 2.037038803100586 11.40781307220459 L 1.999999523162842 55.85469436645508 C 1.999999523162842 59.96602630615234 5.296476364135742 63.26250457763672 9.407812118530273 63.26250457763672 L 68.67031860351563 63.26250457763672 C 72.78165435791016 63.26250457763672 76.078125 59.96602630615234 76.078125 55.85469436645508 L 76.078125 11.40781307220459 C 76.078125 7.296475410461426 72.78165435791016 3.999999046325684 68.67031860351563 3.999999046325684 Z M 68.67031860351563 55.85469436645508 L 9.407812118530273 55.85469436645508 L 9.407812118530273 33.63125610351563 L 68.67031860351563 33.63125610351563 L 68.67031860351563 55.85469436645508 Z M 68.67031860351563 18.81562423706055 L 9.407812118530273 18.81562423706055 L 9.407812118530273 11.40781307220459 L 68.67031860351563 11.40781307220459 L 68.67031860351563 18.81562423706055 Z"/></svg>
+              <h3>振込口座情報</h3>
+              <p>商品代金の振込口座情報を登録します。</p>
+            </a>
+          </div>
+          <!-- PR情報 (PR_INFORMATION) — hiển thị khi isRegistrationCompleted. Icon volume_up thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="PR情報画面（BHW_PublicRelations）">
+              <svg viewBox="3 3.23 60.075 58.54"><path d="M 3 22.4873046875 L 3 42.51222991943359 L 16.34994888305664 42.51222991943359 L 33.03738403320313 59.19966125488281 L 33.03738403320313 5.799870491027832 L 16.34994888305664 22.4873046875 L 3 22.4873046875 Z M 48.05607604980469 32.4997673034668 C 48.05607604980469 26.59241485595703 44.65183639526367 21.51943588256836 39.71236038208008 19.0496940612793 L 39.71236038208008 45.91646575927734 C 44.65183639526367 43.4801025390625 48.05607604980469 38.40711975097656 48.05607604980469 32.4997673034668 Z M 39.71236038208008 3.230005264282227 L 39.71236038208008 10.10522937774658 C 49.35769271850586 12.97546863555908 56.39979553222656 21.9199333190918 56.39979553222656 32.4997673034668 C 56.39979553222656 43.0796012878418 49.35769271850586 52.02406692504883 39.71236038208008 54.89430236816406 L 39.71236038208008 61.76952362060547 C 53.09568405151367 58.73241424560547 63.07477188110352 46.78421020507813 63.07477188110352 32.49975967407227 C 63.07477188110352 18.21531295776367 53.09568405151367 6.267111778259277 39.71236038208008 3.229997634887695 Z"/></svg>
+              <h3>PR情報</h3>
+              <p>リコメンデーションに表示される企業紹介ページを編集します。</p>
+            </a>
+          </div>
+          <!-- 署名者情報 (SIGNER_INFORMATION) — role SB20 && isRegistrationCompleted. Icon fingerprint thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="署名者情報画面（BHW_SignerInfoView）※SB20ロールのみ表示">
+              <svg viewBox="2.997 2 63.516 70.588"><path d="M 55.2783203125 10.71760368347168 C 54.99596786499023 10.71760368347168 54.71361541748047 10.64701557159424 54.46656036376953 10.50583934783936 C 47.69012069702148 7.011740207672119 41.83132934570313 5.529394149780273 34.80783462524414 5.529394149780273 C 27.81963348388672 5.529394149780273 21.18437385559082 7.188210010528564 15.14910507202148 10.50583934783936 C 14.30205154418945 10.96466064453125 13.24323177337646 10.64701557159424 12.74911880493164 9.799961090087891 C 12.29029750823975 8.952906608581543 12.60794258117676 7.858794212341309 13.45499610900879 7.399972915649414 C 20.01967239379883 3.835285186767578 27.21963500976563 2 34.80783462524414 2 C 42.32544708251953 2 48.89011764526367 3.658815383911133 56.09008407592773 7.364678859710693 C 56.97243118286133 7.823500633239746 57.29007720947266 8.882318496704102 56.83125305175781 9.729373931884766 C 56.51360702514648 10.36466503143311 55.91361236572266 10.717604637146 55.2783203125 10.717604637146 Z M 4.772687911987305 29.24692535400391 C 4.419747829437256 29.24692535400391 4.066808223724365 29.14104461669922 3.749162435531616 28.92927932739258 C 2.937402009963989 28.36457443237305 2.760931968688965 27.27046203613281 3.325635671615601 26.45870208740234 C 6.819736003875732 21.51755142211914 11.26677131652832 17.63521957397461 16.56086540222168 14.91758441925049 C 27.64315986633301 9.19996452331543 41.83132934570313 9.164671897888184 52.94891738891602 14.88228988647461 C 58.24300765991211 17.59992218017578 62.69004440307617 21.44696426391602 66.18414306640625 26.35281753540039 C 66.74884796142578 27.12928771972656 66.57238006591797 28.25868988037109 65.76061248779297 28.82339477539063 C 64.9488525390625 29.38809585571289 63.85474014282227 29.21162796020508 63.29003524780273 28.39986801147461 C 60.11358261108398 23.95283126831055 56.09006881713867 20.4587287902832 51.32539367675781 18.0234489440918 C 41.1960334777832 12.83523941040039 28.24315452575684 12.83523941040039 18.14908981323242 18.05874252319336 C 13.3491096496582 20.52931594848633 9.325603485107422 24.0587158203125 6.149147510528564 28.50575256347656 C 5.866795539855957 28.9998664855957 5.337387084960938 29.24692535400391 4.772684574127197 29.24692535400391 Z M 26.83139991760254 71.84671783447266 C 26.37257957458496 71.84671783447266 25.91375732421875 71.67025756835938 25.59611129760742 71.31731414794922 C 22.52553939819336 68.24673461914063 20.86672401428223 66.27027130126953 18.50202941894531 61.99970626831055 C 16.06674766540527 57.6585578918457 14.79616260528564 52.36446762084961 14.79616260528564 46.68213272094727 C 14.79616260528564 36.19983673095703 23.76082420349121 27.65870666503906 34.77253341674805 27.65870666503906 C 45.78424453735352 27.65870666503906 54.7489128112793 36.1998405456543 54.7489128112793 46.68213272094727 C 54.7489128112793 47.67036437988281 53.97244262695313 48.44683837890625 52.98421096801758 48.44683837890625 C 51.9959831237793 48.44683837890625 51.21951293945313 47.67036437988281 51.21951293945313 46.68213272094727 C 51.21951293945313 38.1410026550293 43.84307861328125 31.1880989074707 34.77253723144531 31.1880989074707 C 25.70199584960938 31.1880989074707 18.3255615234375 38.1410026550293 18.3255615234375 46.68213272094727 C 18.3255615234375 51.76446533203125 19.45496940612793 56.45855712890625 21.6078987121582 60.27030944824219 C 23.86671257019043 64.32911682128906 25.41964530944824 66.05851745605469 28.13727951049805 68.81144714355469 C 28.80786323547363 69.51732635498047 28.80786323547363 70.61144256591797 28.13727951049805 71.31731414794922 C 27.74904823303223 71.67025756835938 27.29022789001465 71.84671783447266 26.83140563964844 71.84671783447266 Z M 52.13715744018555 65.31733703613281 C 47.93717575073242 65.31733703613281 44.23131561279297 64.25852203369141 41.1960334777832 62.17617797851563 C 35.93723678588867 58.61148452758789 32.79607772827148 52.82328033447266 32.79607772827148 46.68213272094727 C 32.79607772827148 45.69391250610352 33.57254409790039 44.91743850708008 34.56077575683594 44.91743850708008 C 35.54900360107422 44.91743850708008 36.32546997070313 45.69391250610352 36.32546997070313 46.68213272094727 C 36.32546997070313 51.65858459472656 38.86663436889648 56.35268020629883 43.1724967956543 59.24678039550781 C 45.67836761474609 60.94089126586914 48.60776138305664 61.75265121459961 52.13715362548828 61.75265121459961 C 52.98420715332031 61.75265121459961 54.39596176147461 61.64676284790039 55.8077278137207 61.39970397949219 C 56.76066207885742 61.22323226928711 57.67830657958984 61.8585205078125 57.85477447509766 62.84675216674805 C 58.0312385559082 63.7996940612793 57.39595794677734 64.71733856201172 56.40772247314453 64.89381408691406 C 54.39596557617188 65.28204345703125 52.63127136230469 65.31733703613281 52.13715362548828 65.31733703613281 Z M 45.04307556152344 72.587890625 C 44.90189743041992 72.587890625 44.72542953491211 72.55259704589844 44.58425521850586 72.51730346679688 C 38.97251510620117 70.96436309814453 35.30194473266602 68.88202667236328 31.45490646362305 65.10556793212891 C 26.51375579833984 60.19970703125 23.79612159729004 53.67032623291016 23.79612159729004 46.68213272094727 C 23.79612159729004 40.96451187133789 28.66668510437012 36.30570983886719 34.66665649414063 36.30570983886719 C 40.6666259765625 36.30570983886719 45.53718948364258 40.96450424194336 45.53718948364258 46.68213272094727 C 45.53718948364258 50.45857620239258 48.81952667236328 53.52915954589844 52.87833023071289 53.52915954589844 C 56.93712997436523 53.52915954589844 60.21946716308594 50.45858764648438 60.21946716308594 46.68213272094727 C 60.21946716308594 33.37631225585938 48.74893569946289 22.57636642456055 34.6313591003418 22.57636642456055 C 24.60787963867188 22.57636642456055 15.4314546585083 28.15281295776367 11.30206394195557 36.79983139038086 C 9.92559814453125 39.65864181518555 9.219718933105469 43.01155853271484 9.219718933105469 46.68213272094727 C 9.219718933105469 49.43505859375 9.466776847839355 53.77621459960938 11.58441257476807 59.42324447631836 C 11.93735313415527 60.34089279174805 11.47853088378906 61.36441040039063 10.56089019775391 61.68205642700195 C 9.643248558044434 62.03499221801758 8.619721412658691 61.5408821105957 8.302078247070313 60.65853118896484 C 6.572676181793213 56.0350227355957 5.725620746612549 51.44680786132813 5.725620746612549 46.68212509155273 C 5.725620746612549 42.44685745239258 6.537381172180176 38.59981155395508 8.125607490539551 35.24689102172852 C 12.81970024108887 25.39988327026367 23.23141670227051 19.01168060302734 34.6313591003418 19.01168060302734 C 50.69010162353516 19.01168060302734 63.74886703491211 31.39985275268555 63.74886703491211 46.64683532714844 C 63.74886703491211 52.36445617675781 58.87829971313477 57.02325439453125 52.87833023071289 57.02325439453125 C 46.87835693359375 57.02325439453125 42.00779342651367 52.36445617675781 42.00779342651367 46.64683532714844 C 42.00779342651367 42.87038421630859 38.72545623779297 39.79980850219727 34.66665649414063 39.79980850219727 C 30.60785484313965 39.79980850219727 27.32551383972168 42.87038421630859 27.32551383972168 46.64683532714844 C 27.32551383972168 52.68210601806641 29.65491485595703 58.32913208007813 33.92548370361328 62.56441116333008 C 37.27840423583984 65.88204193115234 40.49015426635742 67.71732330322266 45.46659851074219 69.09379577636719 C 46.41953659057617 69.34085083007813 46.94894409179688 70.32907867431641 46.70188903808594 71.24672698974609 C 46.52541732788086 72.05848693847656 45.78424453735352 72.587890625 45.04307174682617 72.587890625 Z"/></svg>
+              <h3>署名者情報</h3>
+              <p>契約書に印字される署名者情報の変更や代行者を追加します。</p>
+            </a>
+          </div>
+        </div>
+
+        <!-- ===== その他 (COMMON_MULTI_LANG.SB_MENU_HISTORY_SENT_FAX) — role SB20/S999 ===== -->
+        <h2>その他</h2>
+        <div class="menu-grid">
+          <!-- 契約管理 (CONTRACT_MANAGEMENT_SUPPLIER) — role SB20 && isRegistrationCompleted. Icon FA file-signature thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="契約管理画面（BHW_ContractInfo）※SB20ロールのみ表示">
+              <svg viewBox="0 0 576 512"><path d="M218.17 424.14c-2.95-5.92-8.09-6.52-10.17-6.52s-7.22.59-10.02 6.19l-7.67 15.34c-6.37 12.78-25.03 11.37-29.48-2.09L144 386.59l-10.61 31.88c-5.89 17.66-22.38 29.53-41 29.53H80c-8.84 0-16-7.16-16-16s7.16-16 16-16h12.39c4.83 0 9.11-3.08 10.64-7.66l18.19-54.64c3.3-9.81 12.44-16.41 22.78-16.41s19.48 6.59 22.77 16.41l13.88 41.64c19.75-16.19 54.06-9.7 66 14.16 1.89 3.78 5.49 5.95 9.36 6.26v-82.12l128-127.09V160H248c-13.2 0-24-10.8-24-24V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24v-40l-128-.11c-16.12-.31-30.58-9.28-37.83-23.75zM384 121.9c0-6.3-2.5-12.4-7-16.9L279.1 7c-4.5-4.5-10.6-7-17-7H256v128h128v-6.1zm-96 225.06V416h68.99l161.68-162.78-67.88-67.88L288 346.96zm280.54-179.63l-31.87-31.87c-9.94-9.94-26.07-9.94-36.01 0l-27.25 27.25 67.88 67.88 27.25-27.25c9.95-9.94 9.95-26.07 0-36.01z"/></svg>
+              <h3>契約管理</h3>
+              <p>共通契約書および取引先バイヤの特約契約書を管理します。</p>
+            </a>
+          </div>
+          <!-- 取引バイヤ管理 (TRANSACTION_BUYER_MANAGEMENT) — role S999. Icon location_city thật -->
+          <div class="menu-col">
+            <a href="#" class="main-menu-button" data-nav="取引バイヤ管理画面（BHW_BuyerInfo）">
+              <svg viewBox="3 2 69.589 73.455"><path d="M 49.39268112182617 36.79450988769531 L 49.39268112182617 13.59817028045654 L 37.79451370239258 2 L 26.19634246826172 13.59817028045654 L 26.19634246826172 21.33028030395508 L 3 21.33028030395508 L 3 75.455078125 L 72.58902740478516 75.455078125 L 72.58902740478516 36.79450988769531 L 49.39268112182617 36.79450988769531 Z M 18.46422576904297 67.72296142578125 L 10.73211288452148 67.72296142578125 L 10.73211288452148 59.99085235595703 L 18.46422576904297 59.99085235595703 L 18.46422576904297 67.72296142578125 Z M 18.46422576904297 52.25873565673828 L 10.73211288452148 52.25873565673828 L 10.73211288452148 44.52662658691406 L 18.46422576904297 44.52662658691406 L 18.46422576904297 52.25873565673828 Z M 18.46422576904297 36.79450988769531 L 10.73211288452148 36.79450988769531 L 10.73211288452148 29.06239700317383 L 18.46422576904297 29.06239700317383 L 18.46422576904297 36.79450988769531 Z M 41.66056823730469 67.72296142578125 L 33.9284553527832 67.72296142578125 L 33.9284553527832 59.99085235595703 L 41.66056823730469 59.99085235595703 L 41.66056823730469 67.72296142578125 Z M 41.66056823730469 52.25873565673828 L 33.9284553527832 52.25873565673828 L 33.9284553527832 44.52662658691406 L 41.66056823730469 44.52662658691406 L 41.66056823730469 52.25873565673828 Z M 41.66056823730469 36.79450988769531 L 33.9284553527832 36.79450988769531 L 33.9284553527832 29.06239700317383 L 41.66056823730469 29.06239700317383 L 41.66056823730469 36.79450988769531 Z M 41.66056823730469 21.33028030395508 L 33.9284553527832 21.33028030395508 L 33.9284553527832 13.59817028045654 L 41.66056823730469 13.59817028045654 L 41.66056823730469 21.33028030395508 Z M 64.85691070556641 67.72296142578125 L 57.12479782104492 67.72296142578125 L 57.12479782104492 59.99085235595703 L 64.85691070556641 59.99085235595703 L 64.85691070556641 67.72296142578125 Z M 64.85691070556641 52.25873565673828 L 57.12479782104492 52.25873565673828 L 57.12479782104492 44.52662658691406 L 64.85691070556641 44.52662658691406 L 64.85691070556641 52.25873565673828 Z"/></svg>
+              <h3>取引バイヤ管理</h3>
+              <p>現在取引中のバイヤ企業を表示します。追加で取引を希望したいバイヤの設定もおこなえます。</p>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== お知らせ (MainMenu.vue #Notification) =====
+           Nhóm theo buyer: 「{buyerCompanyGroupDisplayCode}のお知らせ」(LB_NOTICE_OF).
+           Demo hiển thị tên buyer thay display-code (đề xuất — DB thực trả displayCode).
+           Nhóm >5 mục: hiện 5 + link もっと見る (PRODUCT_CATEGORY_LB_016) / 戻る (APPLICANT_NEW_SUPPLIER.BTN_001). -->
+      <div id="Notification">
+        <h2>お知らせ</h2>
+
+        <!-- Nhóm 1: 6 mục → có もっと見る (toggle DOM thật) -->
+        <div class="notice-group">
+          <span class="group-title">ジーニーソリューションズ株式会社のお知らせ</span>
+
+          <div class="notice-item">
+            <span>・ 2026-07-01</span>
+            <div class="body">
+              <span style="display:block;">7月分請求書の提出期限について</span>
+              <span>(→ <a href="#" class="notice-link"
+                data-title="7月分請求書の提出期限について"
+                data-body="7月分の請求書は2026年8月5日（水）までにご提出ください。期限を過ぎた場合、支払処理が翌月扱いとなる場合がございます。請求書は「請求一覧」メニューよりご確認・ご提出いただけます。"
+                data-url="https://j2.osaka.jienie.com/eProcurement/supplier/Invoice/All"><b>こちら</b></a> をクリックしてください)</span>
+            </div>
+          </div>
+
+          <!-- Nội dung trùng với mockup buyer eProcurement_Home.html — cùng buyer đăng, giữ data NHẤT QUÁN -->
+          <div class="notice-item">
+            <span>・ 2026-06-20</span>
+            <div class="body">
+              <span style="display:block;">夏季休暇中の配送について</span>
+              <span>(→ <a href="#" class="notice-link"
+                data-title="夏季休暇中の配送について"
+                data-body="2026年8月13日（木）～8月16日（日）は夏季休業のため、配送業務を停止いたします。休業期間中にご注文いただいた商品は、8月18日（火）以降に順次発送いたします。ご不便をおかけしますが、何卒ご了承ください。"><b>こちら</b></a> をクリックしてください)</span>
+            </div>
+          </div>
+
+          <div class="notice-item">
+            <span>・ 2026-06-05</span>
+            <div class="body">
+              <span style="display:block;">月末の納品と検収登録について</span>
+              <span>(→ <a href="#" class="notice-link"
+                data-title="月末の納品と検収登録について"
+                data-body="月末（6/30）納品分については、納品登録を当日中にお願いいたします。納品登録が翌月にずれ込むと、検収・支払処理が1ヶ月遅延する場合がございますのでご注意ください。"><b>こちら</b></a> をクリックしてください)</span>
+            </div>
+          </div>
+
+          <div class="notice-item">
+            <span>・ 2026-05-18</span>
+            <div class="body">
+              <span style="display:block;">システムメンテナンスによる配送遅延について</span>
+              <span>(→ <a href="#" class="notice-link"
+                data-title="システムメンテナンスによる配送遅延について"
+                data-body="2026年5月20日（水）深夜2:00～5:00にシステムメンテナンスを実施いたします。メンテナンス時間中は受注・納品処理をご利用いただけません。また、前後の時間帯で一部処理に遅延が生じる可能性がございます。"><b>こちら</b></a> をクリックしてください)</span>
+            </div>
+          </div>
+
+          <div class="notice-item">
+            <span>・ 2026-04-28</span>
+            <div class="body">
+              <span style="display:block;">見積回答期限の運用変更について</span>
+              <span>(→ <a href="#" class="notice-link"
+                data-title="見積回答期限の運用変更について"
+                data-body="2026年5月度より、見積依頼の標準回答期限を「依頼日から5営業日」に変更いたします。期限内のご回答が難しい場合は、案件詳細のコメント機能にて購買担当者までご連絡ください。"
+                data-files="見積回答運用ガイド_v2.pdf"><b>こちら</b></a> をクリックしてください)</span>
+            </div>
+          </div>
+
+          <!-- Mục thứ 6 — ẩn mặc định, hiện khi bấm もっと見る (isShowMore) -->
+          <div class="notice-hidden" id="noticeMore1">
+            <div class="notice-item">
+              <span>・ 2026-04-10</span>
+              <div class="body">
+                <span style="display:block;">新年度の発注書フォーマット変更について</span>
+                <span>(→ <a href="#" class="notice-link"
+                  data-title="新年度の発注書フォーマット変更について"
+                  data-body="2026年4月発行分より注文書PDFのフォーマットを変更いたしました。従来の様式で保存されている場合は、最新の注文書を再ダウンロードのうえご利用ください。"
+                  data-files="注文書フォーマット変更点一覧.xlsx"><b>こちら</b></a> をクリックしてください)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice-more">
+            <a href="#" id="showMoreLink1">▾&nbsp;もっと見る</a>
+            <a href="#" id="showLessLink1" style="display:none;">▴&nbsp;戻る</a>
+          </div>
+        </div>
+
+        <!-- Nhóm 2: ≤5 mục → không có もっと見る. Tên buyer thứ 2: đề xuất (demo) -->
+        <div class="notice-group">
+          <span class="group-title">ミライ工業株式会社のお知らせ</span>
+
+          <div class="notice-item">
+            <span>・ 2026-06-30</span>
+            <div class="body">
+              <span style="display:block;">検収完了通知の運用変更について</span>
+              <span>(→ <a href="#" class="notice-link"
+                data-title="検収完了通知の運用変更について"
+                data-body="2026年7月より検収完了時のFAX通知を廃止し、システム内通知およびメール通知に一本化いたします。通知先メールアドレスは「担当者情報」よりご確認ください。"><b>こちら</b></a> をクリックしてください)</span>
+            </div>
+          </div>
+
+          <div class="notice-item">
+            <span>・ 2026-05-09</span>
+            <div class="body">
+              <span style="display:block;">支払通知書の電子化について</span>
+              <span>(→ <a href="#" class="notice-link"
+                data-title="支払通知書の電子化について"
+                data-body="2026年6月支払分より、支払通知書を電子交付に切り替えます。「支払通知」メニューよりPDFをダウンロードいただけます。郵送をご希望の場合は購買部までご連絡ください。"
+                data-url="https://j2.osaka.jienie.com/eProcurement/supplier/PaymentManagement"><b>こちら</b></a> をクリックしてください)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+
+<!-- ===== Modal chi tiết お知らせ (MainMenu.vue #modalNoticeDetail, width 1100px) ===== -->
+<div class="notice-modal-overlay" id="noticeOverlay">
+  <div class="notice-modal">
+    <div class="notice-modal-header">
+      <span id="noticeModalTitle"></span>
+      <button class="notice-modal-close" id="noticeModalClose">&times;</button>
+    </div>
+    <div class="notice-modal-body">
+      <div id="noticeModalBody"></div>
+      <!-- 関連URL (MASTER_SETTING.LB_RELATED_URL) — chỉ hiện khi notice có URL -->
+      <div id="noticeModalUrlWrap" class="mt" style="display:none; margin-top:1rem;">
+        関連URL:<br>
+        <a href="#" id="noticeModalUrl" target="_blank" rel="noopener"></a>
+      </div>
+      <!-- 添付ファイル (MASTER_SETTING.ATTACHMENT_FILE) — click tải file → toast -->
+      <div id="noticeModalFilesWrap" style="display:none; margin-top:1rem;">
+        添付ファイル:<br>
+        <span id="noticeModalFiles"></span>
+      </div>
+    </div>
+    <div class="notice-modal-footer">
+      <!-- HOME.BTN_CONFIRM — nút cam #ef6e47 theo inline style thật -->
+      <button id="noticeModalConfirm">確認</button>
+    </div>
+  </div>
+</div>
+
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var toast = JienieLayout.toast;
+
+  // ---- もっと見る / 戻る (MainMenu.vue item.isShowMore) — cập nhật DOM thật ----
+  var more1 = document.getElementById('noticeMore1');
+  var showMore1 = document.getElementById('showMoreLink1');
+  var showLess1 = document.getElementById('showLessLink1');
+  showMore1.addEventListener('click', function (e) {
+    e.preventDefault();
+    more1.classList.add('show');
+    showMore1.style.display = 'none';
+    showLess1.style.display = 'inline';
+  });
+  showLess1.addEventListener('click', function (e) {
+    e.preventDefault();
+    more1.classList.remove('show');
+    showLess1.style.display = 'none';
+    showMore1.style.display = 'inline';
+  });
+
+  // ---- Modal chi tiết お知らせ (openNoticeListView / hidemodalNotice trong MainMenu.vue) ----
+  var overlay = document.getElementById('noticeOverlay');
+  var modalTitle = document.getElementById('noticeModalTitle');
+  var modalBody = document.getElementById('noticeModalBody');
+  var urlWrap = document.getElementById('noticeModalUrlWrap');
+  var urlLink = document.getElementById('noticeModalUrl');
+  var filesWrap = document.getElementById('noticeModalFilesWrap');
+  var filesBox = document.getElementById('noticeModalFiles');
+
+  document.querySelectorAll('.notice-link').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      modalTitle.textContent = link.getAttribute('data-title') || '';
+      modalBody.textContent = link.getAttribute('data-body') || '';
+
+      var url = link.getAttribute('data-url');
+      if (url) {
+        urlLink.textContent = url;
+        urlLink.setAttribute('href', url);
+        urlWrap.style.display = 'block';
+      } else {
+        urlWrap.style.display = 'none';
+      }
+
+      var files = link.getAttribute('data-files');
+      filesBox.innerHTML = '';
+      if (files) {
+        files.split(',').forEach(function (f) {
+          var a = document.createElement('a');
+          a.href = '#';
+          a.textContent = f.trim();
+          a.style.display = 'inline-block';
+          a.style.marginLeft = '1rem';
+          a.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            // Trang thật: getDownloadFileLink → tải file từ storage
+            toast('実際の画面では添付ファイル「' + f.trim() + '」をダウンロードします');
+          });
+          filesBox.appendChild(a);
+          filesBox.appendChild(document.createElement('br'));
+        });
+        filesWrap.style.display = 'block';
+      } else {
+        filesWrap.style.display = 'none';
+      }
+
+      overlay.classList.add('show');
+    });
+  });
+
+  function closeNoticeModal() { overlay.classList.remove('show'); }
+  document.getElementById('noticeModalClose').addEventListener('click', closeNoticeModal);
+  document.getElementById('noticeModalConfirm').addEventListener('click', closeNoticeModal);
+  // closeModalOnClickOutside — MainMenu.vue: click nền ngoài modal để đóng
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeNoticeModal(); });
+})();
+</script>
+
+</body>
+</html>

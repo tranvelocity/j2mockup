@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-007 Q&A掲示板画面（Supplier側・共通） — Supplier Portal / RFXモジュール
+  アクター: 参加サプライヤ 富士クラウド株式会社（富士 太郎）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-007, §3.2 RD-RFX-006, §2.2 BR-RFX-002
+      （質問投稿時は非公開 → Buyer回答後デフォルト公開。公開Q&Aは全参加サプライヤが閲覧）
+    - §8.5 セキュリティ（他社の提案・非公開Q&Aは参照不可）, R-12（Q&A匿名化）は ■未確定
+  Nguồn design: assets/layout.css|js（Supplier版 共有アセット・同一フォルダ）
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 自社=富士クラウド）
+    ※ Buyer側 eProcurement_RFX_QA.html と同一のQ&Aセットを Supplier 視点で表示（公開分のみ）。
+  Tự đề xuất / ■未確定:
+    - 他社質問者名の表示（実名 or 匿名）は R-12 未確定。本モックでは実名表示＋匿名化注記。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q&amp;A掲示板 | 調達案件(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .qa-item { border:1px solid var(--j2-border); border-radius:6px; margin-bottom:12px; overflow:hidden; }
+  .qa-head { display:flex; align-items:center; gap:10px; padding:10px 14px; background:#f6f8fc; border-bottom:1px solid var(--j2-border); font-size:.84rem; }
+  .qa-head .who { font-weight:bold; }
+  .qa-body { padding:12px 14px; }
+  .qa-q { margin-bottom:8px; }
+  .qa-q .lbl, .qa-a .lbl { display:inline-block; min-width:20px; font-weight:bold; color:var(--j2-blue); margin-right:6px; }
+  .qa-a { background:#fafcff; border-left:3px solid var(--j2-blue); padding:8px 12px; border-radius:0 4px 4px 0; }
+  .self { color:#0074c1; font-weight:bold; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_Supplier_ProjectList.html">調達案件(RFX)</a></li>
+      <li>Q&amp;A掲示板</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">Q&amp;A掲示板</h3>
+        <span class="status-badge st-blue" style="min-width:auto;">Supplier</span>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="alert alert-info">
+        案件：<b>社内基幹システム刷新に伴うクラウド基盤調達</b>（RFX260700123・発注企業 ジーニーソリューションズ株式会社）<br>
+        質問は投稿時点では<b>非公開</b>です。発注企業が回答すると、原則として<b>公開</b>され全参加サプライヤが閲覧できます（BR-RFX-002）。
+        他社質問者名の匿名化は <b>■未確定</b>（R-12）。
+      </div>
+
+      <div class="section">
+        <div class="section-head">質問を投稿する</div>
+        <div class="section-body">
+          <textarea id="qInput" maxlength="1000" placeholder="発注企業への質問を入力してください（投稿時点は非公開。回答後に公開されます）"></textarea>
+          <div class="field-error" id="qErr">質問内容を入力してください。</div>
+          <div class="page-title-row" style="justify-content:flex-end;margin-top:8px;">
+            <button class="btn btn-primary" id="btnPost">質問を投稿</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">Q&amp;A一覧　<span class="muted" style="font-weight:normal;">（公開されたQ&amp;A ＋ 自社の質問のみ表示）</span></div>
+        <div class="section-body" id="qaList">
+
+          <div class="qa-item">
+            <div class="qa-head"><span class="who self">自社（富士クラウド株式会社）</span><span class="status-badge pill st-moss">回答済・公開</span><span class="muted" style="margin-left:auto;">2026-07-22</span></div>
+            <div class="qa-body">
+              <div class="qa-q"><span class="lbl">Q</span>クラウドのリージョン指定は必須ですか？</div>
+              <div class="qa-a"><span class="lbl">A</span>東日本リージョンを主とし、DR用途で西日本リージョンの併用を推奨します。必須ではありません。</div>
+            </div>
+          </div>
+
+          <div class="qa-item">
+            <div class="qa-head"><span class="who">日本デジタルソリューションズ株式会社</span><span class="status-badge pill st-moss">回答済・公開</span><span class="muted" style="margin-left:auto;">2026-07-23</span></div>
+            <div class="qa-body">
+              <div class="qa-q"><span class="lbl">Q</span>保守時間帯の希望はありますか？</div>
+              <div class="qa-a"><span class="lbl">A</span>平日9:00〜18:00を基本とし、緊急時は24時間対応の体制提案を歓迎します。</div>
+            </div>
+          </div>
+
+          <div class="qa-item">
+            <div class="qa-head"><span class="who self">自社（富士クラウド株式会社）</span><span class="status-badge pill st-orange">未回答・非公開</span><span class="muted" style="margin-left:auto;">2026-07-24</span></div>
+            <div class="qa-body">
+              <div class="qa-q"><span class="lbl">Q</span>提案書のページ数上限はありますか？</div>
+              <div class="qa-a" style="color:#888;"><span class="lbl">A</span>発注企業の回答をお待ちください（回答されると公開されます）。</div>
+            </div>
+          </div>
+
+          <div class="qa-item">
+            <div class="qa-head"><span class="who">日本デジタルソリューションズ株式会社</span><span class="status-badge pill st-moss">回答済・公開</span><span class="muted" style="margin-left:auto;">2026-07-25</span></div>
+            <div class="qa-body">
+              <div class="qa-q"><span class="lbl">Q</span>見積の有効期限は？</div>
+              <div class="qa-a"><span class="lbl">A</span>提案書提出日から90日間を目安としてください。</div>
+            </div>
+          </div>
+
+          <p class="muted">※ 他社の<b>非公開</b>Q&amp;A（例：さくらインフラの個別質問）は表示されません（§8.5 情報隔離）。</p>
+        </div>
+      </div>
+
+      <div class="page-title-row">
+        <a class="btn" href="eProcurement_RFX_Supplier_ProjectList.html">← 参加案件一覧へ戻る</a>
+        <a class="btn" href="eProcurement_RFX_SupplierResponse_phase1.html">📝 RFP回答・提出</a>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'supplier', activeNav:'rfx', user:'富士 太郎', company:'富士クラウド株式会社' };
+  JienieLayout.init();
+
+  var q = document.getElementById('qInput');
+  q.addEventListener('input', function(){ if(this.value.trim()){ this.classList.remove('error'); document.getElementById('qErr').classList.remove('show'); } });
+  document.getElementById('btnPost').addEventListener('click', function(){
+    if(!q.value.trim()){ q.classList.add('error'); document.getElementById('qErr').classList.add('show'); return; }
+    var item = document.createElement('div');
+    item.className = 'qa-item';
+    item.innerHTML = '<div class="qa-head"><span class="who self">自社（富士クラウド株式会社）</span><span class="status-badge pill st-orange">未回答・非公開</span><span class="muted" style="margin-left:auto;">2026-07-26</span></div>'
+      + '<div class="qa-body"><div class="qa-q"><span class="lbl">Q</span>'+q.value.replace(/</g,'&lt;')+'</div>'
+      + '<div class="qa-a" style="color:#888;"><span class="lbl">A</span>発注企業の回答をお待ちください（回答されると公開されます）。</div></div>';
+    var list = document.getElementById('qaList');
+    list.insertBefore(item, list.firstChild);
+    q.value = '';
+    JienieLayout.toast('質問を投稿しました（非公開）。発注企業が回答すると公開されます。');
+  });
+</script>
+</body>
+</html>

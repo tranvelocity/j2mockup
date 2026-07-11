@@ -1,0 +1,194 @@
+/*
+  list.css — CSS dung chung cho cac trang DANH SACH cua Supplier Portal
+  (見積案件照会 / 受注案件照会 / 請求一覧 ...).
+  Goc: projects/standard/mockup/buyer/assets/requester.css (da doi chieu staging 2026-07-05)
+  + bo sung rieng cho supplier tu source src-vbizhw-common:
+    - Tab 3 muc + badge dem (layouts/Estimate.vue: .icon-number bg #79868a)
+    - Mau status badge theo mapColorAnswerStatus trong ItemSkeleton.vue (supplier estimate):
+      1/2=#ff33cc(依頼前/回答前) 3=#33cc00(回答済み) 4=#666699(辞退) 5=#ffcc33(再見積)
+    - Mau badge loai theo mapColorOrderClassification: 1=#74a63f 3=#3333FF 6=#ff9933
+    - Tag label theo assets/css/Custom/Element.css:
+      red-highlight #e74c3c / orange-highlight #ff9933 / black-highlight #782c19 / purple-highlight #7654b4
+*/
+
+.page-content { padding: 0 1.5rem 3rem; }
+
+/* ===== Breadcrumb + Page title (PageTitle.vue) ===== */
+.breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+.breadcrumb li { display: flex; align-items: center; }
+.breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+.breadcrumb a { color: #111111; text-decoration: underline; }
+.breadcrumb .active { color: #111111; }
+.page-title { margin: 1.25rem 0 1.5rem; }
+.page-title h3 { margin: 0; font-size: 1.7rem; }
+
+/* ===== Tab nav-pills nav-justified (Custom/tabs.css + Estimate.vue) ===== */
+.req-tabs { display: flex; border-bottom: 2px solid #4169e1; }
+.req-tabs a {
+  flex: 1; text-align: center; border-radius: 5px 5px 0 0; background: #eeeeee; color: #111111;
+  padding: .8rem 0; margin: 10px 1px 0; font-size: .9rem; font-weight: bold; cursor: pointer;
+}
+.req-tabs a.active { background: #4169e1; color: #ffffff; padding: .94rem 0; font-size: 1.1rem; margin-top: 0; }
+.req-tabs a:hover:not(.active) { background: #4169e1; color: #ffffff; }
+/* Badge đếm trên tab (Estimate.vue .icon-number) */
+.req-tabs .tab-count { background: #79868a; color: #fff; padding: 1px 5px; font-size: .75rem; margin-left: 6px; }
+
+/* ===== Search filter (SearchSkeleton.vue / SearchSkeleton.scss) ===== */
+.wrapper-search { background: #edf1f6; padding: 1rem 1.5rem; }
+.search-keywords { display: flex; align-items: center; gap: .8rem; }
+.search-keywords input[type="text"] { flex: 1; padding: .55rem .8rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; }
+.couple-btn { display: flex; border: 1px solid #4169e1; border-radius: 4px; overflow: hidden; flex-shrink: 0; background: #fff; }
+.couple-btn button { border: none; background: #fff; color: #111; padding: .55rem 1rem; font-size: .95rem; cursor: pointer; white-space: nowrap; }
+.couple-btn button.active { background: #4169e1; color: #fff; }
+.collapse-toggle { background: none; border: none; color: #111; font-size: 1rem; cursor: pointer; white-space: nowrap; margin-left: 1.2rem; display: flex; align-items: center; gap: .4rem; }
+.collapse-toggle .circle-arrow {
+  width: 20px; height: 20px; border-radius: 50%; background: #4169e1; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; font-size: .7rem; transition: transform .2s;
+}
+.collapse-toggle.open .circle-arrow { transform: rotate(180deg); }
+hr.sep { border: none; border-top: 1px solid #d7dce6; margin: 1rem 0; }
+
+.search-options { display: none; }
+.search-options.show { display: block; }
+.field-row { display: flex; gap: 2rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+.field-half { flex: 1; min-width: 340px; display: flex; align-items: center; gap: .8rem; }
+.field-half > label { width: 150px; flex-shrink: 0; font-size: .9rem; color: #111; }
+.field-half input[type="text"], .field-half select { flex: 1; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+.date-range { display: flex; align-items: center; gap: .4rem; flex: 1; }
+.date-range input { flex: 1; min-width: 0; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+.date-range .reset-date { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: .45rem .7rem; cursor: pointer; color: #111; font-weight: bold; }
+/* Khoang tien ¥〜¥ */
+.amount-range { display: flex; align-items: center; gap: .4rem; flex: 1; }
+.amount-range input { flex: 1; min-width: 0; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; text-align: right; }
+/* Validate loi (基本設計 §8.3): vien do + message do */
+input.has-error, .date-range input.has-error, .amount-range input.has-error { border-color: #dc3545 !important; }
+.field-error-msg { color: #dc3545; font-size: .78rem; margin-top: .3rem; display: none; width: 100%; }
+.field-error-msg.show { display: block; }
+
+.status-row { display: flex; gap: 1.2rem; align-items: flex-start; margin-bottom: .4rem; flex-wrap: wrap; }
+.status-row > label { width: 150px; flex-shrink: 0; font-size: .9rem; padding-top: .1rem; }
+.status-checks { flex: 1; }
+.status-checks .chk-line { margin-bottom: .5rem; }
+.status-checks .chk { font-size: .9rem; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 1.4rem; }
+.status-checks input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4169e1; }
+
+.search-buttons { display: flex; align-items: center; justify-content: center; gap: 1.5rem; position: relative; }
+.btn-search-submit {
+  background: linear-gradient(to bottom, #638aff 0%, #4169e1 100%);
+  border: 1px solid #4169e1; color: #fff; font-size: 1.05rem; padding: .7rem 2rem;
+  border-radius: 4px; cursor: pointer; min-width: 210px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+}
+.btn-search-reset {
+  background: #fff; border: 1px solid #cccccc; color: #111; font-size: 1.05rem; padding: .7rem 1.6rem;
+  border-radius: 4px; cursor: pointer; min-width: 210px; box-shadow: 0 1px 1px 0 rgba(188,188,188,.5);
+}
+.btn-export {
+  position: absolute; right: 0; background: #fff; border: 1px solid #dadbde; color: #111;
+  padding: .6rem 1.2rem; border-radius: 4px; cursor: pointer; font-size: .95rem;
+}
+.btn-export .ico, .btn-search-reset .ico { color: #4169e1; }
+
+/* ===== Pagination (Pagination.vue) ===== */
+.wrapper-pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 1.4rem; flex-wrap: wrap; gap: .8rem; }
+.pagination-left { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.pagination-left select { padding: .45rem .6rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+.pagination-pages { display: flex; list-style: none; margin: 0; padding: 0; gap: 5px; align-items: center; }
+.pagination-pages li a, .pagination-pages li span {
+  display: block; padding: .45rem .8rem; border: 1px solid #c9d4f2; border-radius: 4px;
+  color: #4169e1; font-size: .95rem; font-weight: bold; cursor: pointer; background: #fff;
+}
+.pagination-pages li.active span { background: #4169e1; color: #fff; border-color: #4169e1; }
+.pagination-pages li.ellipsis span { border: none; background: none; cursor: default; }
+
+/* ===== Item card (ItemSkeleton.vue supplier + Card.css) ===== */
+.wrapper-main-items { margin-top: 1rem; display: flex; flex-direction: column; gap: 1.2rem; }
+.anken-card { background: #f5f5f5; border: 1px solid #ededed; border-radius: 0 0 5px 5px; padding: 1rem 1.4rem 0; }
+.anken-header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.anken-header-left { display: flex; align-items: center; }
+/* Badge loai theo mapColorOrderClassification (ItemSkeleton.vue) */
+.badge-order-type { padding: 4px 14px; font-size: .9rem; display: inline-block; background: #fff; min-width: 90px; text-align: center; }
+.badge-order-type.catalog { border: 1px solid #74a63f; color: #74a63f; }     /* 1 カタログ購買 */
+.badge-order-type.estimate { border: 1px solid #3333FF; color: #3333FF; }    /* 3 見積購買 */
+.badge-order-type.direct { border: 1px solid #ff9933; color: #ff9933; }      /* 6 ダイレクト発注 */
+.anken-no { margin-left: .8rem; padding-left: .8rem; border-left: 1px solid #cccccc; font-size: .95rem; }
+.anken-header-right { display: flex; align-items: center; gap: .6rem; }
+/* Status badge theo mapColorAnswerStatus (supplier estimate) */
+.status-badge { min-width: 140px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 8px; font-size: .95rem; background: #fff; }
+.st-before-answer { color: #ff33cc; border-color: #ff33cc; }  /* 2 回答前 */
+.st-answered { color: #33cc00; border-color: #33cc00; }       /* 3 回答済み */
+.st-refused { color: #666699; border-color: #666699; }        /* 4 辞退 */
+.st-re-estimate { color: #ffcc33; border-color: #ffcc33; }    /* 5 再見積 */
+.anken-hr { border: none; border-top: 1px solid #dddddd; margin: .8rem 0 0; }
+.anken-body-row { display: flex; }
+.anken-body-left { flex: 2; min-width: 0; padding: .6rem 0 1rem; }
+.anken-body-right { flex: 1; border-left: 1px solid #dddddd; padding: 2rem 0 1rem 1.2rem; }
+.anken-title { font-size: 1.4rem; font-weight: bold; word-break: break-all; margin: .2rem 0 .4rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+/* Tag label (Element.css: *-highlight) */
+.tag-label { font-size: 11px; font-weight: bold; padding: 3px 6px; border-radius: 2px; color: #fff; }
+.tag-red { background: #e74c3c; }      /* 緊急 (red-highlight) */
+.tag-orange { background: #ff9933; }   /* 事後 (orange-highlight) */
+.tag-black { background: #782c19; }    /* 概算 (black-highlight) */
+.tag-purple { background: #7654b4; }   /* 変更見積 (purple-highlight) */
+.info-line { font-size: .95rem; display: flex; align-items: flex-start; margin-bottom: .1rem; }
+.info-line > label { width: 110px; flex-shrink: 0; margin-right: .5rem; }
+.info-line a { color: #045eb4; text-decoration: underline; }
+.amount-line { margin-bottom: .5rem; font-size: .95rem; display: flex; align-items: center; }
+.amount-line > label { width: 160px; flex-shrink: 0; border-right: 1px solid #cccccc; margin-right: 1rem; font-weight: bold; }
+.amount-line .val { font-weight: bold; font-size: 1.15rem; }
+
+/* Blue collapse bar (ItemSkeleton.vue .collapse-line) — man hinh 見積 KHONG co "｜N 件" */
+.collapse-line { margin: 1rem -1.4rem 0; }
+.collapse-line button {
+  display: block; width: 100%; border: none; cursor: pointer;
+  background: linear-gradient(to bottom, #658bfc 0%, #4169e1 100%);
+  color: #fff; font-size: .95rem; padding: .55rem 0; border-radius: 0 0 5px 5px; text-align: center;
+}
+
+/* ===== 明細 mở rộng (All.vue card 依頼内容 / やり取り / コメント追加) ===== */
+.anken-detail { margin-top: .5rem; display: none; }
+.anken-detail.open { display: block; }
+.detail-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.2rem; }
+.detail-section-header {
+  background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem;
+  display: flex; justify-content: space-between; align-items: center; gap: .8rem; flex-wrap: wrap;
+}
+.detail-section-body { padding: 1.1rem 1.3rem; }
+.detail-sub-title { font-weight: bold; margin: .8rem 0 .6rem; }
+.anken-detail table { width: 100%; border-collapse: collapse; font-size: .9rem; margin-bottom: .6rem; }
+.anken-detail th { text-align: center; font-weight: bold; color: #111; padding: .6rem .5rem; width: 130px; background: #eef1f7; border: 1px solid #e3e3e6; vertical-align: middle; }
+.anken-detail td { padding: .6rem .8rem; border: 1px solid #e3e3e6; background: #fff; vertical-align: middle; }
+.anken-detail td.num { text-align: right; }
+.anken-detail a { color: #045eb4; text-decoration: underline; }
+/* Nut trang (btn-light) trong card */
+.btn-card-light {
+  background: #fff; border: 1px solid #dadbde; color: #111; padding: .55rem 1.4rem;
+  border-radius: 4px; cursor: pointer; font-size: .95rem; min-width: 130px;
+  box-shadow: 1px 1px 1px 1px rgba(204,204,204,.3);
+}
+.btn-card-light:disabled { opacity: .5; cursor: not-allowed; }
+.color-red { color: #dc3545; }
+.card-actions-center { text-align: center; padding: .6rem 0 .4rem; }
+.card-actions-center .note { font-weight: bold; margin-bottom: .5rem; }
+
+/* やり取り (comment history) */
+.comment-item { display: flex; align-items: flex-start; gap: 1rem; padding: .5rem 0; border-bottom: 1px dashed #e5e5e5; }
+.comment-item:last-child { border-bottom: none; }
+.comment-who { width: 32%; flex-shrink: 0; display: flex; gap: .7rem; align-items: flex-start; font-size: .92rem; }
+.comment-who .c-ico { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: #79868a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; }
+.comment-body { flex: 1; white-space: pre-line; font-size: .95rem; }
+.comment-more { text-align: center; margin-top: .4rem; }
+.comment-more a { color: #045eb4; font-weight: bold; cursor: pointer; }
+.comment-hidden { display: none; }
+.comment-hidden.show { display: block; }
+
+/* Form them comment (AnswerComment.vue) */
+.comment-form label strong { font-size: .95rem; }
+.chip-required { background: #e74c3c; color: #fff; font-size: 11px; border-radius: 2px; padding: 3px 6px; margin-left: .6rem; font-weight: bold; }
+.maxlength-note { font-size: .8rem; color: #555; margin-left: .5rem; }
+.comment-form textarea { display: block; width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: .6rem .8rem; font-size: .95rem; font-family: inherit; margin-top: .4rem; resize: vertical; }
+.comment-form textarea.has-error { border-color: #dc3545; }
+.comment-form .err { color: #dc3545; font-size: .8rem; display: none; }
+.comment-form .err.show { display: block; }
+.file-attach-note { font-size: .85rem; color: #555; margin: .5rem 0; }
+
+#Notification { display: none; }

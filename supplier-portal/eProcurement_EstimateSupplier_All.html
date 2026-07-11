@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<!--
+  Mockup của: eProcurement_EstimateSupplier_All
+  (Supplier Portal - 見積案件照会 / すべてタブ)
+  URL thật: https://j2.osaka.jienie.com/eProcurement/supplier/Estimate/All
+  Màn hình ĐÃ TỒN TẠI → dựng theo source thật (không suy đoán):
+    - Route/tab: src-vbizhw-common/src/modules/Supplier/router.js
+                 + layouts/Estimate.vue (page-title 見積案件照会, tab すべて/回答前/回答済み
+                   + badge đếm .icon-number bg #79868a)
+    - View:      src/modules/Supplier/views/Estimate/All.vue (card 依頼内容 / やり取り / コメント追加)
+    - Search:    src/modules/Supplier/components/Estimate/SearchSkeleton.vue
+    - Item:      src/modules/Supplier/components/Estimate/ItemSkeleton.vue
+                 (màu badge loại mapColorOrderClassification / màu status mapColorAnswerStatus)
+    - Comment:   src/modules/Supplier/views/Estimate/AnswerComment.vue
+    - Pagination: src/components/eProcurement/Pagination.vue — chú ý: màn hình này truyền
+                  notChangeItemPerPage + notSort → KHÔNG có select N件表示, KHÔNG có sort ▼▲
+                  (khác màn hình buyer 購買取引案件照会).
+  Nhãn tiếng Nhật lấy NGUYÊN VĂN từ src/locales/prod/ja.json (key ghi ở comment từng chỗ).
+  Nhãn động từ DB (multi_language): OrderClassification.3=見積購買, AnswerStatus.2=回答前
+  3=回答済み 4=辞退 5=再見積 — cũng lấy nguyên văn từ ja.json scope tương ứng.
+
+  TRẠNG THÁI DEMO (phủ đủ 4 status supplier nhìn thấy: 回答前/回答済み/再見積/辞退,
+  loại案件 đều là 見積購買 — OrderClassification.3, loại phổ biến duy nhất trên màn này):
+    - Card1 QDEMO2607000022 緩衝材購入          回答前(#ff33cc)  — MỞ SẴN 明細, nút 見積回答/見積辞退 active
+    - Card2 QDEMO2607000015 ノートPC 20台購入    回答済み(#33cc00) — có 回答金額
+    - Card3 QDEMO2606000340 会議室モニター設置工事 再見積(#ffcc33)  — nhãn 緊急, nút answer DISABLED
+      (demo case 回答期限を過ぎています — isValidAnswer=false, đúng logic :disabled trong All.vue)
+    - Card4 QDEMO2605000287 事務用チェア 50脚     辞退(#666699)   — đóng
+    - Số liệu buyer nhất quán mockup khác: buyer ジーニーソリューションズ株式会社 本社 総務部 依頼裕三,
+      購買担当 購買部門 佐藤花子;案件番号 QDEMO<yymm>######; supplier đăng nhập 株式会社NSKシステムズ.
+    - Tab badge: すべて20 / 回答前3 / 回答済み12 — khớp 見積ToDo trên BHW_MainMenu.html
+      (回答待ち3・回答済み12). Pagination 全20件 nhưng chỉ dựng 4 card đại diện
+      (giống tiền lệ mockup buyer: 全108件, dựng vài card mẫu).
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - 詳細条件を追加/省略 (icon tròn xoay), couple and検索/or検索, datepicker (assets/datepicker.js).
+    - Validate khi 検索: khoảng 金額 (金額の範囲に誤りがあります。SUPPLIER_SEARCH_ESTIMATE.LB_009),
+      khoảng ngày (日付の範囲に誤りがあります。SUPPLIER_PAYMENT_MANAGEMENT.LB_007) — viền đỏ + msg đỏ.
+    - 検索 hợp lệ → LỌC THẬT 4 card demo theo keyword (案件名/案件番号) + checkbox ステータス,
+      cập nhật lại số 件 pagination (ghi chú: demo lọc trên card mẫu). クリアする reset form + list.
+    - 明細を開く/閉じる từng card: mở thì bar chuyển xuống CUỐI card thành ∧ 明細を閉じる.
+    - やり取り >3 comment → もっと見る/戻る (isOpenComment).
+    - コメントを追加: validate required (必須項目です。) → thêm comment THẬT vào list やり取り
+      + toast コメントが追加されました。(mô phỏng $successMessage).
+    - Nút 見積回答/見積辞退 → data-nav (màn AnswerInput/AnswerRefuse chưa có mockup);
+      card 再見積 hết hạn: disabled + title ghi điều kiện, message đỏ 回答期限を過ぎています.
+  LINK 2 CHIỀU: breadcrumb/トップページ → BHW_MainMenu.html; sidebar + menu card bên
+  BHW_MainMenu.html đã trỏ href thật về trang này.
+  GHI CHÚ: khối contract-info (契約支払案件) và biến thể 事後申請情報 (opportunityClassType=3)
+  không đưa vào demo — sẽ dựng ở mockup màn 回答済み/参照 khi cần (đề xuất).
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>見積案件照会</title>
+<link rel="stylesheet" href="assets/layout.css">
+<link rel="stylesheet" href="assets/list.css">
+<style>
+  /* CHỈ CSS riêng của trang — khung list dùng chung nằm ở assets/list.css */
+  .valid-answer-row { display: flex; align-items: center; gap: 1.2rem; margin: .4rem 0 .8rem; }
+  .valid-answer-row > label { width: 150px; flex-shrink: 0; font-size: .9rem; }
+  .valid-answer-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #4169e1; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <!-- Breadcrumb (router meta.breadcrumb: HOME > ESTIMATE_SUPPLIER_ALL) -->
+    <ul class="breadcrumb">
+      <li><a href="BHW_MainMenu.html">トップページ</a></li>
+      <li class="active">見積案件照会</li>
+    </ul>
+
+    <div class="page-content">
+
+      <!-- Page title (Estimate.vue: ESTIMATE_SUPPLIER_AFTER_ANSWER.TITLE) -->
+      <div class="page-title"><h3>見積案件照会</h3></div>
+
+      <!-- Tab (Estimate.vue nav-pills nav-justified + badge đếm getCountStatusEstimateSupplier) -->
+      <nav class="req-tabs">
+        <a class="active">すべて<span class="tab-count">20</span></a>
+        <a href="#" data-nav="見積案件照会_回答前タブ（eProcurement_EstimateSupplier_BeforeAnswer）">回答前<span class="tab-count">3</span></a>
+        <a href="#" data-nav="見積案件照会_回答済みタブ（eProcurement_EstimateSupplier_AfterAnswer）">回答済み<span class="tab-count">12</span></a>
+      </nav>
+
+      <!-- ===== Search filter (SearchSkeleton.vue) ===== -->
+      <form class="wrapper-search" id="searchForm" novalidate>
+        <div class="search-keywords">
+          <!-- placeholder = SUPPLIER_SEARCH_ESTIMATE.LB_001 -->
+          <input type="text" id="kwInput" placeholder="キーワードで検索" maxlength="50">
+          <div class="couple-btn">
+            <!-- SUPPLIER_SEARCH_ESTIMATE.BTN_001 / BTN_002 -->
+            <button type="button" class="active" data-op="and">and検索</button>
+            <button type="button" data-op="or">or検索</button>
+          </div>
+          <!-- POPUP_CONTRACT_SEARCH.BTN_ADD_DETAILD_CONDITION / COMMON_MULTI_LANG.COLLAPE_SEARCH_LB_001 -->
+          <button type="button" class="collapse-toggle" id="searchCollapseToggle">
+            <span class="toggle-text">詳細条件を追加</span><span class="circle-arrow">▼</span>
+          </button>
+        </div>
+        <hr class="sep">
+
+        <!-- 詳細条件 (collapse #collapseSearchOptions - mặc định đóng) -->
+        <div class="search-options" id="searchOptions">
+          <div class="field-row">
+            <!-- SUPPLIER_SEARCH_ESTIMATE.LB_002 / LB_003 -->
+            <div class="field-half"><label>依頼元企業</label><input type="text" maxlength="50"></div>
+            <div class="field-half"><label>購買担当者</label><input type="text" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <!-- ACCEPTANCE_APPROVAL.COMP_EPF_LB_005 / SUPPLIER_SEARCH_ESTIMATE.LB_005 -->
+            <div class="field-half"><label>依頼部署</label><input type="text" maxlength="50"></div>
+            <div class="field-half"><label>依頼者名</label><input type="text" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <!-- APPROVER_INFO_CHANGE_INPUT.ANKEN_NAME_HEADER / ANKEN_NUMBER_HEADER -->
+            <div class="field-half"><label>案件名</label><input type="text" id="qEstimateName" maxlength="50"></div>
+            <div class="field-half"><label>案件番号</label><input type="text" id="qEstimateNo" maxlength="50"></div>
+          </div>
+          <div class="field-row">
+            <!-- OPPORTUNITY_LIST_ACCEPTANCE.COMP_IS_LB_028 希望金額 ¥〜¥ -->
+            <div class="field-half" style="flex-wrap: wrap;">
+              <label>希望金額</label>
+              <div class="amount-range">
+                <span>¥</span><input type="text" id="amountFrom" maxlength="15">
+                <span style="white-space:nowrap;">～¥</span><input type="text" id="amountTo" maxlength="15">
+              </div>
+              <!-- SUPPLIER_SEARCH_ESTIMATE.LB_009 -->
+              <div class="field-error-msg" id="amountError">金額の範囲に誤りがあります。</div>
+            </div>
+            <!-- SUPPLIER_SEARCH_ESTIMATE.LB_012 回答金額 ¥〜¥ -->
+            <div class="field-half" style="flex-wrap: wrap;">
+              <label>回答金額</label>
+              <div class="amount-range">
+                <span>¥</span><input type="text" id="answerPriceFrom" maxlength="15">
+                <span style="white-space:nowrap;">～¥</span><input type="text" id="answerPriceTo" maxlength="15">
+              </div>
+              <div class="field-error-msg" id="answerPriceError">金額の範囲に誤りがあります。</div>
+            </div>
+          </div>
+          <div class="field-row">
+            <!-- select 区分ngày: SUPPLIER_ITEM_ESTIMATE.LB_009 依頼日 / ESTIMATE_SUPPLIER_ANSWER_SHOW.LB_002 ご回答期限 -->
+            <div class="field-half" style="flex-wrap: wrap;">
+              <select style="width:150px;flex:none;" id="dateDivision">
+                <option value="1">依頼日</option>
+                <option value="2">ご回答期限</option>
+              </select>
+              <div class="date-range">
+                <input type="text" id="dateFrom" value="2026-01-09">
+                <span>～</span>
+                <input type="text" id="dateTo" placeholder="YYYY-MM-DD">
+                <button type="button" class="reset-date" id="resetDateBtn" title="日付クリア">✕</button>
+              </div>
+              <!-- SUPPLIER_PAYMENT_MANAGEMENT.LB_007 -->
+              <div class="field-error-msg" id="dateError">日付の範囲に誤りがあります。</div>
+            </div>
+            <!-- POPUP_RELATED_SEARCH.LB_001 区分: 事後(COMP_ED_LB_072) / 緊急(COMP_ED_LB_073) -->
+            <div class="field-half">
+              <label>区分</label>
+              <label class="chk" style="font-size:.9rem;display:inline-flex;align-items:center;gap:6px;margin-right:1.4rem;"><input type="checkbox" style="width:16px;height:16px;accent-color:#4169e1;">事後</label>
+              <label class="chk" style="font-size:.9rem;display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" style="width:16px;height:16px;accent-color:#4169e1;">緊急</label>
+            </div>
+          </div>
+          <div class="field-row">
+            <!-- APPROVAL_COMPLETION.COMP_ED_LB_024 / SUPPLIER_SEARCH_ORDER.CB_ATTACH_FILE -->
+            <div class="field-half"><label>連絡事項</label><input type="text" maxlength="50"></div>
+            <div class="field-half">
+              <label class="chk" style="font-size:.9rem;display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" style="width:16px;height:16px;accent-color:#4169e1;">添付ファイルあり</label>
+            </div>
+          </div>
+          <div class="field-row">
+            <!-- ESTIMATE_SUPPLIER_ANSWER_SHOW.LB_004 (screenComponent=SUPPLIER_SEARCH_ESTIMATE → nhãn 見積番号) -->
+            <div class="field-half"><label>見積番号</label><input type="text" maxlength="50"></div>
+            <div class="field-half"></div>
+          </div>
+        </div>
+
+        <!-- ステータス (PAYMENT_PLAN_CONFIRM.B3_STATUS_PAYMENT) — LUÔN hiển thị ngoài collapse.
+             Màn すべて hiện đủ 4: 回答前(BEFORE_ANSWER)/回答済み(ANSWERED)/再見積(LB_026)/辞退(COMP_ED_LB_059) -->
+        <div class="status-row">
+          <label>ステータス</label>
+          <div class="status-checks">
+            <div class="chk-line">
+              <label class="chk"><input type="checkbox" class="st-chk" value="回答前">回答前</label>
+              <label class="chk"><input type="checkbox" class="st-chk" value="回答済み">回答済み</label>
+              <label class="chk"><input type="checkbox" class="st-chk" value="再見積">再見積</label>
+              <label class="chk"><input type="checkbox" class="st-chk" value="辞退">辞退</label>
+            </div>
+          </div>
+        </div>
+        <!-- SUPPLIER_SEARCH_ESTIMATE.VALID_ANSWER — mặc định CHECKED trên màn すべて (DEV-863) -->
+        <div class="valid-answer-row">
+          <label>見積有効期限内のみ</label>
+          <input type="checkbox" id="validAnswerChk" checked>
+        </div>
+        <hr class="sep">
+
+        <div class="search-buttons">
+          <!-- ANTI_COMPANY_JUDGMENT.BTN_001 / SUPPLIER_PAYMENT_MANAGEMENT.BTN_002 -->
+          <button type="submit" class="btn-search-submit">🔍　検索</button>
+          <button type="button" class="btn-search-reset" id="resetBtn"><span class="ico">↺</span>　クリアする</button>
+          <!-- SUPPLIER_PAYMENT_MANAGEMENT_DETAIL.BTN_001 (ExportButton) -->
+          <button type="button" class="btn-export" data-nav="Excelダウンロード（exportExcelEstimateSupplierAll API）"><span class="ico">⬇</span>　明細ダウンロード</button>
+        </div>
+      </form>
+
+      <!-- ===== Pagination trên (Pagination.vue: notChangeItemPerPage + notSort →
+           KHÔNG có select N件表示 / sort — khác màn buyer, theo đúng All.vue) ===== -->
+      <div class="wrapper-pagination">
+        <div class="pagination-left">
+          <!-- ESTIMATE_APPROVAL.COMP_TACP_LB_002=全 / MASTER_SETTING.CASE=件 -->
+          <div id="pageCountLabel">1 - 20 / 全20件</div>
+        </div>
+        <ul class="pagination-pages" id="paginationPages">
+          <li class="active"><span>1</span></li>
+        </ul>
+      </div>
+
+      <!-- ===== Danh sách案件 (ItemSkeleton.vue supplier estimate) ===== -->
+      <div class="wrapper-main-items" id="itemList">
+
+        <!-- ======== Card 1: 回答前 — MỞ SẴN 明細 (case điển hình nhất) ======== -->
+        <div class="anken-card" data-status="回答前" data-name="緩衝材購入" data-no="QDEMO2607000022">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <!-- OrderClassification.3=見積購買 viền #3333FF -->
+              <span class="badge-order-type estimate">見積購買</span>
+              <!-- SUPPLIER_ITEM_ESTIMATE.LB_001 -->
+              <span class="anken-no">案件番号：QDEMO2607000022</span>
+            </div>
+            <div class="anken-header-right">
+              <!-- AnswerStatus.2=回答前 #ff33cc（supplier item KHÔNG có chữ ステータス： — theo ItemSkeleton.vue） -->
+              <span class="status-badge st-before-answer">回答前</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <!-- SUPPLIER_ITEM_ESTIMATE.LB_002 案件名： -->
+              <div class="anken-title">案件名：緩衝材購入</div>
+              <div>
+                <!-- APPROVAL_COMPLETION.COMP_AF_LB_001 依頼者　： (tooltip TEL/Email trong app thật) -->
+                <div class="info-line"><label>依頼者　：</label><span>ジーニーソリューションズ株式会社　本社 総務部　<a href="#" data-nav="依頼者の連絡先ツールチップ（会社コード/TEL/Email）">依頼裕三</a></span></div>
+                <!-- SUPPLIER_ITEM_ESTIMATE.LB_008 購買担当： -->
+                <div class="info-line"><label>購買担当：</label><span>ジーニーソリューションズ株式会社　購買部門　<a href="#" data-nav="購買担当者の連絡先ツールチップ（会社コード/TEL/Email）">佐藤花子</a></span></div>
+              </div>
+            </div>
+            <div class="anken-body-right">
+              <!-- OPPORTUNITY_LIST_ACCEPTANCE.COMP_IS_LB_028 希望金額 (label 160px viền phải — theo ItemSkeleton) -->
+              <div class="amount-line"><label>希望金額</label><span class="val">¥0</span></div>
+            </div>
+          </div>
+
+          <!-- 明細 (All.vue) — mở sẵn -->
+          <div class="anken-detail open">
+            <!-- Card 依頼内容 (OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_081); status 2/5 → nút 見積回答/見積辞退 trên header -->
+            <div class="detail-section">
+              <div class="detail-section-header">
+                <span>依頼内容</span>
+                <span>
+                  <!-- ESTIMATE_SUPPLIER_BEFORE_ANSWER.BTN_002 / BTN_003 -->
+                  <button type="button" class="btn-card-light" data-nav="見積回答入力画面（eProcurement_EstimateSupplier_EstimateAnswerInput）">見積回答</button>
+                  <button type="button" class="btn-card-light" data-nav="見積辞退画面（eProcurement_EstimateSupplier_EstimateAnswerRefuse）">見積辞退</button>
+                </span>
+              </div>
+              <div class="detail-section-body">
+                <table>
+                  <!-- ESTIMATE_SUPPLIER_ANSWER_SHOW.LB_002 -->
+                  <tr><th>ご回答期限</th><td>2026-07-31</td></tr>
+                  <!-- Estimate_Template_Product.valueInspectionCompletionDate + 納品後(LABEL_001)N営業日以内(LB_AUTO_E_018) -->
+                  <tr><th>検査完了期日</th><td>納品後10営業日以内</td></tr>
+                  <!-- MASTER_SETTING.LB_PAYMENT -->
+                  <tr><th>支払サイト</th><td>月末締め翌月末払い</td></tr>
+                  <!-- ESTIMATE_SUPPLIER_ANSWER_SHOW.LB_004 -->
+                  <tr><th>見積番号</th><td></td></tr>
+                  <!-- OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_094 サプライヤ向け + APPROVAL_COMPLETION.COMP_ED_LB_024 連絡事項 -->
+                  <tr><th>サプライヤ向け<br>連絡事項</th><td>至急の案件です。7月中旬までに納品可能な場合は納期もあわせてご回答ください。<br><a href="#" data-nav="添付ファイルダウンロード（getDownloadFileLink）">緩衝材_仕様メモ.pdf [86.2 KB]</a></td></tr>
+                </table>
+
+                <!-- MASTER_SETTING.LB_DELIVERY + groupNo / PAYMENT_PLAN_CONFIRM.B3_SECTION 明細 -->
+                <div class="detail-sub-title" style="font-size:1.05rem;">納品先1</div>
+                <div class="detail-sub-title">明細01</div>
+                <!-- Bảng theo template thông thường của Detail.vue (nội dung cột động theo thiết lập buyer — demo template chuẩn) -->
+                <table>
+                  <tr>
+                    <th>品名</th><td style="width:24%;">緩衝材</td>
+                    <th>カテゴリ</th><td colspan="3">(大) 資材運搬、調整および貯蔵用機械、付属品および供給品 – (中) こん包供給品 – (小) 緩衝材</td>
+                  </tr>
+                  <tr><th>メーカー品番</th><td colspan="5"></td></tr>
+                  <tr><th>規格・仕様</th><td colspan="5">プチプチ　幅600mm×全長42m</td></tr>
+                  <tr>
+                    <th>メーカー</th><td></td>
+                    <th>数量</th><td class="num">20</td>
+                    <th>単位</th><td>ロール</td>
+                  </tr>
+                  <tr><th>希望納品日</th><td colspan="5">2026-07-17</td></tr>
+                </table>
+                <table>
+                  <tr><th>納品先</th><td>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三<br>〒100-0004 東京都千代田区大手町1-2-3　ジーニービル8F</td></tr>
+                </table>
+
+                <!-- status 2/5 → lặp lại nút answer ở cuối card (All.vue text-center) -->
+                <div class="card-actions-center">
+                  <button type="button" class="btn-card-light" style="margin-right:.6rem;" data-nav="見積回答入力画面（eProcurement_EstimateSupplier_EstimateAnswerInput）">見積回答</button>
+                  <button type="button" class="btn-card-light" data-nav="見積辞退画面（eProcurement_EstimateSupplier_EstimateAnswerRefuse）">見積辞退</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card やり取り (ESTIMATE_SUPPLIER_AFTER_ANSWER.INTERACTION_PURCHASER_LB) — 0件: COMP_ED_LB_037 -->
+            <div class="detail-section">
+              <div class="detail-section-header"><span>購買担当者とのやり取り</span></div>
+              <div class="detail-section-body">
+                <div class="comment-list"><div class="no-comment">データがありません</div></div>
+              </div>
+            </div>
+
+            <!-- Card コメント追加 (AnswerComment.vue) — thao tác THẬT: đăng ký → thêm vào list やり取り -->
+            <div class="detail-section comment-form">
+              <div class="detail-section-header"><span>ご担当者さまへのコメントを追加する</span></div>
+              <div class="detail-section-body">
+                <label>
+                  <strong>ご担当者さまへのコメント</strong>
+                  <!-- COMMON_MULTI_LANG.COMP_AC_LB_002 必須 / ACCEPTANCE_APPROVAL.COMP_IS_LB_026 -->
+                  <span class="chip-required">必須</span><span class="maxlength-note">1000文字以内</span>
+                </label>
+                <textarea rows="4" maxlength="1000" class="cm-input"></textarea>
+                <!-- MASTER_SETTING.LB_REQUIRED -->
+                <div class="err cm-err">必須項目です。</div>
+                <div class="file-attach-note"><a href="#" data-nav="添付ファイル選択（InputFile — ファイル選択ダイアログ）">＋ ファイルを添付</a></div>
+                <div class="card-actions-center">
+                  <!-- ESTIMATE_SUPPLIER_AFTER_ANSWER.ADD_COMMENT_LB -->
+                  <button type="button" class="btn-card-light cm-submit">コメントを追加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bar 明細を開く/閉じる (APPROVER_CONTRACT_TAB.BTN_OPEN/CLOSE_STATEMENT — màn 見積 KHÔNG có ｜N件) -->
+          <div class="collapse-line"><button type="button" class="toggle-detail">∧　明細を閉じる</button></div>
+        </div>
+
+        <!-- ======== Card 2: 回答済み — có 回答金額 ======== -->
+        <div class="anken-card" data-status="回答済み" data-name="ノートPC 20台購入" data-no="QDEMO2607000015">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-order-type estimate">見積購買</span>
+              <span class="anken-no">案件番号：QDEMO2607000015</span>
+            </div>
+            <div class="anken-header-right">
+              <span class="status-badge st-answered">回答済み</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">案件名：ノートPC 20台購入</div>
+              <div>
+                <div class="info-line"><label>依頼者　：</label><span>ジーニーソリューションズ株式会社　本社 総務部　<a href="#" data-nav="依頼者の連絡先ツールチップ">依頼裕三</a></span></div>
+                <div class="info-line"><label>購買担当：</label><span>ジーニーソリューションズ株式会社　購買部門　<a href="#" data-nav="購買担当者の連絡先ツールチップ">佐藤花子</a></span></div>
+              </div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>希望金額</label><span class="val">¥2,400,000</span></div>
+              <!-- answerStatusCode==3 → 回答金額 (SUPPLIER_SEARCH_ESTIMATE.LB_012) = totalAmountWithoutTax -->
+              <div class="amount-line"><label>回答金額</label><span class="val">¥2,310,000</span></div>
+            </div>
+          </div>
+
+          <!-- 明細 (đóng mặc định) — demo card やり取り >3 comment → もっと見る/戻る -->
+          <div class="anken-detail">
+            <div class="detail-section">
+              <div class="detail-section-header"><span>依頼内容</span></div>
+              <div class="detail-section-body">
+                <table>
+                  <tr><th>ご回答期限</th><td>2026-07-10</td></tr>
+                  <tr><th>検査完了期日</th><td>検査なし</td></tr>
+                  <tr><th>支払サイト</th><td>月末締め翌月末払い</td></tr>
+                  <!-- 見積番号 = supplierEstimateNo (số báo giá bên NSK phát hành — đề xuất format NSK-E-…) -->
+                  <tr><th>見積番号</th><td>NSK-E-26070012</td></tr>
+                  <tr><th>サプライヤ向け<br>連絡事項</th><td>同等スペックの代替機での提案も可とします。</td></tr>
+                </table>
+                <div class="detail-sub-title" style="font-size:1.05rem;">納品先1</div>
+                <div class="detail-sub-title">明細01</div>
+                <table>
+                  <tr>
+                    <th>品名</th><td style="width:24%;">ノートPC</td>
+                    <th>カテゴリ</th><td colspan="3">(大) 情報技術放送および電気通信 – (中) コンピュータ装置 – (小) ノートブックコンピュータ</td>
+                  </tr>
+                  <tr><th>メーカー品番</th><td colspan="5">NB-2026-14JP</td></tr>
+                  <tr><th>規格・仕様</th><td colspan="5">14インチ / メモリ32GB / SSD1TB / 日本語キーボード</td></tr>
+                  <tr>
+                    <th>メーカー</th><td>NSKコンピュータ</td>
+                    <th>数量</th><td class="num">20</td>
+                    <th>単位</th><td>台</td>
+                  </tr>
+                  <tr><th>希望納品日</th><td colspan="5">2026-07-31</td></tr>
+                </table>
+                <table>
+                  <tr><th>納品先</th><td>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三<br>〒100-0004 東京都千代田区大手町1-2-3　ジーニービル8F</td></tr>
+                </table>
+              </div>
+            </div>
+
+            <!-- やり取り 4件 → 3件 + もっと見る (All.vue isOpenComment) -->
+            <div class="detail-section">
+              <div class="detail-section-header"><span>購買担当者とのやり取り</span></div>
+              <div class="detail-section-body">
+                <div class="comment-list">
+                  <div class="comment-item">
+                    <div class="comment-who"><span class="c-ico">👤</span><span>購買部門　佐藤花子<br>　　2026-07-03 10:12:44</span></div>
+                    <div class="comment-body">納期を7月末より前倒しできる場合はご連絡ください。</div>
+                  </div>
+                  <div class="comment-item">
+                    <div class="comment-who"><span class="c-ico">👤</span><span>株式会社NSKシステムズ<br>　　2026-07-03 15:40:02</span></div>
+                    <div class="comment-body">在庫確認のうえ、7/24納品で調整可能です。見積回答に反映済みです。</div>
+                  </div>
+                  <div class="comment-item">
+                    <div class="comment-who"><span class="c-ico">👤</span><span>購買部門　佐藤花子<br>　　2026-07-04 09:05:31</span></div>
+                    <div class="comment-body">ありがとうございます。社内確認のうえ改めてご連絡します。</div>
+                  </div>
+                  <div class="comment-hidden">
+                    <div class="comment-item">
+                      <div class="comment-who"><span class="c-ico">👤</span><span>株式会社NSKシステムズ<br>　　2026-07-06 11:22:10</span></div>
+                      <div class="comment-body">保守オプションの見積書を添付いたします。<br>NB-2026_保守オプション見積.pdf [212.4 KB]</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- MASTER_SETTING.PRODUCT_CATEGORY_LB_016 もっと見る / APPLICANT_NEW_SUPPLIER.BTN_001 戻る -->
+                <div class="comment-more">
+                  <a class="more-link">▾&nbsp;もっと見る</a>
+                  <a class="less-link" style="display:none;">▴&nbsp;戻る</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section comment-form">
+              <div class="detail-section-header"><span>ご担当者さまへのコメントを追加する</span></div>
+              <div class="detail-section-body">
+                <label><strong>ご担当者さまへのコメント</strong><span class="chip-required">必須</span><span class="maxlength-note">1000文字以内</span></label>
+                <textarea rows="4" maxlength="1000" class="cm-input"></textarea>
+                <div class="err cm-err">必須項目です。</div>
+                <div class="file-attach-note"><a href="#" data-nav="添付ファイル選択（InputFile — ファイル選択ダイアログ）">＋ ファイルを添付</a></div>
+                <div class="card-actions-center">
+                  <button type="button" class="btn-card-light cm-submit">コメントを追加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="collapse-line"><button type="button" class="toggle-detail">∨　明細を開く</button></div>
+        </div>
+
+        <!-- ======== Card 3: 再見積 + nhãn 緊急 — case 回答期限切れ → nút DISABLED ======== -->
+        <div class="anken-card" data-status="再見積" data-name="会議室モニター設置工事" data-no="QDEMO2606000340">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-order-type estimate">見積購買</span>
+              <span class="anken-no">案件番号：QDEMO2606000340</span>
+            </div>
+            <div class="anken-header-right">
+              <span class="status-badge st-re-estimate">再見積</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <!-- opportunityClassType=2 → nhãn 緊急 (OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_073, red-highlight #e74c3c) -->
+              <div class="anken-title">案件名：会議室モニター設置工事<span class="tag-label tag-red">緊急</span></div>
+              <div>
+                <div class="info-line"><label>依頼者　：</label><span>ジーニーソリューションズ株式会社　本社 総務部　<a href="#" data-nav="依頼者の連絡先ツールチップ">依頼裕三</a></span></div>
+                <div class="info-line"><label>購買担当：</label><span>ジーニーソリューションズ株式会社　購買部門　<a href="#" data-nav="購買担当者の連絡先ツールチップ">佐藤花子</a></span></div>
+              </div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>希望金額</label><span class="val">¥850,000</span></div>
+            </div>
+          </div>
+
+          <div class="anken-detail">
+            <div class="detail-section">
+              <div class="detail-section-header">
+                <span>依頼内容</span>
+                <span>
+                  <!-- :disabled="!isValidAnswer" — hết hạn回答 → disabled + title ghi điều kiện -->
+                  <button type="button" class="btn-card-light" disabled title="※回答期限を過ぎているため操作できません">見積回答</button>
+                  <button type="button" class="btn-card-light" disabled title="※回答期限を過ぎているため操作できません">見積辞退</button>
+                </span>
+              </div>
+              <div class="detail-section-body">
+                <!-- ESTIMATE_SUPPLIER_BEFORE_ANSWER.LB_002 (h5 đỏ, text-end — !isValidAnswer) -->
+                <div style="text-align:right;font-weight:bold;" class="color-red">回答期限を過ぎています</div>
+                <table style="margin-top:.6rem;">
+                  <tr><th>ご回答期限</th><td>2026-07-05</td></tr>
+                  <tr><th>支払サイト</th><td>月末締め翌々月10日払い</td></tr>
+                  <tr><th>見積番号</th><td>NSK-E-26060087</td></tr>
+                  <tr><th>サプライヤ向け<br>連絡事項</th><td>初回見積から設置台数が5→8台に変更となったため再見積を依頼します。</td></tr>
+                </table>
+                <div class="detail-sub-title" style="font-size:1.05rem;">納品先1</div>
+                <div class="detail-sub-title">明細01</div>
+                <table>
+                  <tr>
+                    <th>品名</th><td style="width:24%;">会議室モニター設置工事</td>
+                    <th>カテゴリ</th><td colspan="3">(大) 建築および建設および保守サービス – (中) 専門的建造サービス</td>
+                  </tr>
+                  <tr><th>規格・仕様</th><td colspan="5">65インチモニター 8台　壁面固定・配線工事含む</td></tr>
+                  <tr>
+                    <th>メーカー</th><td></td>
+                    <th>数量</th><td class="num">1</td>
+                    <th>単位</th><td>式</td>
+                  </tr>
+                  <tr><th>希望納品日</th><td colspan="5">2026-07-22</td></tr>
+                </table>
+                <div class="card-actions-center">
+                  <div class="note color-red">回答期限を過ぎています</div>
+                  <button type="button" class="btn-card-light" style="margin-right:.6rem;" disabled title="※回答期限を過ぎているため操作できません">見積回答</button>
+                  <button type="button" class="btn-card-light" disabled title="※回答期限を過ぎているため操作できません">見積辞退</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-section-header"><span>購買担当者とのやり取り</span></div>
+              <div class="detail-section-body">
+                <div class="comment-list">
+                  <div class="comment-item">
+                    <div class="comment-who"><span class="c-ico">👤</span><span>購買部門　佐藤花子<br>　　2026-07-01 17:20:18</span></div>
+                    <div class="comment-body">台数変更に伴う再見積です。お手数ですが期限内のご回答をお願いします。</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section comment-form">
+              <div class="detail-section-header"><span>ご担当者さまへのコメントを追加する</span></div>
+              <div class="detail-section-body">
+                <label><strong>ご担当者さまへのコメント</strong><span class="chip-required">必須</span><span class="maxlength-note">1000文字以内</span></label>
+                <textarea rows="4" maxlength="1000" class="cm-input"></textarea>
+                <div class="err cm-err">必須項目です。</div>
+                <div class="file-attach-note"><a href="#" data-nav="添付ファイル選択（InputFile — ファイル選択ダイアログ）">＋ ファイルを添付</a></div>
+                <div class="card-actions-center">
+                  <button type="button" class="btn-card-light cm-submit">コメントを追加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="collapse-line"><button type="button" class="toggle-detail">∨　明細を開く</button></div>
+        </div>
+
+        <!-- ======== Card 4: 辞退 — đóng ======== -->
+        <div class="anken-card" data-status="辞退" data-name="事務用チェア 50脚" data-no="QDEMO2605000287">
+          <div class="anken-header-row">
+            <div class="anken-header-left">
+              <span class="badge-order-type estimate">見積購買</span>
+              <span class="anken-no">案件番号：QDEMO2605000287</span>
+            </div>
+            <div class="anken-header-right">
+              <span class="status-badge st-refused">辞退</span>
+            </div>
+          </div>
+          <hr class="anken-hr">
+          <div class="anken-body-row">
+            <div class="anken-body-left">
+              <div class="anken-title">案件名：事務用チェア 50脚</div>
+              <div>
+                <div class="info-line"><label>依頼者　：</label><span>ジーニーソリューションズ株式会社　本社 総務部　<a href="#" data-nav="依頼者の連絡先ツールチップ">依頼裕三</a></span></div>
+                <div class="info-line"><label>購買担当：</label><span>ジーニーソリューションズ株式会社　購買部門　<a href="#" data-nav="購買担当者の連絡先ツールチップ">佐藤花子</a></span></div>
+              </div>
+            </div>
+            <div class="anken-body-right">
+              <div class="amount-line"><label>希望金額</label><span class="val">¥1,100,000</span></div>
+            </div>
+          </div>
+
+          <div class="anken-detail">
+            <div class="detail-section">
+              <div class="detail-section-header"><span>依頼内容</span></div>
+              <div class="detail-section-body">
+                <table>
+                  <tr><th>ご回答期限</th><td>2026-05-30</td></tr>
+                  <tr><th>支払サイト</th><td>月末締め翌月末払い</td></tr>
+                  <tr><th>見積番号</th><td></td></tr>
+                  <tr><th>サプライヤ向け<br>連絡事項</th><td></td></tr>
+                </table>
+                <div class="detail-sub-title" style="font-size:1.05rem;">納品先1</div>
+                <div class="detail-sub-title">明細01</div>
+                <table>
+                  <tr>
+                    <th>品名</th><td style="width:24%;">事務用チェア</td>
+                    <th>カテゴリ</th><td colspan="3">(大) 家具および調度品 – (中) 事務用家具 – (小) 椅子</td>
+                  </tr>
+                  <tr><th>規格・仕様</th><td colspan="5">ハイバック・肘掛け付き・キャスター付き</td></tr>
+                  <tr>
+                    <th>メーカー</th><td></td>
+                    <th>数量</th><td class="num">50</td>
+                    <th>単位</th><td>脚</td>
+                  </tr>
+                </table>
+                <table>
+                  <tr><th>納品先</th><td>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三<br>〒100-0004 東京都千代田区大手町1-2-3　ジーニービル8F</td></tr>
+                </table>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-section-header"><span>購買担当者とのやり取り</span></div>
+              <div class="detail-section-body">
+                <div class="comment-list">
+                  <div class="comment-item">
+                    <div class="comment-who"><span class="c-ico">👤</span><span>株式会社NSKシステムズ<br>　　2026-05-25 14:03:56</span></div>
+                    <div class="comment-body">当該品目は現在取り扱いを終了しているため、誠に恐れ入りますが辞退いたします。</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section comment-form">
+              <div class="detail-section-header"><span>ご担当者さまへのコメントを追加する</span></div>
+              <div class="detail-section-body">
+                <label><strong>ご担当者さまへのコメント</strong><span class="chip-required">必須</span><span class="maxlength-note">1000文字以内</span></label>
+                <textarea rows="4" maxlength="1000" class="cm-input"></textarea>
+                <div class="err cm-err">必須項目です。</div>
+                <div class="file-attach-note"><a href="#" data-nav="添付ファイル選択（InputFile — ファイル選択ダイアログ）">＋ ファイルを添付</a></div>
+                <div class="card-actions-center">
+                  <button type="button" class="btn-card-light cm-submit">コメントを追加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="collapse-line"><button type="button" class="toggle-detail">∨　明細を開く</button></div>
+        </div>
+
+      </div>
+
+      <!-- Thông báo khi lọc không có kết quả (ANTI_COMPANY_JUDGMENT.LB_008) -->
+      <div id="emptyMessage" style="display:none; text-align:center; padding:3rem 0;">検索結果がありません。 検索条件を入力し直してから「検索」ボタンを押してください。</div>
+
+      <!-- ===== Pagination dưới (lặp lại ở CUỐI trang — Pagination.vue thứ 2 trong All.vue) ===== -->
+      <div class="wrapper-pagination">
+        <div class="pagination-left">
+          <div id="pageCountLabelBottom">1 - 20 / 全20件</div>
+        </div>
+        <ul class="pagination-pages">
+          <li class="active"><span>1</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+JienieLayout.init();
+JienieDatepicker.init('#dateFrom, #dateTo');
+(function () {
+  var toast = JienieLayout.toast;
+
+  // ---- couple button and検索/or検索 (CoupleButton.vue) ----
+  document.querySelectorAll('.couple-btn').forEach(function (grp) {
+    grp.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        grp.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  // ---- 詳細条件を追加/省略 (CollapseSearchOption.vue) ----
+  var collapseToggle = document.getElementById('searchCollapseToggle');
+  var searchOptions = document.getElementById('searchOptions');
+  collapseToggle.addEventListener('click', function () {
+    var open = searchOptions.classList.toggle('show');
+    collapseToggle.classList.toggle('open', open);
+    collapseToggle.querySelector('.toggle-text').textContent = open ? '詳細条件を省略' : '詳細条件を追加';
+  });
+
+  // ---- 日付クリア (resetDate trong SearchSkeleton.vue: From về mặc định kỳ, To rỗng) ----
+  var dateFrom = document.getElementById('dateFrom');
+  var dateTo = document.getElementById('dateTo');
+  var DATE_FROM_DEFAULT = '2026-01-09'; // demo: startPeriodMonthDefault=6 tháng trước hôm nay
+  document.getElementById('resetDateBtn').addEventListener('click', function () {
+    dateFrom.value = DATE_FROM_DEFAULT;
+    dateTo.value = '';
+    clearError(dateFrom); clearError(dateTo);
+    document.getElementById('dateError').classList.remove('show');
+  });
+
+  // ---- Validate (vuelidate: smallerOrEqual/largerOrEqual/dateFormat) ----
+  function setError(inp) { inp.classList.add('has-error'); }
+  function clearError(inp) { inp.classList.remove('has-error'); }
+  function numVal(inp) {
+    var v = (inp.value || '').replace(/,/g, '').trim();
+    return v === '' ? null : Number(v);
+  }
+  function validateRange(fromInp, toInp, errEl) {
+    var f = numVal(fromInp), t = numVal(toInp);
+    var bad = f !== null && t !== null && !isNaN(f) && !isNaN(t) && f > t;
+    fromInp.classList.toggle('has-error', bad);
+    toInp.classList.toggle('has-error', bad);
+    errEl.classList.toggle('show', bad);
+    return !bad;
+  }
+  function validateDates() {
+    var errEl = document.getElementById('dateError');
+    var f = dateFrom.value.trim(), t = dateTo.value.trim();
+    var re = /^\d{4}-\d{2}-\d{2}$/;
+    var bad = false;
+    if (f && !re.test(f)) bad = true;
+    if (t && !re.test(t)) bad = true;
+    if (!bad && f && t && f > t) bad = true;
+    dateFrom.classList.toggle('has-error', bad);
+    dateTo.classList.toggle('has-error', bad);
+    errEl.classList.toggle('show', bad);
+    return !bad;
+  }
+
+  // ---- 検索: validate rồi LỌC THẬT các card demo (keyword 案件名/案件番号 + ステータス) ----
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#itemList .anken-card'));
+  function applyFilter() {
+    var kw = document.getElementById('kwInput').value.trim();
+    var name = document.getElementById('qEstimateName').value.trim();
+    var no = document.getElementById('qEstimateNo').value.trim();
+    var sts = Array.prototype.slice.call(document.querySelectorAll('.st-chk'))
+      .filter(function (c) { return c.checked; })
+      .map(function (c) { return c.value; });
+    var visible = 0;
+    cards.forEach(function (card) {
+      var ok = true;
+      var cName = card.getAttribute('data-name');
+      var cNo = card.getAttribute('data-no');
+      var cSt = card.getAttribute('data-status');
+      if (kw && cName.indexOf(kw) < 0 && cNo.indexOf(kw) < 0) ok = false;
+      if (name && cName.indexOf(name) < 0) ok = false;
+      if (no && cNo.indexOf(no) < 0) ok = false;
+      if (sts.length > 0 && sts.indexOf(cSt) < 0) ok = false;
+      card.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+    // Demo: lọc trên 4 card mẫu — cập nhật lại số 件 (trang thật lấy từ API pagination)
+    var isDefault = !kw && !name && !no && sts.length === 0;
+    var label = isDefault ? '1 - 20 / 全20件' : (visible > 0 ? '1 - ' + visible + ' / 全' + visible + '件' : '');
+    document.getElementById('pageCountLabel').textContent = label;
+    document.getElementById('pageCountLabelBottom').textContent = label;
+    document.getElementById('emptyMessage').style.display = visible === 0 ? 'block' : 'none';
+    document.querySelectorAll('.wrapper-pagination').forEach(function (p) {
+      p.style.display = visible === 0 ? 'none' : '';
+    });
+  }
+  document.getElementById('searchForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var ok1 = validateRange(document.getElementById('amountFrom'), document.getElementById('amountTo'), document.getElementById('amountError'));
+    var ok2 = validateRange(document.getElementById('answerPriceFrom'), document.getElementById('answerPriceTo'), document.getElementById('answerPriceError'));
+    var ok3 = validateDates();
+    if (!(ok1 && ok2 && ok3)) return;
+    applyFilter();
+  });
+  // gõ lại thì xoá lỗi
+  ['amountFrom','amountTo','answerPriceFrom','answerPriceTo'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', function () {
+      clearError(this);
+      document.getElementById(id.indexOf('answer') === 0 ? 'answerPriceError' : 'amountError').classList.remove('show');
+    });
+  });
+  [dateFrom, dateTo].forEach(function (inp) {
+    inp.addEventListener('input', function () {
+      clearError(dateFrom); clearError(dateTo);
+      document.getElementById('dateError').classList.remove('show');
+    });
+  });
+
+  // ---- クリアする (reset — giữ validAnswer=true theo màn すべて DEV-863) ----
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    var form = document.getElementById('searchForm');
+    form.querySelectorAll('input[type="text"]').forEach(function (i) { i.value = ''; i.classList.remove('has-error'); });
+    form.querySelectorAll('input[type="checkbox"]').forEach(function (c) { c.checked = false; });
+    document.getElementById('validAnswerChk').checked = true;
+    dateFrom.value = DATE_FROM_DEFAULT;
+    document.getElementById('dateDivision').value = '1';
+    form.querySelectorAll('.field-error-msg').forEach(function (m) { m.classList.remove('show'); });
+    applyFilter();
+  });
+
+  // ---- 明細を開く/閉じる từng card (toggleDetail trong ItemSkeleton.vue) ----
+  document.querySelectorAll('.toggle-detail').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var card = btn.closest('.anken-card');
+      var detail = card.querySelector('.anken-detail');
+      var open = detail.classList.toggle('open');
+      btn.textContent = open ? '∧　明細を閉じる' : '∨　明細を開く';
+    });
+  });
+
+  // ---- やり取り もっと見る/戻る (isOpenComment) ----
+  document.querySelectorAll('.comment-more').forEach(function (box) {
+    var more = box.querySelector('.more-link');
+    var less = box.querySelector('.less-link');
+    var hidden = box.closest('.detail-section-body').querySelector('.comment-hidden');
+    more.addEventListener('click', function () {
+      hidden.classList.add('show');
+      more.style.display = 'none'; less.style.display = 'inline';
+    });
+    less.addEventListener('click', function () {
+      hidden.classList.remove('show');
+      less.style.display = 'none'; more.style.display = 'inline';
+    });
+  });
+
+  // ---- コメントを追加 (AnswerComment.vue): required → thêm THẬT vào list やり取り + toast ----
+  function nowStr() {
+    var d = new Date();
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  document.querySelectorAll('.comment-form').forEach(function (formSec) {
+    var input = formSec.querySelector('.cm-input');
+    var err = formSec.querySelector('.cm-err');
+    formSec.querySelector('.cm-submit').addEventListener('click', function () {
+      var val = input.value.trim();
+      if (!val) {
+        input.classList.add('has-error');
+        err.classList.add('show');
+        return;
+      }
+      // Thêm comment vào card やり取り phía trên (isSupplierComment=true → tên công ty supplier)
+      var card = formSec.closest('.anken-detail');
+      var list = card.querySelectorAll('.comment-list');
+      var target = list[list.length - 1];
+      var noData = target.querySelector('.no-comment');
+      if (noData) noData.remove();
+      var item = document.createElement('div');
+      item.className = 'comment-item';
+      item.innerHTML = '<div class="comment-who"><span class="c-ico">👤</span><span>株式会社NSKシステムズ<br>　　' + nowStr() + '</span></div>' +
+        '<div class="comment-body"></div>';
+      item.querySelector('.comment-body').textContent = val;
+      target.appendChild(item);
+      input.value = '';
+      input.classList.remove('has-error');
+      err.classList.remove('show');
+      // ESTIMATE_SUPPLIER_AFTER_ANSWER.ADDED_COMMENT_MSG ($successMessage)
+      toast('コメントが追加されました。');
+    });
+    input.addEventListener('input', function () {
+      input.classList.remove('has-error');
+      err.classList.remove('show');
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

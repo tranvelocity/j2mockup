@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-005 RFP作成・送信画面（Phase 2・拡張版／回答フォーマットカスタマイズ） — Buyer Portal / RFXモジュール
+  Nguồn yêu cầu (theo tài liệu):
+    - 02_要件定義書.md §4.2 SCR-RFX-005（RFP作成・送信画面）, §3.2 RD-RFX-004（RFP作成・送信・提案書収集）
+    - BR-RFX-005（送信後は内容変更不可）, BR-RFX-001（RFIあり時はショートリスト済みのみRFP対象）, BR-RFX-008（ショートリスト未選定でのRFP送信不可）
+    - phase_scope.md 画面別フェーズ対応表 SCR-RFX-005 Phase 2 差分 = 回答フォーマットカスタマイズ設定セクション追加
+    - phase_scope.md Phase 2 カテゴリ3「RFP回答フォーマットのカスタマイズ」（Q-RD-RFX-002・Phase 1は固定フォーマット）
+  Nguồn design: assets/layout.css|js, _RFX_MOCKUP_SPEC.md §8
+  Demo data: 案件 RFX260700123 / 5社 / 評価者3名。
+  Tự đề xuất / ■未確定:
+    - 案件表示コード「RFX260700123」は display code 提案（DBはUUID）。要確認。
+    - 回答項目の入力型候補（テキスト/数値/金額/日付/選択/ファイル）・行UIレイアウトは自己提案。
+    - 「金額」型は Phase 2 の価格自動換算（最低価格基準スコア・SCR-RFX-009 Phase 2）と連携する構造化フィールドとして扱う（自己提案）。
+    - リマインド送信タイミングは Q-RD-RFX-004 参照（■未確定）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFP作成・送信（Phase 2） | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .form-grid { display:grid; grid-template-columns:200px 1fr; gap:0; }
+  .form-grid > .fg-k { background:#f6f8fc; border:1px solid var(--j2-th-border); padding:12px; font-weight:bold; font-size:.82rem; display:flex; align-items:center; }
+  .form-grid > .fg-v { border:1px solid var(--j2-th-border); border-left:none; padding:12px; }
+  .form-grid input[type=text], .form-grid textarea { width:100%; }
+  .file-drop { border:1.5px dashed #b9c4d6; border-radius:6px; padding:16px; text-align:center; color:#777; background:#fbfcfe; font-size:.82rem; }
+  .send-target-list { display:flex; flex-direction:column; gap:8px; }
+  .st-row { display:flex; align-items:center; gap:10px; padding:9px 12px; border:1px solid var(--j2-th-border); border-radius:5px; background:#fff; }
+  .st-row.excluded { background:#f7f7f7; color:#999; }
+  .st-row .st-name { font-weight:bold; }
+  .footer-bar { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; padding-top:14px; border-top:1px solid var(--j2-border); }
+  .badge-p2 { font-size:.66rem; background:#e6efff; color:#21489c; border:1px solid #9cc4f2; border-radius:3px; padding:1px 6px; margin-left:6px; font-weight:bold; }
+  /* カスタムフォーマットテーブル */
+  #fmtTable td { vertical-align:top; }
+  #fmtTable input[type=text], #fmtTable select { width:100%; }
+  #fmtTable .fmt-opts:disabled { background:#f2f2f2; color:#aaa; }
+  .icon-remove { background:none; border:none; color:var(--st-danger); cursor:pointer; font-size:1rem; }
+  .add-row { margin-top:10px; display:flex; gap:20px; align-items:center; }
+  .add-row button { background:none; border:none; color:var(--j2-link); cursor:pointer; font-weight:bold; font-size:.86rem; }
+  /* 必須/任意 トグル */
+  .req-toggle { display:inline-flex; border:1px solid #b9c4d6; border-radius:5px; overflow:hidden; }
+  .req-toggle button { border:none; background:#fff; padding:5px 10px; cursor:pointer; font-size:.76rem; color:#555; }
+  .req-toggle button.on-req { }
+  .req-toggle button.active[data-v=req] { background:var(--st-danger); color:#fff; }
+  .req-toggle button.active[data-v=opt] { background:#999; color:#fff; }
+  @media(max-width:900px){ .form-grid{ grid-template-columns:120px 1fr; } }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase2.html">案件詳細・進行状況</a></li>
+      <li>RFP作成・送信（Phase 2）</li>
+    </ul>
+    <div class="page-content">
+
+      <p style="margin:0 0 8px;"><a href="eProcurement_RFX_ProjectDetail_phase2.html">← 案件詳細に戻る</a></p>
+
+      <div class="page-title-row">
+        <h3 class="page-title">RFP作成・送信</h3>
+        <span class="phase-tag phase-2">Phase 2 拡張版</span>
+        <span class="status-badge st-orange">RFP中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_RFPCreate_phase1.html">⇄ Phase 1版を見る</a>
+      </div>
+
+      <div class="alert alert-warn">
+        <b>⚠ 送信後は内容を変更できません（BR-RFX-005）。</b>
+        変更が必要な場合は本RFPフェーズをキャンセルして再作成する必要があります。送信前に内容を十分ご確認ください。
+      </div>
+
+      <div class="alert alert-info">
+        <b>Phase 2 拡張版</b>です。Phase 1 の固定フォーマットに代わり、<b>回答フォーマットをカスタマイズ</b>できます
+        （回答項目・入力型・必須/任意・選択肢を案件ごとに定義／phase_scope.md SCR-RFX-005 差分・Q-RD-RFX-002）。
+        固定フォーマットの Phase 1 版は <a href="eProcurement_RFX_RFPCreate_phase1.html">こちら</a>。
+      </div>
+
+      <form id="rfpForm" novalidate>
+
+        <!-- 基本情報 -->
+        <div class="section">
+          <div class="section-head">基本情報</div>
+          <div class="section-body" style="padding:0;">
+            <div class="form-grid">
+              <div class="fg-k">案件番号</div>
+              <div class="fg-v"><b>RFX260700123</b> <span class="muted">社内基幹システム刷新に伴うクラウド基盤調達 / ITインフラ・クラウド</span></div>
+
+              <div class="fg-k">RFPタイトル <span class="chip-req">必須</span></div>
+              <div class="fg-v">
+                <input type="text" id="rfpTitle" placeholder="例：クラウド基盤構築・移行 提案依頼（RFP）" value="クラウド基盤構築・移行 提案依頼（RFP）">
+                <div class="field-error" id="errTitle">RFPタイトルを入力してください。</div>
+              </div>
+
+              <div class="fg-k">提案期限 <span class="chip-req">必須</span></div>
+              <div class="fg-v">
+                <input type="text" id="rfpDeadline" placeholder="YYYY-MM-DD" value="2026-08-08" style="max-width:220px;">
+                <div class="muted" style="margin-top:4px;">提案期限前にリマインド通知を自動送信します（送信タイミングは Q-RD-RFX-004・■未確定）。</div>
+                <div class="field-error" id="errDeadline">提案期限を正しい日付（YYYY-MM-DD・未来日）で入力してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 要求仕様・評価基準 -->
+        <div class="section">
+          <div class="section-head">要求仕様・評価基準 <span class="chip-req" style="margin-left:2px;">必須</span></div>
+          <div class="section-body">
+            <label class="req-lbl">要求仕様・評価基準（テキスト）</label>
+            <textarea id="rfpSpec" style="min-height:150px;" placeholder="要求仕様・評価の観点を記載してください。">■要求仕様
+・対象：社内基幹システム（ERP/会計/人事）のクラウド基盤への移行および新規構築
+・可用性：稼働率99.9%以上、リージョン内冗長構成
+・セキュリティ：ISMS/ISO27001準拠、データ国内保管
+・移行：既存オンプレ資産からの移行計画・移行支援を含む
+・保守：24/365監視、障害一次対応を含む運用保守体制
+
+■評価基準（Phase 2・3軸／エンベロープ方式）
+・技術評価（50%）：アーキテクチャ妥当性、可用性・セキュリティ、移行計画、運用保守体制
+・価格評価（30%）：初期費用＋5年間TCO（最低価格を100点とする自動換算）
+・サステナビリティ（20%）：データセンターの再エネ利用率、環境認証
+（評価軸ウェイトは案件作成時に確定・評価フェーズ開始でロック：BR-RFX-010。技術70点以上のみ価格評価へ：エンベロープ方式）</textarea>
+            <div class="field-error" id="errSpec">要求仕様・評価基準を入力してください。</div>
+          </div>
+        </div>
+
+        <!-- 回答フォーマットカスタマイズ（Phase2） -->
+        <div class="section">
+          <div class="section-head">回答フォーマット設定（カスタマイズ） <span class="badge-p2">Phase 2 拡張</span>
+            <span class="sec-actions"><span class="status-badge pill st-blue">可変フォーマット</span></span>
+          </div>
+          <div class="section-body">
+            <p class="muted" style="margin-top:0;">
+              <b>Phase 1 の固定フォーマットに代わり</b>、サプライヤ（SCR-RFX-008 Phase 2）が入力する回答項目を自由に定義できます。
+              項目名・入力型・必須/任意・選択肢を設定し、行を追加/削除してください（Q-RD-RFX-002 Phase 2）。
+              入力型「金額」は価格自動換算（SCR-RFX-009 Phase 2）の構造化フィールドとして扱われます。
+            </p>
+            <table class="data" id="fmtTable">
+              <thead>
+                <tr>
+                  <th style="width:30%;">項目名</th>
+                  <th style="width:130px;">入力型</th>
+                  <th class="center" style="width:130px;">必須/任意</th>
+                  <th>選択肢（型が「選択」の場合・カンマ区切り）</th>
+                  <th class="center" style="width:52px;"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="add-row">
+              <button type="button" id="addFmt">＋ 回答項目を追加</button>
+              <span style="margin-left:auto;" class="muted">項目数：<span id="fmtCount">0</span></span>
+            </div>
+            <div class="field-error" id="errFmt">回答項目を1件以上定義し、各項目名を入力してください（型が「選択」の項目は選択肢が必須です）。</div>
+          </div>
+        </div>
+
+        <!-- 添付資料 -->
+        <div class="section">
+          <div class="section-head">添付資料（仕様書等・バージョン管理 RD-RFX-011）</div>
+          <div class="section-body">
+            <div class="file-drop" id="fileDrop">
+              📎 ここに仕様書・図面等をドラッグ＆ドロップ、または <a href="#" id="filePick" data-nav="ファイル選択ダイアログ（service-file アップロード）">ファイルを選択</a>
+            </div>
+            <table class="data" style="margin-top:12px;">
+              <thead><tr><th>ファイル名</th><th class="center">版</th><th>更新者</th><th>更新日時</th><th class="center">操作</th></tr></thead>
+              <tbody>
+                <tr><td>RFP_要求仕様書.pdf</td><td class="center">v3</td><td>調達花子</td><td>2026-07-09 14:22:10</td><td class="center"><button type="button" class="btn btn-sm" data-nav="添付ファイル版一覧（BR-RFX-007）">版一覧</button></td></tr>
+                <tr><td>評価基準書.xlsx</td><td class="center">v1</td><td>技術太郎</td><td>2026-07-05 10:03:41</td><td class="center"><button type="button" class="btn btn-sm" data-nav="添付ファイル版一覧（BR-RFX-007）">版一覧</button></td></tr>
+              </tbody>
+            </table>
+            <div class="muted" style="margin-top:6px;">添付ファイルは版番号・更新日時・更新者を記録します（BR-RFX-007 / RD-RFX-011）。</div>
+          </div>
+        </div>
+
+        <!-- 送信対象 -->
+        <div class="section">
+          <div class="section-head">送信対象サプライヤ</div>
+          <div class="section-body">
+            <div class="alert alert-info" style="margin-top:0;">
+              本案件は <b>RFI実施済み</b>のため、RFPの送信対象は<b>ショートリスト済み3社のみ</b>です（BR-RFX-001）。
+              選外・不参加のサプライヤは送信対象外です。
+            </div>
+            <div class="send-target-list">
+              <div class="st-row">
+                <span class="status-badge pill st-green">対象</span>
+                <span class="st-name">富士クラウド株式会社</span>
+                <span class="muted">ショートリスト選定・技術88/価格72</span>
+              </div>
+              <div class="st-row">
+                <span class="status-badge pill st-green">対象</span>
+                <span class="st-name">日本デジタルソリューションズ株式会社</span>
+                <span class="muted">ショートリスト選定・技術82/価格85</span>
+              </div>
+              <div class="st-row">
+                <span class="status-badge pill st-green">対象</span>
+                <span class="st-name">さくらインフラ株式会社</span>
+                <span class="muted">ショートリスト選定・技術76/価格90</span>
+              </div>
+              <div class="st-row excluded">
+                <span class="status-badge pill st-gray">対象外</span>
+                <span class="st-name">グローバルテック株式会社</span>
+                <span class="muted">ショートリスト選外（BR-RFX-001/008）</span>
+              </div>
+              <div class="st-row excluded">
+                <span class="status-badge pill st-gray">対象外</span>
+                <span class="st-name">みらいネットワークス株式会社</span>
+                <span class="muted">RFI不参加</span>
+              </div>
+            </div>
+            <div class="muted" style="margin-top:8px;">※ RFIをスキップした案件では全参加サプライヤが対象になります（BR-RFX-001）。</div>
+          </div>
+        </div>
+
+        <div class="footer-bar">
+          <button type="button" class="btn" data-nav="RFP下書き保存（rfx_event ステータス:作成中）">下書き保存</button>
+          <button type="button" class="btn btn-primary btn-lg" id="btnSend">RFPを送信</button>
+        </div>
+
+      </form>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- モーダル: 送信確認 -->
+<div class="modal-overlay" id="mSendConfirm">
+  <div class="modal-box wide">
+    <div class="modal-head">RFP送信の確認（Phase 2）<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-warn" style="margin-bottom:14px;">
+        <b>送信後はRFPの内容を変更できません（BR-RFX-005）。</b><br>
+        変更が必要な場合は、本RFPフェーズをキャンセルして再作成してください。
+      </div>
+      <div class="kv-grid">
+        <div class="k">送信対象</div><div class="v">ショートリスト済み <b>3社</b>（富士C / 日本DS / さくらI）</div>
+        <div class="k">提案期限</div><div class="v" id="confDeadline">2026-08-08</div>
+        <div class="k">回答フォーマット</div><div class="v" id="confFmt">—</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="btnSendDo">この内容で送信する</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+  JienieDatepicker.init('#rfpDeadline');
+
+  function clearErr(el, errId){ el.classList.remove('error'); document.getElementById(errId).classList.remove('show'); }
+  function showErr(el, errId){ el.classList.add('error'); document.getElementById(errId).classList.add('show'); }
+
+  // ---- 回答フォーマット（カスタマイズ）----
+  var fmtTbody = document.querySelector('#fmtTable tbody');
+  var TYPES = ['テキスト','数値','金額','日付','選択','ファイル'];
+  function typeOptions(sel){
+    return TYPES.map(function(t){ return '<option'+(t===sel?' selected':'')+'>'+t+'</option>'; }).join('');
+  }
+  function addFmtRow(name, type, req, opts){
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" class="fmt-name" placeholder="例：提案書本文" value="'+(name||'')+'"></td>'+
+      '<td><select class="fmt-type">'+typeOptions(type||'テキスト')+'</select></td>'+
+      '<td class="center"><span class="req-toggle">'+
+        '<button type="button" data-v="req" class="'+(req!==false?'active':'')+'">必須</button>'+
+        '<button type="button" data-v="opt" class="'+(req===false?'active':'')+'">任意</button>'+
+      '</span></td>'+
+      '<td><input type="text" class="fmt-opts" placeholder="例：あり,なし,一部対応" value="'+(opts||'')+'"></td>'+
+      '<td class="center"><button type="button" class="icon-remove" title="この項目を削除">✕</button></td>';
+    fmtTbody.appendChild(tr);
+    var typeSel = tr.querySelector('.fmt-type');
+    var optsIn = tr.querySelector('.fmt-opts');
+    function syncOpts(){ var isSel = typeSel.value==='選択'; optsIn.disabled = !isSel; if(!isSel){ optsIn.classList.remove('error'); } }
+    typeSel.addEventListener('change', syncOpts); syncOpts();
+    // 必須/任意 toggle
+    tr.querySelectorAll('.req-toggle button').forEach(function(b){
+      b.addEventListener('click', function(){
+        tr.querySelectorAll('.req-toggle button').forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+      });
+    });
+    tr.querySelector('.icon-remove').addEventListener('click', function(){ tr.remove(); updateCount(); });
+    tr.querySelector('.fmt-name').addEventListener('input', function(){ this.classList.remove('error'); });
+    updateCount();
+  }
+  function updateCount(){ document.getElementById('fmtCount').textContent = fmtTbody.querySelectorAll('tr').length; }
+  document.getElementById('addFmt').addEventListener('click', function(){ addFmtRow('', 'テキスト', true, ''); });
+
+  function validateFmt(){
+    var rows = fmtTbody.querySelectorAll('tr');
+    if(!rows.length) return false;
+    var ok = true;
+    rows.forEach(function(tr){
+      var nm = tr.querySelector('.fmt-name');
+      var type = tr.querySelector('.fmt-type').value;
+      var opts = tr.querySelector('.fmt-opts');
+      if(!nm.value.trim()){ nm.classList.add('error'); ok=false; } else nm.classList.remove('error');
+      if(type==='選択' && !opts.value.trim()){ opts.classList.add('error'); ok=false; } else opts.classList.remove('error');
+    });
+    return ok;
+  }
+
+  function validate(){
+    var ok = true;
+    var t = document.getElementById('rfpTitle');
+    var d = document.getElementById('rfpDeadline');
+    var s = document.getElementById('rfpSpec');
+    if(!t.value.trim()){ showErr(t,'errTitle'); ok=false; } else clearErr(t,'errTitle');
+    if(!s.value.trim()){ showErr(s,'errSpec'); ok=false; } else clearErr(s,'errSpec');
+    var v = d.value.trim();
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.test(v);
+    var future = m && (new Date(v).getTime() > new Date('2026-07-11').getTime());
+    if(!m || !future){ showErr(d,'errDeadline'); ok=false; } else clearErr(d,'errDeadline');
+    var fok = validateFmt();
+    document.getElementById('errFmt').classList.toggle('show', !fok);
+    if(!fok) ok=false;
+    return ok;
+  }
+
+  document.getElementById('btnSend').addEventListener('click', function(){
+    if(!validate()){ JienieLayout.toast('入力内容にエラーがあります。必須項目・提案期限・回答フォーマットをご確認ください。'); return; }
+    document.getElementById('confDeadline').textContent = document.getElementById('rfpDeadline').value;
+    var items = Array.prototype.slice.call(fmtTbody.querySelectorAll('tr')).map(function(tr){
+      var nm = tr.querySelector('.fmt-name').value;
+      var type = tr.querySelector('.fmt-type').value;
+      var req = tr.querySelector('.req-toggle button.active').getAttribute('data-v')==='req' ? '必須':'任意';
+      return nm+'（'+type+'・'+req+'）';
+    });
+    document.getElementById('confFmt').innerHTML = '<b>'+items.length+'項目</b>：'+items.join(' / ');
+    JienieLayout.openModal('mSendConfirm');
+  });
+
+  document.getElementById('btnSendDo').addEventListener('click', function(){
+    JienieLayout.closeModal('mSendConfirm');
+    var f = document.getElementById('rfpForm');
+    f.querySelectorAll('input, textarea, select, button').forEach(function(x){ if(x.id!=='btnSend'&&!x.hasAttribute('data-close')) x.setAttribute('disabled','disabled'); });
+    document.getElementById('btnSend').setAttribute('disabled','disabled');
+    document.getElementById('btnSend').textContent = '送信済み';
+    JienieLayout.toast('カスタムフォーマットでRFPをショートリスト3社へ送信しました。以降、内容は変更できません（BR-RFX-005）。');
+  });
+
+  // 初期フォーマット（デモ：Phase1固定項目を可変項目として再現 + 金額・選択・日付の例）
+  addFmtRow('提案書本文', 'テキスト', true, '');
+  addFmtRow('提案書・見積書ファイル', 'ファイル', true, '');
+  addFmtRow('初期費用＋5年間TCO（税抜）', '金額', true, '');
+  addFmtRow('導入完了予定日', '日付', true, '');
+  addFmtRow('データセンター国内保管', '選択', true, 'あり,なし,一部対応');
+  addFmtRow('補足資料', 'ファイル', false, '');
+</script>
+</body>
+</html>

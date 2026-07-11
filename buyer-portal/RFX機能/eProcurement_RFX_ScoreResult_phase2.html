@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-010 評価結果・比較画面（Phase 2 拡張版・★差分大） — Buyer Portal / RFXモジュール
+  Vai trò người dùng（アクター）: 案件担当者 調達花子（購買部門リード・議長）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-010（Phase 2 差異：多軸スコア軸別表示・封筒方式フェーズ切替タブ・Award Scenarioパネル）
+    - §3.2 RD-RFX-007 Phase2拡張候補（エンベロープ／評価軸追加／価格自動換算）, RD-RFX-008（全評価者スコア集計）
+    - §2.2 BR-RFX-003（重み付き合計）, BR-RFX-006（推薦共有）, BR-RFX-009（Award承認WFへ）
+    - §1.3 対象外#3 Award Scenario（落札シミュレーション）＝Phase 2以降に検討
+    - phase_scope.md: SCR-010 は Phase 2 差分大
+  Nguồn design: assets/layout.css|js, 参照: eProcurement_RFX_ScoreResult_phase1.html
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 3社 / 価格 富士C¥48.6M・日本DS¥42.3M・さくらI¥39.8M）
+    軸ウェイト 技術50%/価格30%/サステナ20%。価格自動換算 富士C81.9・日本DS94.1・さくらI100.0
+    集約軸スコア(評価者ウェイト集計): 技術 富士C88/日本DS82/さくらI76 ・ サステナ 富士C80/日本DS86/さくらI77
+    総合: 日本DS86.4(1位) / 富士C84.6(2位) / さくらI83.4(3位)
+    技術評価フェーズ: 富士C85.7 / 日本DS83.1 / さくらI76.3（全社≥70=合格）
+  Tự đề xuất / ■未確定:
+    - display code「RFX260700123」は提案（DBはUUID）。
+    - サステナ集約値・Award Scenarioのコスト/リスク・品目分割の内訳は realism 前提の自己提案（■未確定）。
+    - Award Scenario（落札シミュレーション）は §1.3 で Phase 2 以降検討＝設計未確定。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>評価結果・比較（Phase 2 拡張版） | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  /* ページ固有CSSのみ */
+  .rank-medal { font-size:1.2rem; }
+  .sub-cell { color:#888; font-size:.78rem; }
+  .score-big { font-weight:bold; font-size:1.05rem; color:var(--j2-blue); }
+  .lock-box { display:flex; gap:22px; flex-wrap:wrap; align-items:center; }
+  .auto-badge { display:inline-block; background:var(--j2-header-accent); color:#03041f; font-size:.62rem; font-weight:bold; border-radius:3px; padding:1px 5px; vertical-align:middle; }
+
+  /* フェーズ切替タブ */
+  .tabs { display:flex; gap:4px; border-bottom:2px solid var(--j2-blue); margin-bottom:0; }
+  .tab-btn { border:1px solid var(--j2-border); border-bottom:none; background:#f2f4f9; color:#555; padding:10px 20px; cursor:pointer; font-weight:bold; font-size:.86rem; border-radius:6px 6px 0 0; font-family:inherit; }
+  .tab-btn.active { background:var(--j2-blue); color:#fff; border-color:var(--j2-blue); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* Award Scenario */
+  .scn-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+  .scn-card { border:1px solid var(--j2-border); border-radius:8px; padding:14px; background:#fff; cursor:pointer; transition:all .15s; }
+  .scn-card:hover { background:#fafcff; }
+  .scn-card.sel { border-color:var(--j2-blue); box-shadow:0 0 0 3px rgba(65,105,225,.15); background:#f6f8fc; }
+  .scn-card .scn-head { display:flex; align-items:center; gap:8px; font-weight:bold; margin-bottom:8px; }
+  .scn-card .scn-cost { font-size:1.5rem; font-weight:bold; color:var(--j2-blue); }
+  .scn-card .scn-sub { font-size:.76rem; color:#777; }
+  .scn-card ul { margin:8px 0 0; padding-left:18px; font-size:.8rem; color:#444; }
+  @media(max-width:900px){ .scn-grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase2.html">案件詳細・進行状況</a></li>
+      <li>評価結果・比較（Phase 2）</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">評価結果・比較</h3>
+        <span class="phase-tag phase-2">Phase 2 拡張版</span>
+        <span class="status-badge st-blue">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ScoreResult_phase1.html">← Phase 1版を見る ⇄</a>
+      </div>
+
+      <div class="alert alert-info">
+        <b>Phase 2 拡張版</b>です。Phase 1（総合スコア降順ランキングのみ）に対し、本画面では
+        <b>① 多軸スコアの軸別表示</b>（技術/価格〔自動換算〕/サステナビリティ）、
+        <b>② 封筒方式フェーズ切替タブ</b>（技術評価フェーズ結果 / 総合評価結果）、
+        <b>③ Award Scenario パネル</b>（複数発注シナリオのコスト・リスク比較・採用選択）を追加しています。
+        基本版は <a href="eProcurement_RFX_ScoreResult_phase1.html">Phase 1版（SCR-RFX-010）</a> を参照。
+        関連: <a href="eProcurement_RFX_ScoreSheet_phase2.html">評価シート入力（Phase 2）</a>。
+      </div>
+
+      <!-- 集計条件 -->
+      <div class="section">
+        <div class="section-head">集計条件</div>
+        <div class="section-body">
+          <div class="lock-box">
+            <span>案件番号 <b>RFX260700123</b></span>
+            <span>評価軸ウェイト <b>技術50% / 価格30%<span class="auto-badge">自動換算</span> / サステナ20%</b> <span class="status-badge pill st-gray">🔒 ロック済</span></span>
+            <span>評価者ウェイト <b>技術太郎50% / 品質次郎25% / 現場三郎25%</b></span>
+          </div>
+          <p class="muted" style="margin-top:8px;">
+            価格スコアは <b>最低提示価格 ÷ 自社提示価格 × 100</b> で自動換算（最低=さくらI ¥39,800,000＝100.0点）。
+            総合スコア＝技術×0.5＋価格×0.3＋サステナ×0.2。各軸集約スコアは評価者ウェイトで加重集計（BR-RFX-003）。
+          </p>
+        </div>
+      </div>
+
+      <!-- 封筒方式フェーズ切替タブ -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-tech">① 技術評価フェーズ結果</button>
+        <button class="tab-btn" data-tab="tab-total">② 総合評価結果</button>
+      </div>
+
+      <!-- タブ1: 技術評価フェーズ結果 -->
+      <div class="tab-panel active" id="tab-tech">
+        <div class="section" style="border-top-left-radius:0;">
+          <div class="section-head">技術評価フェーズ結果（合格基準：70点以上）</div>
+          <div class="section-body">
+            <div class="alert alert-info" style="margin-bottom:12px;">
+              エンベロープ方式の第1段階です。技術系軸のみ（技術提案・サステナビリティ）を加重した <b>技術評価スコア</b> でランキングし、
+              <b>70点未満は不合格</b>として価格評価フェーズに進めません。本案件は3社とも合格しています。
+            </div>
+            <table class="data">
+              <thead>
+                <tr>
+                  <th class="center">技術順位</th><th>サプライヤ</th>
+                  <th class="center">技術提案</th><th class="center">サステナ</th>
+                  <th class="center">技術評価スコア<br><span class="muted">（技術×50＋サステナ×20）÷70</span></th>
+                  <th class="center">合否</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="center rank rank-1"><span class="rank-medal">🥇</span> 1</td>
+                  <td>富士クラウド株式会社</td>
+                  <td class="center">88</td><td class="center">80</td>
+                  <td class="center"><span class="score-big">85.7</span></td>
+                  <td class="center"><span class="status-badge pill st-green">合格</span></td>
+                </tr>
+                <tr>
+                  <td class="center rank rank-2"><span class="rank-medal">🥈</span> 2</td>
+                  <td>日本デジタルソリューションズ株式会社</td>
+                  <td class="center">82</td><td class="center">86</td>
+                  <td class="center"><span class="score-big">83.1</span></td>
+                  <td class="center"><span class="status-badge pill st-green">合格</span></td>
+                </tr>
+                <tr>
+                  <td class="center rank rank-3"><span class="rank-medal">🥉</span> 3</td>
+                  <td>さくらインフラ株式会社</td>
+                  <td class="center">76</td><td class="center">77</td>
+                  <td class="center"><span class="score-big">76.3</span></td>
+                  <td class="center"><span class="status-badge pill st-green">合格</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="muted" style="margin-top:8px;">
+              技術評価フェーズ完了後、合格3社の価格情報が開示され「総合評価結果」タブで総合スコアが算出されます（封筒開封）。
+              技術トップは富士Cですが、価格を合算する総合評価では順位が変わります（②タブ参照）。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- タブ2: 総合評価結果 -->
+      <div class="tab-panel" id="tab-total">
+        <div class="section" style="border-top-left-radius:0;">
+          <div class="section-head">総合評価結果 — 多軸スコア 軸別表示（総合スコア降順）</div>
+          <div class="section-body" style="padding:0;">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th class="center" rowspan="2">順位</th>
+                  <th rowspan="2">サプライヤ</th>
+                  <th class="center" colspan="2">技術（50%）</th>
+                  <th class="center" colspan="2">価格（30%・自動換算）</th>
+                  <th class="center" colspan="2">サステナ（20%）</th>
+                  <th class="center" rowspan="2">総合スコア</th>
+                  <th class="center" rowspan="2">推薦</th>
+                  <th class="center" rowspan="2">内訳</th>
+                </tr>
+                <tr>
+                  <th class="center">加重前</th><th class="center">加重後</th>
+                  <th class="center">加重前</th><th class="center">加重後</th>
+                  <th class="center">加重前</th><th class="center">加重後</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- 1位 日本DS -->
+                <tr>
+                  <td class="center rank rank-1"><span class="rank-medal">🥇</span> 1</td>
+                  <td>日本デジタルソリューションズ株式会社</td>
+                  <td class="center">82</td><td class="center sub-cell">41.0</td>
+                  <td class="center">94.1</td><td class="center sub-cell">28.2</td>
+                  <td class="center">86</td><td class="center sub-cell">17.2</td>
+                  <td class="center"><span class="score-big">86.4</span></td>
+                  <td class="center"><span class="rec-flag">★3</span><span class="muted">/3</span></td>
+                  <td class="center"><button class="btn btn-sm expand-btn" data-target="d-ds">内訳 ▾</button></td>
+                </tr>
+                <tr class="detail-row" id="d-ds" style="display:none;"><td colspan="11" style="background:#f8fafd;padding:0;">
+                  <div style="padding:14px 16px;">
+                    <h4 style="margin:0 0 10px;font-size:.9rem;">日本デジタルソリューションズ株式会社 — 評価者別内訳（3軸）</h4>
+                    <table class="data">
+                      <thead><tr><th>評価者</th><th class="center">ウェイト</th><th class="center">技術</th><th class="center">価格(自動)</th><th class="center">サステナ</th><th class="center">個別総合</th><th class="center">推薦</th></tr></thead>
+                      <tbody>
+                        <tr><td>技術太郎（技術部長）</td><td class="center">50%</td><td class="center">82</td><td class="center">94.1</td><td class="center">85</td><td class="center">86.2</td><td class="center"><span class="rec-flag">★</span></td></tr>
+                        <tr><td>品質次郎（品質管理課）</td><td class="center">25%</td><td class="center">82</td><td class="center">94.1</td><td class="center">87</td><td class="center">86.4</td><td class="center"><span class="rec-flag">★</span></td></tr>
+                        <tr><td>現場三郎（利用部門）</td><td class="center">25%</td><td class="center">82</td><td class="center">94.1</td><td class="center">87</td><td class="center">86.4</td><td class="center"><span class="rec-flag">★</span></td></tr>
+                        <tr style="font-weight:bold;background:#eef4ff;"><td>加重集計</td><td class="center">100%</td><td class="center">82</td><td class="center">94.1</td><td class="center">86</td><td class="center">86.4</td><td class="center">3/3</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td></tr>
+
+                <!-- 2位 富士C -->
+                <tr>
+                  <td class="center rank rank-2"><span class="rank-medal">🥈</span> 2</td>
+                  <td>富士クラウド株式会社</td>
+                  <td class="center">88</td><td class="center sub-cell">44.0</td>
+                  <td class="center">81.9</td><td class="center sub-cell">24.6</td>
+                  <td class="center">80</td><td class="center sub-cell">16.0</td>
+                  <td class="center"><span class="score-big">84.6</span></td>
+                  <td class="center"><span class="rec-flag">★1</span><span class="muted">/3</span></td>
+                  <td class="center"><button class="btn btn-sm expand-btn" data-target="d-fc">内訳 ▾</button></td>
+                </tr>
+                <tr class="detail-row" id="d-fc" style="display:none;"><td colspan="11" style="background:#f8fafd;padding:0;">
+                  <div style="padding:14px 16px;">
+                    <h4 style="margin:0 0 10px;font-size:.9rem;">富士クラウド株式会社 — 評価者別内訳（3軸）</h4>
+                    <table class="data">
+                      <thead><tr><th>評価者</th><th class="center">ウェイト</th><th class="center">技術</th><th class="center">価格(自動)</th><th class="center">サステナ</th><th class="center">個別総合</th><th class="center">推薦</th></tr></thead>
+                      <tbody>
+                        <tr><td>技術太郎（技術部長）</td><td class="center">50%</td><td class="center">90</td><td class="center">81.9</td><td class="center">80</td><td class="center">85.6</td><td class="center">—</td></tr>
+                        <tr><td>品質次郎（品質管理課）</td><td class="center">25%</td><td class="center">88</td><td class="center">81.9</td><td class="center">80</td><td class="center">84.6</td><td class="center"><span class="rec-flag">★</span></td></tr>
+                        <tr><td>現場三郎（利用部門）</td><td class="center">25%</td><td class="center">84</td><td class="center">81.9</td><td class="center">80</td><td class="center">82.6</td><td class="center">—</td></tr>
+                        <tr style="font-weight:bold;background:#eef4ff;"><td>加重集計</td><td class="center">100%</td><td class="center">88</td><td class="center">81.9</td><td class="center">80</td><td class="center">84.6</td><td class="center">1/3</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td></tr>
+
+                <!-- 3位 さくらI -->
+                <tr>
+                  <td class="center rank rank-3"><span class="rank-medal">🥉</span> 3</td>
+                  <td>さくらインフラ株式会社</td>
+                  <td class="center">76</td><td class="center sub-cell">38.0</td>
+                  <td class="center">100.0</td><td class="center sub-cell">30.0</td>
+                  <td class="center">77</td><td class="center sub-cell">15.4</td>
+                  <td class="center"><span class="score-big">83.4</span></td>
+                  <td class="center"><span class="rec-flag">★1</span><span class="muted">/3</span></td>
+                  <td class="center"><button class="btn btn-sm expand-btn" data-target="d-si">内訳 ▾</button></td>
+                </tr>
+                <tr class="detail-row" id="d-si" style="display:none;"><td colspan="11" style="background:#f8fafd;padding:0;">
+                  <div style="padding:14px 16px;">
+                    <h4 style="margin:0 0 10px;font-size:.9rem;">さくらインフラ株式会社 — 評価者別内訳（3軸）</h4>
+                    <table class="data">
+                      <thead><tr><th>評価者</th><th class="center">ウェイト</th><th class="center">技術</th><th class="center">価格(自動)</th><th class="center">サステナ</th><th class="center">個別総合</th><th class="center">推薦</th></tr></thead>
+                      <tbody>
+                        <tr><td>技術太郎（技術部長）</td><td class="center">50%</td><td class="center">76</td><td class="center">100.0</td><td class="center">78</td><td class="center">83.6</td><td class="center">—</td></tr>
+                        <tr><td>品質次郎（品質管理課）</td><td class="center">25%</td><td class="center">76</td><td class="center">100.0</td><td class="center">76</td><td class="center">83.2</td><td class="center">—</td></tr>
+                        <tr><td>現場三郎（利用部門）</td><td class="center">25%</td><td class="center">76</td><td class="center">100.0</td><td class="center">76</td><td class="center">83.2</td><td class="center"><span class="rec-flag">★</span></td></tr>
+                        <tr style="font-weight:bold;background:#eef4ff;"><td>加重集計</td><td class="center">100%</td><td class="center">76</td><td class="center">100.0</td><td class="center">77</td><td class="center">83.4</td><td class="center">1/3</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p class="muted" style="margin:-4px 0 14px;">
+          封筒開封後の総合評価では、価格自動換算（さくらI=100.0）が効いて技術2位の日本DSが総合1位に。技術1位の富士Cは価格で劣後し総合2位です。
+        </p>
+      </div>
+
+      <div class="alert alert-warn">
+        グローバルテック株式会社（GTech）はショートリスト選外のため評価対象外です。みらいネットワークス株式会社は不参加です。
+      </div>
+
+      <!-- Award Scenario パネル -->
+      <div class="section">
+        <div class="section-head">Award Scenario（発注シナリオ）— コスト・リスク比較
+          <span class="sec-actions"><span class="phase-tag phase-2" style="margin:0;">Phase 2</span></span>
+        </div>
+        <div class="section-body">
+          <div class="alert alert-info" style="margin-bottom:12px;">
+            落札シミュレーション（Award Scenario）は Phase 2 以降の拡張機能です（§1.3 対象外#3）。
+            総合評価結果をもとに複数の <b>発注シナリオ</b> をコスト・リスクで比較し、採用シナリオを選択できます。設計・保持先は■未確定。
+          </div>
+
+          <div class="scn-grid">
+            <label class="scn-card sel" data-scn="A">
+              <div class="scn-head"><input type="radio" name="scn" value="A" checked> ① 全量1社発注</div>
+              <div class="scn-cost">¥42,300,000</div>
+              <div class="scn-sub">日本デジタルソリューションズ（総合1位）</div>
+              <ul>
+                <li>責任分界が単純・管理コスト低</li>
+                <li>3軸バランス最良・全評価者推薦</li>
+                <li>単一ベンダー依存（供給リスク中）</li>
+              </ul>
+            </label>
+            <label class="scn-card" data-scn="B">
+              <div class="scn-head"><input type="radio" name="scn" value="B"> ② 品目分割・最安組合せ</div>
+              <div class="scn-cost">¥38,900,000</div>
+              <div class="scn-sub">コンピュート=さくらI／NW・移行=日本DS</div>
+              <ul>
+                <li>総コスト最小（最安値組合せ）</li>
+                <li>マルチベンダー管理・責任分界の調整要</li>
+                <li>統合リスク・窓口分散（リスク高）</li>
+              </ul>
+            </label>
+            <label class="scn-card" data-scn="C">
+              <div class="scn-head"><input type="radio" name="scn" value="C"> ③ 上位2社分割</div>
+              <div class="scn-cost">¥45,200,000</div>
+              <div class="scn-sub">日本DS＋富士C（冗長構成）</div>
+              <ul>
+                <li>ベンダー冗長・供給リスク分散</li>
+                <li>技術1位の富士Cも部分採用</li>
+                <li>割高・管理コスト増（コスト高）</li>
+              </ul>
+            </label>
+          </div>
+
+          <table class="data">
+            <thead>
+              <tr><th class="center">採用</th><th>シナリオ</th><th>構成</th><th class="center">想定コスト</th><th class="center">対最安差</th><th class="center">供給リスク</th><th class="center">管理負荷</th></tr>
+            </thead>
+            <tbody>
+              <tr data-row="A"><td class="center"><input type="radio" name="scnTbl" value="A" checked></td><td>① 全量1社発注</td><td>日本DS（総合1位）</td><td class="center"><b>¥42,300,000</b></td><td class="center">+¥3,400,000</td><td class="center"><span class="status-badge pill st-orange">中</span></td><td class="center"><span class="status-badge pill st-green">低</span></td></tr>
+              <tr data-row="B"><td class="center"><input type="radio" name="scnTbl" value="B"></td><td>② 品目分割・最安組合せ</td><td>さくらI＋日本DS</td><td class="center"><b>¥38,900,000</b></td><td class="center">±¥0（最安）</td><td class="center"><span class="status-badge pill st-pink">高</span></td><td class="center"><span class="status-badge pill st-orange">高</span></td></tr>
+              <tr data-row="C"><td class="center"><input type="radio" name="scnTbl" value="C"></td><td>③ 上位2社分割</td><td>日本DS＋富士C</td><td class="center"><b>¥45,200,000</b></td><td class="center">+¥6,300,000</td><td class="center"><span class="status-badge pill st-green">低</span></td><td class="center"><span class="status-badge pill st-orange">中</span></td></tr>
+            </tbody>
+          </table>
+
+          <div class="page-title-row" style="justify-content:flex-end;margin-top:12px;">
+            <span class="muted" id="scnSel">採用予定：① 全量1社発注（日本DS・¥42,300,000）</span>
+            <button class="btn btn-primary" id="btnAdoptScn">このシナリオを採用</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 議長総括 -->
+      <div class="section">
+        <div class="section-head">議長（案件担当者）総括メモ</div>
+        <div class="section-body">
+          <p class="muted">全評価者の3軸スコア・コメント・推薦意見と Award Scenario を総括し、Award 候補選定の判断材料とします（RD-RFX-008）。このメモは Award 承認申請の推薦コメントに引用できます。</p>
+          <textarea id="chairNote" maxlength="1000" placeholder="例：技術トップは富士Cだが、価格自動換算を含む総合では日本DSが1位。コスト最優先なら品目分割も検討。">技術評価フェーズは富士Cが1位だが、価格自動換算を含む総合評価では日本DSが1位（全評価者推薦）。基本は全量1社発注（シナリオ①）を推奨。コスト最優先の場合は品目分割（シナリオ②）も選択肢。</textarea>
+        </div>
+      </div>
+
+      <!-- フッター操作 -->
+      <div class="page-title-row" style="justify-content:flex-end;">
+        <a class="btn" href="eProcurement_RFX_ScoreSheet_phase2.html">← 評価シートに戻る</a>
+        <a class="btn btn-primary btn-lg" href="eProcurement_RFX_AwardRequest_phase2.html">Award候補を選定して申請 →</a>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  // タブ切替
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+    });
+  });
+
+  // 内訳展開
+  document.querySelectorAll('.expand-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var row = document.getElementById(btn.getAttribute('data-target'));
+      var open = row.style.display === 'none';
+      row.style.display = open ? 'table-row' : 'none';
+      btn.textContent = open ? '内訳 ▴' : '内訳 ▾';
+    });
+  });
+
+  // Award Scenario 選択（カード / 表 radio 連動）
+  var SCN_LABEL = {
+    A: '① 全量1社発注（日本DS・¥42,300,000）',
+    B: '② 品目分割・最安組合せ（さくらI＋日本DS・¥38,900,000）',
+    C: '③ 上位2社分割（日本DS＋富士C・¥45,200,000）'
+  };
+  function selectScn(v){
+    document.querySelectorAll('.scn-card').forEach(function(c){ c.classList.toggle('sel', c.getAttribute('data-scn')===v); });
+    document.querySelectorAll('input[name="scn"]').forEach(function(r){ r.checked = (r.value===v); });
+    document.querySelectorAll('input[name="scnTbl"]').forEach(function(r){ r.checked = (r.value===v); });
+    document.getElementById('scnSel').textContent = '採用予定：' + SCN_LABEL[v];
+  }
+  document.querySelectorAll('.scn-card').forEach(function(c){
+    c.addEventListener('click', function(){ selectScn(c.getAttribute('data-scn')); });
+  });
+  document.querySelectorAll('input[name="scnTbl"]').forEach(function(r){
+    r.addEventListener('change', function(){ selectScn(r.value); });
+  });
+  document.getElementById('btnAdoptScn').addEventListener('click', function(){
+    var v = document.querySelector('input[name="scn"]:checked').value;
+    JienieLayout.toast('発注シナリオ「' + SCN_LABEL[v] + '」を採用しました。Award申請の参考シナリオに設定します。');
+  });
+</script>
+</body>
+</html>
