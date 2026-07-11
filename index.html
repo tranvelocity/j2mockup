@@ -79,32 +79,48 @@ body {
 .topnav {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.topnav::-webkit-scrollbar { display: none; }
 
-.topnav a {
-  white-space: nowrap;
-  padding: 6px 11px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-sub);
-  text-decoration: none;
-  transition: background 0.15s, color 0.15s;
+/* ---- Dropdown top menu (既存機能 / 新規機能) ---- */
+.topmenu { position: relative; }
+.topmenu-trigger {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 15px; border-radius: 8px; border: 1px solid transparent;
+  background: none; font-family: inherit; font-size: 13px; font-weight: 700;
+  color: var(--ink); cursor: pointer; transition: background 0.15s, color 0.15s;
 }
-.topnav a:hover { background: var(--brand-soft); color: var(--brand); }
-.topnav a.wip { color: var(--wip); font-weight: 500; }
-.topnav a.wip:hover { background: var(--wip-bg); color: var(--wip); }
-.topnav a.active { background: var(--brand-soft); color: var(--brand); }
-.nav-new-chip {
-  display: inline-block; font-size: 9px; font-weight: 800; color: #fff;
-  background: var(--new); border-radius: 8px; padding: 1px 5px; margin-left: 5px;
-  letter-spacing: 0.02em; vertical-align: 1px;
+.topmenu:hover .topmenu-trigger,
+.topmenu-trigger:hover,
+.topmenu-trigger.active { background: var(--brand-soft); color: var(--brand); }
+.topmenu-trigger .caret { font-size: 9px; transition: transform 0.18s; }
+.topmenu:hover .topmenu-trigger .caret { transform: rotate(180deg); }
+
+/* invisible bridge so the dropdown doesn't close when crossing the gap */
+.topmenu::after { content: ""; position: absolute; top: 100%; left: 0; right: 0; height: 8px; }
+
+.topmenu-dropdown {
+  position: absolute; top: calc(100% + 7px); left: 0;
+  min-width: 250px; background: #fff; border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow);
+  padding: 8px; display: none; flex-direction: column; gap: 2px; z-index: 120;
 }
+.topmenu:hover .topmenu-dropdown { display: flex; }
+.topmenu-dropdown a {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  color: var(--ink-sub); text-decoration: none; white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.topmenu-dropdown a:hover { background: var(--brand-soft); color: var(--brand); }
+.topmenu-dropdown a.active { background: var(--brand-soft); color: var(--brand); }
+.topmenu-dropdown a.wip { color: var(--wip); font-weight: 500; }
+.topmenu-dropdown a.wip:hover { background: var(--wip-bg); color: var(--wip); }
+.dd-chips { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.dd-chip { font-size: 9px; font-weight: 800; border-radius: 8px; padding: 1px 6px; letter-spacing: 0.02em; }
+.dd-chip.new { background: var(--new); color: #fff; }
+.dd-chip.wip { background: var(--wip-bg); color: var(--wip); border: 1px solid var(--line); font-weight: 600; }
 
 /* ===== HERO ===== */
 .hero {
@@ -192,12 +208,19 @@ body {
 }
 .fn:hover { border-color: var(--brand-border); box-shadow: 0 4px 14px rgba(37,99,235,0.12); transform: translateY(-1px); }
 
+.fn-top { display: flex; align-items: flex-start; gap: 11px; }
+.fn-icon {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: 9px; background: var(--brand-soft); border: 1px solid var(--brand-border);
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.fn-textwrap { flex: 1; min-width: 0; }
 .fn-id {
   font-family: "Consolas", "SF Mono", monospace;
   font-size: 10px; font-weight: 700; color: var(--brand);
   letter-spacing: 0.03em; opacity: 0.85;
 }
-.fn-name { margin-top: 3px; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+.fn-name { margin-top: 2px; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.35; }
 
 /* hover overlay with 2 actions */
 .fn-actions {
@@ -326,9 +349,112 @@ body {
   .hero h1 { font-size: 24px; }
   .feature { padding: 22px 18px; }
 }
+
+/* ===== AUTH LOCK (client-side gate) ===== */
+.auth-lock {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #0f172a;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.auth-lock.hidden { display: none; }
+.auth-box {
+  width: 350px; max-width: 100%; background: #fff; border-radius: 16px;
+  padding: 30px 28px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  display: flex; flex-direction: column; gap: 13px; text-align: center;
+}
+.auth-logo {
+  width: 50px; height: 50px; margin: 0 auto 2px; border-radius: 13px;
+  background: linear-gradient(140deg, #1d4ed8, #3b82f6);
+  color: #fff; font-weight: 800; font-size: 19px; letter-spacing: -0.03em;
+  display: flex; align-items: center; justify-content: center;
+}
+.auth-box h2 { font-size: 16px; color: #1e293b; margin: 0; }
+.auth-box .auth-sub { font-size: 13px; color: #64748b; margin: -8px 0 4px; }
+.auth-box label { text-align: left; font-size: 12.5px; font-weight: 600; color: #334155; display: flex; flex-direction: column; gap: 5px; }
+.auth-box input { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 9px; font-size: 14px; font-family: inherit; }
+.auth-box input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+.auth-error { display: none; color: #dc2626; font-size: 12.5px; }
+.auth-error.show { display: block; }
+.auth-btn { margin-top: 4px; padding: 11px; border: none; border-radius: 9px; background: #2563eb; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s; }
+.auth-btn:hover { background: #1d4ed8; }
+.auth-note { font-size: 11px; color: #94a3b8; margin: 2px 0 0; line-height: 1.5; }
 </style>
 </head>
 <body>
+
+<!-- ===== AUTH LOCK (簡易アクセス制限・クライアントサイド) ===== -->
+<div id="authLock" class="auth-lock">
+  <form class="auth-box" id="authForm" autocomplete="off">
+    <div class="auth-logo">J2</div>
+    <h2>J2 ProcureSuite — モックアップ</h2>
+    <p class="auth-sub">閲覧にはログインが必要です</p>
+    <label>ユーザー名<input type="text" id="authUser" autocomplete="username"></label>
+    <label>パスワード<input type="password" id="authPass" autocomplete="current-password"></label>
+    <div class="auth-error" id="authError">ユーザー名またはパスワードが違います</div>
+    <button type="submit" class="auth-btn">ログイン</button>
+    <p class="auth-note">※ 簡易的なアクセス制限です。強固なセキュリティではありません。</p>
+  </form>
+</div>
+<script>
+/* ============================================================
+   簡易アクセス制限（クライアントサイドの目隠し。真のセキュリティではない）
+   - GitHub Pages 等の静的ホスティングでは真の認証は不可のため、あくまで
+     casual なアクセス抑止。ソース表示や個別mockのURL直打ちで回避可能。
+   認証情報の設定:
+     AUTH.user      … ユーザー名
+     AUTH.passHash  … パスワードの SHA-256（16進64文字）。設定時はこちらを優先（平文を隠せる・推奨）
+     AUTH.passPlain … 平文パスワード（passHash 未設定時のフォールバック）
+   ハッシュ生成: このページを開きコンソールで  await __genHash('新しいパスワード')
+     → 出力(64文字)を passHash に貼り付け、passPlain を '' にする。
+   ※ passHash 方式は HTTPS（GitHub Pages）で動作。file:// では crypto.subtle が使えないため平文方式のみ。
+   ============================================================ */
+(function () {
+  const AUTH = {
+    user: "jienie",
+    passHash: "",                 // 例: "9f86d0818..."（64文字）。設定するとこちらが使われる
+    passPlain: "J2rfx2026!"       // ← 公開前に必ず変更してください
+  };
+  const KEY = "j2mock_auth_ok";
+
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  window.__genHash = sha256; // コンソールでのハッシュ生成用ヘルパー
+
+  const lock = document.getElementById("authLock");
+  const form = document.getElementById("authForm");
+  const errEl = document.getElementById("authError");
+  const userEl = document.getElementById("authUser");
+  const passEl = document.getElementById("authPass");
+
+  // セッション中に認証済みなら解除（タブを閉じるまで有効）
+  try { if (sessionStorage.getItem(KEY) === "1") lock.classList.add("hidden"); } catch (e) {}
+  if (!lock.classList.contains("hidden")) setTimeout(() => userEl.focus(), 50);
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    let ok = (userEl.value.trim() === AUTH.user);
+    if (ok) {
+      if (AUTH.passHash) {
+        try { ok = (await sha256(passEl.value)) === AUTH.passHash.toLowerCase(); }
+        catch (err) { ok = (passEl.value === AUTH.passPlain); } // file:// フォールバック
+      } else {
+        ok = (passEl.value === AUTH.passPlain);
+      }
+    }
+    if (ok) {
+      try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+      lock.classList.add("hidden");
+      errEl.classList.remove("show");
+    } else {
+      errEl.classList.add("show");
+      passEl.value = "";
+      passEl.focus();
+    }
+  });
+})();
+</script>
 
 <!-- ===== TOP BAR ===== -->
 <header class="topbar">
@@ -405,23 +531,27 @@ const FEATURES = [
     portals: {
       buyer: [
         { name: "調達案件一覧", id: "SCR-001", url: RFX+"eProcurement_RFX_ProjectList.html", role: "進行中・完了を含む全ての調達案件を一覧管理する画面です。ステータスや担当者で絞り込み、案件全体を俯瞰できます。" },
-        { name: "調達案件作成・設定", id: "SCR-002", url: RFX+"eProcurement_RFX_ProjectCreate.html", role: "新規調達案件の基本情報・スケジュール・参加サプライヤーを設定する画面です。案件の枠組みをここで定義します。" },
-        { name: "案件詳細・進行状況", id: "SCR-003", url: RFX+"eProcurement_RFX_ProjectDetail.html", role: "個別案件の進捗、関連文書、タイムラインを一元的に確認する画面です。案件のハブとして機能します。" },
+        { name: "調達案件作成・設定【Phase 1】", id: "SCR-002-P1", url: RFX+"eProcurement_RFX_ProjectCreate_phase1.html", role: "Phase 1版の案件作成画面です。基本情報・スケジュール・評価者・参加サプライヤーを設定します。評価軸は技術／価格の2軸固定です。" },
+        { name: "調達案件作成・設定【Phase 2】", id: "SCR-002-P2", url: RFX+"eProcurement_RFX_ProjectCreate_phase2.html", role: "Phase 2版の案件作成画面です。評価軸の追加設定・エンベロープ方式トグル・BAFOオプションを加えた拡張版です。" },
+        { name: "案件詳細・進行状況【Phase 1】", id: "SCR-003-P1", url: RFX+"eProcurement_RFX_ProjectDetail_phase1.html", role: "Phase 1版のハブ画面です。案件の進捗・参加状況・提出状況・Q&A・添付を一元的に確認できます。" },
+        { name: "案件詳細・進行状況【Phase 2】", id: "SCR-003-P2", url: RFX+"eProcurement_RFX_ProjectDetail_phase2.html", role: "Phase 2版のハブ画面です。エンベロープ2段階フロー・BAFOフェーズ表示を追加しています。" },
         { name: "RFI作成・送信", id: "SCR-004", url: RFX+"eProcurement_RFX_RFICreate.html", role: "情報提供依頼（RFI）を作成し、対象サプライヤーへ送信する画面です。市場調査や候補選定の初期段階を支援します。" },
-        { name: "RFP作成・送信", id: "SCR-005", url: RFX+"eProcurement_RFX_RFPCreate.html", role: "提案依頼（RFP）を作成し、要件・評価基準とともにサプライヤーへ配信する画面です。" },
+        { name: "RFP作成・送信【Phase 1】", id: "SCR-005-P1", url: RFX+"eProcurement_RFX_RFPCreate_phase1.html", role: "Phase 1版のRFP作成画面です。提案依頼を固定フォーマットで作成し、ショートリスト対象サプライヤーへ送信します。" },
+        { name: "RFP作成・送信【Phase 2】", id: "SCR-005-P2", url: RFX+"eProcurement_RFX_RFPCreate_phase2.html", role: "Phase 2版のRFP作成画面です。回答フォーマットのカスタマイズ設定（項目・型・必須要否）を追加しています。" },
         { name: "Q&A掲示板（Buyer）", id: "SCR-006", url: RFX+"eProcurement_RFX_QA.html", role: "サプライヤーからの質問に回答し、案件全体でQ&Aを共有する掲示板です。公平な情報開示を担保します。" },
-        { name: "評価シート入力", id: "SCR-009", url: RFX+"eProcurement_RFX_ScoreSheet.html", role: "各サプライヤーの提案を評価基準に沿って採点・記録する画面です。定量・定性の両面から評価します。" },
         { name: "評価シート入力【Phase 1】", id: "SCR-009-P1", url: RFX+"eProcurement_RFX_ScoreSheet_phase1.html", role: "Phase 1版の評価シート入力画面です。評価軸は技術提案／価格の2軸固定。重みは評価フェーズ開始時にロック（BR-RFX-010）。スコアは両軸とも手動入力（0〜100）。" },
         { name: "評価シート入力【Phase 2】", id: "SCR-009-P2", url: RFX+"eProcurement_RFX_ScoreSheet_phase2.html", role: "Phase 2版の評価シート入力画面です。3軸可変（技術提案50%／環境20%／価格30%）、価格スコアは入札価格から自動換算、封筒方式により技術→価格の2段階フェーズ管理が加わります。" },
-        { name: "評価結果・比較", id: "SCR-010", url: RFX+"eProcurement_RFX_ScoreResult.html", role: "複数提案のスコアを横並びで比較し、最適なサプライヤーを選定する画面です。" },
         { name: "評価結果・比較【Phase 1】", id: "SCR-010-P1", url: RFX+"eProcurement_RFX_ScoreResult_phase1.html", role: "Phase 1版の評価結果・比較画面です。2軸固定スコアの集計・ランキング表示。Award Scenarioパネルは非対応（Phase 2機能）。" },
         { name: "評価結果・比較【Phase 2】", id: "SCR-010-P2", url: RFX+"eProcurement_RFX_ScoreResult_phase2.html", role: "Phase 2版の評価結果・比較画面です。3軸スコアの軸別表示・封筒方式フェーズ切替タブ（技術評価フェーズ結果 ／ 総合評価結果）・Award Scenarioパネル（複数発注シナリオ比較）を追加します。" },
-        { name: "Award確定申請", id: "SCR-011", url: RFX+"eProcurement_RFX_AwardRequest.html", role: "落札者の確定を担当者が申請し、承認フローへ回す画面です。選定の根拠とともに上程します。" },
+        { name: "Award確定申請【Phase 1】", id: "SCR-011-P1", url: RFX+"eProcurement_RFX_AwardRequest_phase1.html", role: "Phase 1版のAward確定申請画面です。評価結果から落札候補（1社／複数社）を選定し、承認者へ承認申請します（BR-RFX-009）。" },
+        { name: "Award確定申請【Phase 2】", id: "SCR-011-P2", url: RFX+"eProcurement_RFX_AwardRequest_phase2.html", role: "Phase 2版のAward確定申請画面です。BAFO（最終見積再提示要請）実行・Award Scenario参照を追加しています。" },
         { name: "Award承認", id: "SCR-012", url: RFX+"eProcurement_RFX_AwardApproval.html", role: "承認者が落札決定を最終承認し、発注を確定する画面です。承認をもって調達が確定します。" }
       ],
       supplier: [
         { name: "Q&A掲示板（Supplier）", id: "SCR-007", url: "supplier-portal/RFX機能/eProcurement_RFX_QA_Supplier.html", role: "サプライヤーが質問を投稿し、公開済みのQ&Aと自社の質問状況を確認する画面です。全参加サプライヤーへの公平な情報開示を実現します。" },
-        { name: "RFI/RFP回答・提出", id: "SCR-008", url: "supplier-portal/RFX機能/eProcurement_RFX_ResponseSubmit.html", role: "サプライヤーがRFI/RFPへの回答・提案書・見積書を提出する画面です。提出後は内容の変更ができません。" }
+        { name: "参加案件一覧", url: "supplier-portal/RFX機能/eProcurement_RFX_Supplier_ProjectList.html", role: "サプライヤーが招待・参加した調達案件を一覧確認する画面です。各案件の回答・Q&Aへの導線をまとめています。" },
+        { name: "RFI/RFP回答・提出【Phase 1】", id: "SCR-008-P1", url: "supplier-portal/RFX機能/eProcurement_RFX_SupplierResponse_phase1.html", role: "Phase 1版の回答提出画面です。RFI/RFPへの回答・提案書・見積書を固定フォーマットで提出します。提出後は変更できません。" },
+        { name: "RFI/RFP回答・提出【Phase 2】", id: "SCR-008-P2", url: "supplier-portal/RFX機能/eProcurement_RFX_SupplierResponse_phase2.html", role: "Phase 2版の回答提出画面です。発注企業が定義したカスタム項目（金額・日付・選択等）で回答します。金額項目は価格自動換算の入力源になります。" }
       ], provider: [
         { name: "RFXシステム設定", id: "SCR-P01", url: "provider-portal/RFX機能/eProcurement_RFX_ProviderSettings.html", role: "リマインド送信タイミング・添付ファイルサイズ上限・評価軸デフォルトウェイトなど、RFX機能のシステム全体設定を管理する画面です。Provider（システム管理者）のみ編集可能です。" }
       ]
@@ -460,6 +590,17 @@ const FEATURES = [
 
 const PORTAL_LABELS = { buyer: "Buyer Portal", supplier: "Supplier Portal", provider: "Provider Portal" };
 
+/* 画面ごとのアイコン（画面ID基準・-P1/-P2 は同一） */
+const SCREEN_ICONS = {
+  "SCR-001": "📋", "SCR-002": "📝", "SCR-003": "🗂️", "SCR-004": "📨", "SCR-005": "📑",
+  "SCR-006": "💬", "SCR-007": "💬", "SCR-008": "📤", "SCR-009": "📊", "SCR-010": "🏆",
+  "SCR-011": "🏅", "SCR-012": "✅", "SCR-P01": "⚙️"
+};
+
+/* 表示する機能（今は RFX機能 のみ。他機能を表示するには id を追加） */
+const VISIBLE_IDS = ["rfx"];
+const VISIBLE = FEATURES.filter(f => VISIBLE_IDS.includes(f.id));
+
 /* ============ RENDER ============ */
 const svgInfo = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>';
 const svgEye  = '<svg viewBox="0 0 24 24"><path d="M12 5c-5 0-9 4.5-10 7 1 2.5 5 7 10 7s9-4.5 10-7c-1-2.5-5-7-10-7zm0 11a4 4 0 110-8 4 4 0 010 8zm0-6a2 2 0 100 4 2 2 0 000-4z"/></svg>';
@@ -467,15 +608,22 @@ const svgEye  = '<svg viewBox="0 0 24 24"><path d="M12 5c-5 0-9 4.5-10 7 1 2.5 5
 function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 function buildFnCard(f, feat, portalKey) {
+  const baseId = (f.id || "").replace(/-P[12]$/, "");
+  const icon = f.icon || SCREEN_ICONS[baseId] || feat.icon || "🖥️";
   const idHtml = f.id ? `<div class="fn-id">${esc(f.id)}</div>` : "";
   const payload = encodeURIComponent(JSON.stringify({
-    icon: feat.icon, feat: feat.nav, portal: PORTAL_LABELS[portalKey],
+    icon: icon, feat: feat.nav, portal: PORTAL_LABELS[portalKey],
     title: f.name, id: f.id || "", role: f.role, url: f.url
   }));
   return `
     <div class="fn" tabindex="0">
-      ${idHtml}
-      <div class="fn-name">${esc(f.name)}</div>
+      <div class="fn-top">
+        <div class="fn-icon">${icon}</div>
+        <div class="fn-textwrap">
+          ${idHtml}
+          <div class="fn-name">${esc(f.name)}</div>
+        </div>
+      </div>
       <div class="fn-actions">
         <div class="fn-action explain" onclick="openModal('${payload}')">${svgInfo}説明</div>
         <div class="fn-action view" onclick="window.open('${esc(f.url)}','_blank')">${svgEye}閲覧</div>
@@ -505,11 +653,28 @@ function renderSections() {
   const sec = document.getElementById("sections");
   const heroTags = document.getElementById("hero-tags");
 
-  nav.innerHTML = FEATURES.map(f =>
-    `<a href="#sec-${f.id}" class="${f.wip ? "wip" : ""}" data-target="sec-${f.id}">${esc(f.nav)}${f.isNew ? '<span class="nav-new-chip">NEW</span>' : ""}</a>`
-  ).join("");
+  const GROUPS = [
+    { key: "existing", label: "既存機能" },
+    { key: "new", label: "新規機能" }
+  ];
+  const groupOf = f => (f.isNew ? "new" : "existing");
+  nav.innerHTML = GROUPS.map(g => {
+    const feats = VISIBLE.filter(f => groupOf(f) === g.key);
+    if (!feats.length) return "";
+    const items = feats.map(f => {
+      const chips =
+        (f.isNew ? '<span class="dd-chip new">NEW</span>' : "") +
+        (f.wip ? '<span class="dd-chip wip">準備中</span>' : "");
+      return `<a href="#sec-${f.id}" data-target="sec-${f.id}" class="${f.wip ? "wip" : ""}">` +
+             `<span>${esc(f.nav)}</span><span class="dd-chips">${chips}</span></a>`;
+    }).join("");
+    return `<div class="topmenu" data-group="${g.key}">
+        <button class="topmenu-trigger" type="button">${esc(g.label)}<span class="caret">▾</span></button>
+        <div class="topmenu-dropdown">${items}</div>
+      </div>`;
+  }).join("");
 
-  sec.innerHTML = FEATURES.map(f => `
+  sec.innerHTML = VISIBLE.map(f => `
     <section class="feature ${f.wip ? "is-wip" : ""}" id="sec-${f.id}">
       <div class="feature-head">
         <div class="feature-icon">${f.icon}</div>
@@ -525,11 +690,10 @@ function renderSections() {
   `).join("");
 
   // hero tags: count screens of active features
-  const tags = FEATURES.filter(f => !f.wip).map(f => {
+  const tags = VISIBLE.filter(f => !f.wip).map(f => {
     const n = Object.values(f.portals).reduce((s,a)=>s+a.length,0);
     return `<span class="tag">${esc(f.nav)} — <b>${n}画面</b></span>`;
   });
-  tags.push(`<span class="tag">その他 — <b>準備中</b></span>`);
   heroTags.innerHTML = tags.join("");
 }
 
@@ -552,8 +716,9 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal()
 /* ============ SCROLL BEHAVIOR ============ */
 function initScroll() {
   const btn = document.getElementById("scrollTop");
-  const navLinks = [...document.querySelectorAll("#topnav a")];
-  const sections = FEATURES.map(f => document.getElementById("sec-" + f.id));
+  const navLinks = [...document.querySelectorAll(".topmenu-dropdown a")];
+  const menus = [...document.querySelectorAll(".topmenu")];
+  const sections = VISIBLE.map(f => document.getElementById("sec-" + f.id));
 
   window.addEventListener("scroll", () => {
     btn.classList.toggle("show", window.scrollY > 400);
@@ -562,6 +727,11 @@ function initScroll() {
     const mid = window.scrollY + 120;
     sections.forEach(s => { if (s && s.offsetTop <= mid) activeId = s.id; });
     navLinks.forEach(a => a.classList.toggle("active", a.dataset.target === activeId));
+    // highlight the group trigger that contains the active section
+    menus.forEach(m => {
+      const has = [...m.querySelectorAll("a")].some(a => a.dataset.target === activeId);
+      m.querySelector(".topmenu-trigger").classList.toggle("active", has);
+    });
   });
 }
 

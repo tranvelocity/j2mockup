@@ -1,136 +1,161 @@
 /* ============================================================
    J2 共通レイアウト JS — RFX機能モックアップ用共有アセット
-   JienieLayout.init() で header / sidebar / fab / toast を描画。
-   data-nav 属性の要素には自動で遷移トースト（実画面遷移の代替）を bind。
-   ・PORTAL / ACTIVE_NAV は各ページの <script> で上書き可。
+   header / sidebar / toast / back-to-top を描画。
+   ★ 2026-07 更新: staging（https://demo.staging.jienie.com/eProcurement/Home）の
+     実 header/sidebar に合わせて再構成。buyer-portal と同一内容（NAVはportalで分岐）。
    ============================================================ */
 window.JienieLayout = (function () {
-  // ページ側で window.J2_CONFIG を定義して上書き可能
-  const cfg = Object.assign({
-    portal: 'buyer',          // buyer | supplier | provider
+  var cfg = Object.assign({
+    portal: 'buyer',
     company: 'ジーニーソリューションズ株式会社　本社 総務部',
+    org: '本社 総務部',
     user: '依頼裕三',
     activeNav: 'rfx'
   }, window.J2_CONFIG || {});
 
-  const NAV = {
+  var NAV = {
     buyer: [
-      { id: 'home',    ico: '🏠', label: 'ホーム',            href: '#' },
-      { id: 'search',  ico: '🔍', label: '横串検索',          href: '#' },
-      { id: 'catalog', ico: '📦', label: 'カタログ',          href: '#' },
-      { id: 'order',   ico: '🧾', label: '発注管理',          href: '#' },
-      { id: 'estimate',ico: '💬', label: '見積依頼',          href: '#' },
-      { id: 'rfx',     ico: '📊', label: '調達ソーシング(RFX)', href: 'eProcurement_RFX_ProjectList.html' },
-      { id: 'invoice', ico: '💴', label: '請求管理',          href: '#' },
-      { id: 'master',  ico: '⚙️', label: 'マスタ管理',        href: '#' }
+      { id:'purchase', ico:'📋', label:'購買取引案件照会',       href:'#' },
+      { id:'contract', ico:'📄', label:'契約情報照会',           href:'#' },
+      { id:'payment',  ico:'💴', label:'支払管理案件照会',       href:'#' },
+      { id:'catalog',  ico:'🔍', label:'カタログ品購入',         href:'#' },
+      { id:'docreg',   ico:'📑', label:'契約書・請求書情報登録', href:'#' },
+      { id:'closing',  ico:'📅', label:'締め処理管理',           href:'#' },
+      { id:'monthly',  ico:'📥', label:'月次明細管理',           href:'#' },
+      { id:'download', ico:'⬇️', label:'ダウンロードセンター',   href:'#' },
+      { id:'handover', ico:'👥', label:'案件引継ぎ',             href:'#' },
+      { id:'rfx',      ico:'📊', label:'調達ソーシング(RFX)',    href:'eProcurement_RFX_ProjectList.html', isNew:true }
     ],
     supplier: [
-      { id: 'home',    ico: '🏠', label: 'ホーム',        href: '#' },
-      { id: 'deal',    ico: '🧾', label: '取引状況',      href: '#' },
-      { id: 'estimate',ico: '💬', label: '見積回答',      href: '#' },
-      { id: 'rfx',     ico: '📊', label: '調達案件(RFX)', href: 'eProcurement_RFX_Supplier_ProjectList.html' },
-      { id: 'company', ico: '🏢', label: '自社情報管理',  href: '#' }
+      { id:'deal',     ico:'📋', label:'取引状況照会',   href:'#' },
+      { id:'estimate', ico:'💬', label:'見積回答',       href:'#' },
+      { id:'invoice',  ico:'💴', label:'請求管理',       href:'#' },
+      { id:'company',  ico:'🏢', label:'自社情報管理',   href:'#' },
+      { id:'rfx',      ico:'📊', label:'調達案件(RFX)',  href:'eProcurement_RFX_Supplier_ProjectList.html', isNew:true }
     ],
     provider: [
-      { id: 'home',    ico: '🏠', label: 'ダッシュボード', href: '#' },
-      { id: 'master',  ico: '🗂️', label: 'マスタ管理',     href: '#' },
-      { id: 'rfx',     ico: '📊', label: 'RFX設定',        href: 'eProcurement_RFX_ProviderSettings.html' },
-      { id: 'schedule',ico: '⏱️', label: 'ジョブ管理',     href: '#' },
-      { id: 'log',     ico: '📜', label: '監査ログ',       href: '#' }
+      { id:'master',   ico:'🗂️', label:'マスタ管理',   href:'#' },
+      { id:'mail',     ico:'✉️', label:'メール設定',   href:'#' },
+      { id:'schedule', ico:'⏱️', label:'ジョブ管理',   href:'#' },
+      { id:'log',      ico:'📜', label:'監査ログ',     href:'#' },
+      { id:'rfx',      ico:'📊', label:'RFX設定',      href:'eProcurement_RFX_ProviderSettings.html', isNew:true }
     ]
   };
 
-  const PORTAL_LABEL = { buyer: 'Buyer Portal', supplier: 'Supplier Portal', provider: 'Provider Portal' };
-
-  function h(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+  function h(id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; }
 
   function renderHeader() {
-    h('layout-header', `
-      <button class="hdr-burger" id="sbToggle" title="メニュー">☰</button>
-      <div class="hdr-logo">Jienie<span>2.0</span><span class="badge-mall">${PORTAL_LABEL[cfg.portal]}</span></div>
-      <div class="hdr-spacer"></div>
-      <div class="hdr-user">
-        <div style="text-align:right">
-          <div class="hdr-company">${cfg.company}</div>
-          <div class="hdr-name">${cfg.user} 様</div>
-        </div>
-        <span class="hdr-icon">${cfg.user ? cfg.user.charAt(0) : '👤'}</span>
-      </div>`);
+    var acts = '';
+    if (cfg.portal === 'buyer') {
+      acts += '<a class="hdr-act" data-nav="カート（/CatalogMall/Cart）"><span class="ic">🛒</span><span class="hdr-badge">0</span><span>カート ¥0</span></a>';
+      acts += '<a class="hdr-act" data-nav="比較表（/CatalogMall/ProductsCompare）"><span class="ic">🗂️</span><span class="hdr-badge">10</span><span>比較表</span></a>';
+    }
+    acts += '<a class="hdr-act" data-nav="お知らせ一覧"><span class="ic">🔔</span><span class="hdr-badge">3</span><span>お知らせ</span></a>';
+    acts += '<a class="hdr-act" data-nav="ヘルプ（HelpDeskList）"><span class="ic">❓</span><span>ヘルプ</span></a>';
+
+    h('layout-header',
+      '<a class="hdr-logo" data-nav="トップページ"><span class="lg-j2">J2</span><span class="lg-name">Jienie</span><span class="lg-ver">2.0</span></a>' +
+      '<a class="hdr-home" data-nav="トップページ（/eProcurement/Home）"><span>🏠</span><span>トップページ</span></a>' +
+      '<div class="hdr-spacer"></div>' +
+      '<div class="hdr-actions">' + acts + '</div>' +
+      '<div class="hdr-user" data-nav="ユーザーメニュー"><span class="avatar">👤</span>' +
+        '<div><div class="u-org">' + (cfg.org || '') + '</div><div class="u-name">' + cfg.user + '</div></div></div>' +
+      '<span class="hdr-gear" data-nav="設定メニュー">⚙</span>');
   }
 
   function renderSidebar() {
-    const items = (NAV[cfg.portal] || NAV.buyer).map(n => `
-      <a class="sb-item ${n.id === cfg.activeNav ? 'active' : ''}" href="${n.href}" ${n.href === '#' ? 'data-nav="' + n.label + '（未実装メニュー）"' : ''}>
-        <span class="sb-ico">${n.ico}</span><span class="sb-txt">${n.label}</span>
-      </a>`).join('');
+    var items = '<button class="sb-toggle" id="sbToggle" title="メニュー">☰</button>';
+    items += (NAV[cfg.portal] || NAV.buyer).map(function (n) {
+      var isLink = n.href && n.href !== '#';
+      return '<a class="sb-item ' + (n.id === cfg.activeNav ? 'active' : '') + '" href="' + n.href + '" ' +
+        (isLink ? '' : 'data-nav="' + n.label + '（未実装メニュー）"') + '>' +
+        '<span class="sb-ico">' + n.ico + '</span>' +
+        '<span class="sb-txt">' + n.label + (n.isNew ? ' <span class="sb-new">NEW</span>' : '') + '</span>' +
+        '<span class="sb-caret">▼</span></a>';
+    }).join('');
     h('layout-sidebar', items);
-    const sb = document.getElementById('layout-sidebar');
-    const tgl = document.getElementById('sbToggle');
-    if (tgl && sb) {
-      tgl.addEventListener('click', () => {
-        sb.classList.toggle('expanded');
-        tgl.textContent = sb.classList.contains('expanded') ? '✕' : '☰';
-      });
+
+    if (!document.getElementById('sbBackdrop')) {
+      var bd = document.createElement('div'); bd.id = 'sbBackdrop';
+      document.body.appendChild(bd);
+      bd.addEventListener('click', collapseSidebar);
     }
+    var tgl = document.getElementById('sbToggle');
+    if (tgl) tgl.addEventListener('click', toggleSidebar);
+  }
+
+  function toggleSidebar() {
+    var sb = document.getElementById('layout-sidebar');
+    var bd = document.getElementById('sbBackdrop');
+    var tgl = document.getElementById('sbToggle');
+    var open = sb.classList.toggle('expanded');
+    if (bd) bd.classList.toggle('show', open);
+    if (tgl) tgl.textContent = open ? '✕' : '☰';
+  }
+  function collapseSidebar() {
+    var sb = document.getElementById('layout-sidebar');
+    var bd = document.getElementById('sbBackdrop');
+    var tgl = document.getElementById('sbToggle');
+    sb.classList.remove('expanded');
+    if (bd) bd.classList.remove('show');
+    if (tgl) tgl.textContent = '☰';
   }
 
   function renderFab() {
-    h('layout-fab', `<button class="fab-top" title="トップへ戻る">↑</button>`);
-    const b = document.querySelector('#layout-fab .fab-top');
-    if (b) b.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    h('layout-fab', '<button class="fab-top" title="トップへ戻る">↑</button>');
+    var b = document.querySelector('#layout-fab .fab-top');
+    if (b) b.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }
 
-  let toastTimer = null;
+  var toastTimer = null;
   function toast(msg) {
-    const t = document.getElementById('mockToast');
+    var t = document.getElementById('mockToast');
     if (!t) return;
-    t.textContent = msg;
-    t.classList.add('show');
+    t.textContent = msg; t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
   }
 
   function bindNav() {
-    document.querySelectorAll('[data-nav]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        // href が実在（'#' 以外）ならそのまま遷移させる
-        const href = el.getAttribute('href');
+    document.querySelectorAll('[data-nav]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        var href = el.getAttribute('href');
         if (href && href !== '#') return;
         e.preventDefault();
-        toast(`実際の画面では「${el.getAttribute('data-nav')}」へ遷移します`);
+        toast('実際の画面では「' + el.getAttribute('data-nav') + '」へ遷移します');
       });
     });
   }
 
-  // --- modal helpers ---
-  function openModal(id) { const m = document.getElementById(id); if (m) m.classList.add('open'); }
-  function closeModal(id) { const m = document.getElementById(id); if (m) m.classList.remove('open'); }
+  function openModal(id) { var m = document.getElementById(id); if (m) m.classList.add('open'); }
+  function closeModal(id) { var m = document.getElementById(id); if (m) m.classList.remove('open'); }
   function bindModals() {
-    document.querySelectorAll('.modal-overlay').forEach(ov => {
-      ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
-      ov.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => ov.classList.remove('open')));
+    document.querySelectorAll('.modal-overlay').forEach(function (ov) {
+      ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('open'); });
+      ov.querySelectorAll('[data-close]').forEach(function (btn) { btn.addEventListener('click', function () { ov.classList.remove('open'); }); });
     });
-    document.querySelectorAll('[data-open-modal]').forEach(btn => {
-      btn.addEventListener('click', () => openModal(btn.getAttribute('data-open-modal')));
+    document.querySelectorAll('[data-open-modal]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openModal(btn.getAttribute('data-open-modal')); });
     });
   }
 
-  // --- search box helpers ---
   function bindSearch() {
-    document.querySelectorAll('.toggle-detail').forEach(t => {
-      t.addEventListener('click', () => {
+    document.querySelectorAll('.toggle-detail').forEach(function (t) {
+      t.addEventListener('click', function () {
         t.classList.toggle('open');
-        const tgt = document.querySelector(t.getAttribute('data-target'));
+        var tgt = document.querySelector(t.getAttribute('data-target'));
         if (tgt) tgt.classList.toggle('open');
-        const cap = t.querySelector('.cap');
+        var cap = t.querySelector('.cap');
         if (cap) cap.textContent = t.classList.contains('open') ? '詳細条件を省略' : '詳細条件を追加';
       });
     });
-    document.querySelectorAll('.couple-btn').forEach(cb => {
-      cb.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-        cb.querySelectorAll('button').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-      }));
+    document.querySelectorAll('.couple-btn').forEach(function (cb) {
+      cb.querySelectorAll('button').forEach(function (b) {
+        b.addEventListener('click', function () {
+          cb.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+          b.classList.add('active');
+        });
+      });
     });
   }
 
@@ -143,5 +168,5 @@ window.JienieLayout = (function () {
     bindSearch();
   }
 
-  return { init, toast, openModal, closeModal };
+  return { init: init, toast: toast, openModal: openModal, closeModal: closeModal };
 })();
