@@ -30,6 +30,27 @@
   .no-result.show { display: block; }
   .date-range { display: inline-flex; align-items: center; gap: 6px; }
   .date-range input { width: 150px; }
+
+  /* 検索・クリアボタンを中央寄せ */
+  .wrapper-search .search-actions { justify-content: center; }
+
+  /* 各案件カードを目立たせる（ヘッダーにステータス色・左アクセント・シャドウ） */
+  #cardList .rfx-card { box-shadow: 0 1px 4px rgba(15,23,42,.06); transition: box-shadow .15s, transform .15s; }
+  #cardList .rfx-card:hover { box-shadow: 0 8px 22px rgba(15,23,42,.14); transform: translateY(-1px); }
+  #cardList .rfx-card-head { font-weight: 600; }
+
+  /* フェーズストリップ（各カード下部） */
+  .phase-strip { display: flex; padding: 12px 16px 14px; border-top: 1px solid var(--j2-border); background: #fafcff; }
+  .phase-strip .ph { flex: 1; position: relative; text-align: center; font-size: .72rem; color: #9aa3b2; }
+  .phase-strip .ph .dot { width: 14px; height: 14px; border-radius: 50%; background: #d4d9e2; margin: 0 auto 6px; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: .58rem; }
+  .phase-strip .ph .line { position: absolute; top: 6px; left: 50%; width: 100%; height: 2px; background: #d4d9e2; z-index: 0; }
+  .phase-strip .ph:last-child .line { display: none; }
+  .phase-strip .ph.done { color: #2f7d32; }
+  .phase-strip .ph.done .dot { background: #5cb85c; }
+  .phase-strip .ph.done .line { background: #5cb85c; }
+  .phase-strip .ph.current { color: var(--j2-blue); font-weight: bold; }
+  .phase-strip .ph.current .dot { background: var(--j2-blue); box-shadow: 0 0 0 3px rgba(65,105,225,.22); }
+  .phase-strip.is-cancelled .ph { color: #b3b3b3; }
 </style>
 </head>
 <body>
@@ -296,6 +317,44 @@
   (function () {
     function cards() { return Array.prototype.slice.call(document.querySelectorAll('#cardList .rfx-card')); }
 
+    // ステータス → 色 / フェーズ現在地
+    var PHASES = ['作成', '招待', 'RFI', 'RFP', '評価', 'Award'];
+    var STATUS_META = {
+      s100: { color: '#808080', cur: 0 },
+      s200: { color: '#ff9933', cur: 2 },
+      s250: { color: '#ff6699', cur: 2 },
+      s300: { color: '#ff9933', cur: 3 },
+      s400: { color: '#0074c1', cur: 4 },
+      s500: { color: '#ff6699', cur: 5 },
+      s600: { color: '#437643', done: true },
+      s900: { color: '#808080', cancelled: true }
+    };
+
+    function buildStrip(status) {
+      var m = STATUS_META[status] || { color: '#808080' };
+      var html = PHASES.map(function (name, i) {
+        var cls = '';
+        if (m.done) cls = 'done';
+        else if (!m.cancelled && m.cur != null) cls = (i < m.cur) ? 'done' : (i === m.cur ? 'current' : '');
+        var mark = (cls === 'done') ? '✓' : '';
+        return '<div class="ph ' + cls + '"><span class="line"></span><span class="dot">' + mark + '</span>' + name + '</div>';
+      }).join('');
+      return '<div class="phase-strip' + (m.cancelled ? ' is-cancelled' : '') + '">' + html + '</div>';
+    }
+
+    function decorate() {
+      cards().forEach(function (card) {
+        var m = STATUS_META[card.dataset.status] || { color: '#808080' };
+        var head = card.querySelector('.rfx-card-head');
+        if (head) {
+          head.style.background = m.color + '14';          // 薄いステータス色
+          head.style.borderBottomColor = m.color + '55';
+        }
+        card.style.borderLeft = '4px solid ' + m.color;     // 左アクセント
+        if (!card.querySelector('.phase-strip')) card.insertAdjacentHTML('beforeend', buildStrip(card.dataset.status));
+      });
+    }
+
     function matches(card) {
       var d = card.dataset;
       // keyword and / or
@@ -381,6 +440,7 @@
     // 初期表示：作成日時降順
     sortCards();
     apply();
+    decorate();
   })();
 </script>
 </body>

@@ -38,6 +38,32 @@
   .sup-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 18px; }
   .sup-list label { display: flex; align-items: center; gap: 8px; font-size: .86rem; padding: 6px 8px; border: 1px solid var(--j2-border); border-radius: 5px; }
   .sup-list label.dis { opacity: .55; }
+  /* 参加サプライヤ: 選択チップ & 検索モーダル */
+  .sup-selected { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+  .sup-empty { color: #999; font-size: .85rem; }
+  .sup-chip { display: inline-flex; align-items: center; gap: 8px; background: #eef4ff; border: 1px solid #bcd3f7; color: #1c4d86; border-radius: 20px; padding: 5px 6px 5px 13px; font-size: .84rem; }
+  .sup-chip button { border: none; background: #cfe0ff; color: #1c4d86; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; line-height: 1; font-size: .78rem; display: flex; align-items: center; justify-content: center; }
+  .sup-chip button:hover { background: #b9d2f7; }
+  .sup-search { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .sup-search input { flex: 1; min-width: 220px; }
+  .sup-modal-meta { font-size: .8rem; color: #666; margin-bottom: 8px; }
+  #supTable td.center, #supTable th.center { text-align: center; }
+  #supTable tbody tr { cursor: pointer; }
+  /* ガイドツアー */
+  #tourMask { position: fixed; inset: 0; z-index: 4998; display: none; }
+  #tourMask.show { display: block; }
+  #tourSpot { position: fixed; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(15,23,42,.62); z-index: 4999; pointer-events: none; display: none; transition: top .25s, left .25s, width .25s, height .25s; }
+  #tourSpot.show { display: block; }
+  #tourPop { position: fixed; z-index: 5001; width: 330px; max-width: calc(100vw - 32px); background: #fff; border-radius: 12px; box-shadow: 0 16px 44px rgba(0,0,0,.34); padding: 16px 18px; display: none; }
+  #tourPop.show { display: block; }
+  #tourPop .tp-step { font-size: .72rem; font-weight: bold; color: var(--j2-blue); letter-spacing: .05em; }
+  #tourPop .tp-title { font-size: 1.02rem; font-weight: bold; margin: 4px 0 7px; }
+  #tourPop .tp-body { font-size: .84rem; color: #444; line-height: 1.65; }
+  #tourPop .tp-foot { display: flex; align-items: center; gap: 8px; margin-top: 15px; }
+  #tourPop .tp-skip { margin-right: auto; background: none; border: none; color: #888; cursor: pointer; font-size: .8rem; text-decoration: underline; padding: 0; }
+  #tourPop .tp-btn { padding: 7px 15px; border-radius: 7px; font-size: .82rem; font-weight: bold; cursor: pointer; }
+  #tourPop .tp-btn.ghost { background: #fff; color: var(--j2-blue); border: 1px solid #cbd5e1; }
+  #tourPop .tp-btn.solid { background: linear-gradient(to bottom, var(--j2-blue-grad-from), var(--j2-blue-grad-to)); color: #fff; border: 1px solid var(--j2-blue-dark); }
   .form-foot { display: flex; gap: 12px; justify-content: flex-end; margin: 22px 0 10px; }
   /* 評価軸テーブル（Phase2） */
   .ax-slider { width: 100%; accent-color: var(--j2-blue); }
@@ -78,6 +104,7 @@
         <h3 class="page-title">調達案件作成・設定</h3>
         <span class="phase-tag phase-2">Phase 2 拡張版</span>
         <div class="spacer"></div>
+        <button type="button" class="btn" id="btnTour">🧭 ガイドツアー</button>
         <a class="btn" href="eProcurement_RFX_ProjectCreate_phase1.html">⇄ Phase 1版を見る</a>
       </div>
 
@@ -272,16 +299,11 @@
         <div class="section">
           <div class="section-head">参加サプライヤ選定</div>
           <div class="section-body">
-            <p class="muted" style="margin-top:0;">既存サプライヤマスタから招待するサプライヤを選択します（1社以上・RD-RFX-002）。作成時に招待通知が送信されます（service-notification 経由）。</p>
-            <div class="sup-list" id="supList">
-              <label><input type="checkbox" value="富士クラウド株式会社" checked> 富士クラウド株式会社</label>
-              <label><input type="checkbox" value="日本デジタルソリューションズ株式会社" checked> 日本デジタルソリューションズ株式会社</label>
-              <label><input type="checkbox" value="さくらインフラ株式会社" checked> さくらインフラ株式会社</label>
-              <label><input type="checkbox" value="グローバルテック株式会社" checked> グローバルテック株式会社</label>
-              <label><input type="checkbox" value="みらいネットワークス株式会社" checked> みらいネットワークス株式会社</label>
-            </div>
+            <p class="muted" style="margin-top:0;">既存サプライヤマスタから招待するサプライヤを検索して選択します（1社以上・RD-RFX-002）。作成時に招待通知が送信されます（service-notification 経由）。</p>
+            <button type="button" class="btn" id="btnPickSup">🔍 サプライヤを検索して選択</button>
+            <div class="sup-selected" id="supChips"></div>
             <div class="field-error" id="errSup">参加サプライヤを1社以上選択してください。</div>
-            <div class="note" style="margin-top:8px;font-size:.78rem;color:#888;">選択中：<span id="supCount">5</span> 社</div>
+            <div class="note" style="margin-top:8px;font-size:.78rem;color:#888;">選択中：<span id="supCount">0</span> 社</div>
           </div>
         </div>
 
@@ -310,6 +332,52 @@
       <button class="btn" data-close>戻る</button>
       <button class="btn btn-primary" id="btnConfirmOk">作成する</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== サプライヤ検索・選択モーダル ===== -->
+<div class="modal-overlay" id="mSupplier">
+  <div class="modal-box wide">
+    <div class="modal-head">サプライヤ検索・選択<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <p class="muted" style="margin-top:0;">既存サプライヤマスタから招待するサプライヤを検索し、複数選択します（RD-RFX-002）。行をクリックしても選択できます。</p>
+      <div class="sup-search">
+        <input type="text" id="supKw" placeholder="サプライヤ名・コード・カテゴリで検索">
+        <select id="supCatFilter">
+          <option value="">全カテゴリ</option>
+          <option>ITインフラ / クラウドサービス</option>
+          <option>オフィス家具・什器</option>
+          <option>物流・倉庫システム</option>
+          <option>給食・フードサービス</option>
+          <option>OA機器・複合機</option>
+          <option>MRO・保守用品</option>
+        </select>
+      </div>
+      <div class="sup-modal-meta"><span id="supShown">0</span> 件表示　｜　選択中 <span id="supPicked">0</span> 社</div>
+      <table class="data" id="supTable">
+        <thead><tr><th class="center" style="width:44px;"></th><th style="width:120px;">コード</th><th>サプライヤ名</th><th style="width:210px;">カテゴリ</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="supNoResult" style="display:none;padding:16px 4px;color:#777;font-size:.9rem;">条件に一致するサプライヤがありません。</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="btnSupConfirm">選択を確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ガイドツアー ===== -->
+<div id="tourMask"></div>
+<div id="tourSpot"></div>
+<div id="tourPop">
+  <div class="tp-step" id="tpStep"></div>
+  <div class="tp-title" id="tpTitle"></div>
+  <div class="tp-body" id="tpBody"></div>
+  <div class="tp-foot">
+    <button type="button" class="tp-skip" id="tpSkip">スキップ</button>
+    <button type="button" class="tp-btn ghost" id="tpPrev">戻る</button>
+    <button type="button" class="tp-btn solid" id="tpNext">次へ</button>
   </div>
 </div>
 
@@ -466,9 +534,26 @@
       checkEval(); JienieLayout.toast('貢献度ウェイトを均等配分しました');
     });
 
-    // ---- 参加サプライヤ ----
-    var supList = document.getElementById('supList');
-    function supCount() { return supList.querySelectorAll('input:checked').length; }
+    // ---- 参加サプライヤ（マスタ検索モーダル・複数選択）----
+    var SUPPLIERS = [
+      { code: 'SUP-0001', name: '富士クラウド株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0002', name: '日本デジタルソリューションズ株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0003', name: 'さくらインフラ株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0004', name: 'グローバルテック株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0005', name: 'みらいネットワークス株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0006', name: 'ネクストIT株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0007', name: '関西クラウドパートナーズ株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0008', name: 'オフィスクリエイト株式会社', cat: 'オフィス家具・什器' },
+      { code: 'SUP-0009', name: '東京ファニチャー株式会社', cat: 'オフィス家具・什器' },
+      { code: 'SUP-0010', name: 'ロジスティクスパートナー株式会社', cat: '物流・倉庫システム' },
+      { code: 'SUP-0011', name: '和光フードサービス株式会社', cat: '給食・フードサービス' },
+      { code: 'SUP-0012', name: 'キャノピーOAシステムズ株式会社', cat: 'OA機器・複合機' },
+      { code: 'SUP-0013', name: 'MRO総合商事株式会社', cat: 'MRO・保守用品' }
+    ];
+    var selectedSups = ['富士クラウド株式会社', '日本デジタルソリューションズ株式会社', 'さくらインフラ株式会社', 'グローバルテック株式会社', 'みらいネットワークス株式会社'];
+    var tempSel = [];
+
+    function supCount() { return selectedSups.length; }
     function checkSup() {
       var n = supCount();
       document.getElementById('supCount').textContent = n;
@@ -476,7 +561,74 @@
       refreshBtn();
       return n > 0;
     }
-    supList.addEventListener('change', checkSup);
+    function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+    function renderChips() {
+      var box = document.getElementById('supChips');
+      if (!selectedSups.length) { box.innerHTML = '<span class="sup-empty">未選択です。「サプライヤを検索して選択」から追加してください。</span>'; return; }
+      box.innerHTML = selectedSups.map(function (nm) {
+        return '<span class="sup-chip">' + esc(nm) + '<button type="button" data-sup="' + esc(nm) + '" title="除外">✕</button></span>';
+      }).join('');
+      box.querySelectorAll('button[data-sup]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var nm = b.getAttribute('data-sup');
+          selectedSups = selectedSups.filter(function (n) { return n !== nm; });
+          renderChips(); checkSup();
+        });
+      });
+    }
+    function updatePicked() {
+      document.getElementById('supPicked').textContent = tempSel.length;
+      document.getElementById('btnSupConfirm').textContent = '選択を確定（' + tempSel.length + '社）';
+    }
+    function toggleTemp(name, on) {
+      var i = tempSel.indexOf(name);
+      if (on && i === -1) tempSel.push(name);
+      if (!on && i > -1) tempSel.splice(i, 1);
+      updatePicked();
+    }
+    function renderSupTable() {
+      var kw = document.getElementById('supKw').value.trim().toLowerCase();
+      var cat = document.getElementById('supCatFilter').value;
+      var rows = SUPPLIERS.filter(function (s) {
+        if (cat && s.cat !== cat) return false;
+        if (kw && ((s.name + ' ' + s.code + ' ' + s.cat).toLowerCase().indexOf(kw) === -1)) return false;
+        return true;
+      });
+      var tb = document.querySelector('#supTable tbody');
+      tb.innerHTML = rows.map(function (s) {
+        var ck = tempSel.indexOf(s.name) > -1 ? ' checked' : '';
+        return '<tr data-name="' + esc(s.name) + '"><td class="center"><input type="checkbox" class="sup-ck"' + ck + '></td>' +
+          '<td>' + s.code + '</td><td>' + esc(s.name) + '</td><td>' + s.cat + '</td></tr>';
+      }).join('');
+      document.getElementById('supShown').textContent = rows.length;
+      document.getElementById('supTable').style.display = rows.length ? '' : 'none';
+      document.getElementById('supNoResult').style.display = rows.length ? 'none' : 'block';
+      tb.querySelectorAll('tr').forEach(function (tr) {
+        var ck = tr.querySelector('.sup-ck');
+        ck.addEventListener('change', function () { toggleTemp(tr.getAttribute('data-name'), ck.checked); });
+        tr.addEventListener('click', function (e) {
+          if (e.target.tagName !== 'INPUT') { ck.checked = !ck.checked; toggleTemp(tr.getAttribute('data-name'), ck.checked); }
+        });
+      });
+      updatePicked();
+    }
+    function openSupModal() {
+      tempSel = selectedSups.slice();
+      document.getElementById('supKw').value = '';
+      document.getElementById('supCatFilter').value = '';
+      renderSupTable();
+      JienieLayout.openModal('mSupplier');
+      setTimeout(function () { document.getElementById('supKw').focus(); }, 60);
+    }
+    document.getElementById('btnPickSup').addEventListener('click', openSupModal);
+    document.getElementById('supKw').addEventListener('input', renderSupTable);
+    document.getElementById('supCatFilter').addEventListener('change', renderSupTable);
+    document.getElementById('btnSupConfirm').addEventListener('click', function () {
+      selectedSups = tempSel.slice();
+      renderChips(); checkSup();
+      JienieLayout.closeModal('mSupplier');
+      JienieLayout.toast(selectedSups.length + '社を参加サプライヤに選択しました。');
+    });
 
     // ---- 日付バリデーション（RFI < RFP < 評価・本日以降）----
     function setErr(wrapId, errId, on) {
@@ -546,7 +698,7 @@
         var nm = sel ? sel.value : tr.querySelector('.ax-name-fixed').firstChild.textContent.trim();
         return nm + ' ' + tr.querySelector('.ax-slider').value + '%';
       });
-      var sups = Array.prototype.slice.call(supList.querySelectorAll('input:checked')).map(function (c) { return c.value; });
+      var sups = selectedSups.slice();
       var rfi = document.getElementById('rfiDate').value.trim();
       var env = document.getElementById('envToggle').checked;
       var bafo = document.getElementById('bafoToggle').checked;
@@ -575,9 +727,84 @@
     addEvalRow('品質次郎（品質管理課）', 25);
     addEvalRow('現場三郎（利用部門）', 25);
     addAxisRow('サステナビリティ', 20);
+    renderChips();
     checkSup();
     checkAxis();
     refreshBtn();
+
+    // ================= ガイドツアー =================
+    (function () {
+      var secs = document.querySelectorAll('#createForm .section');
+      var STEPS = [
+        { el: secs[0], title: '基本情報', body: '案件名・対象カテゴリ・案件概要を入力します。案件を識別する最も基本の項目です（RD-RFX-001）。' },
+        { el: secs[1], title: 'スケジュール', body: 'RFI回答期限・RFP提案期限・評価期限を設定します。RFI &lt; RFP &lt; 評価 の順、かつ本日以降。RFIは任意フェーズです。' },
+        { el: secs[2], title: '評価者', body: '評価を担当するBuyerユーザーと「貢献度ウェイト」を設定します。合計を100%にします（BR-RFX-003）。' },
+        { el: secs[3], title: '評価軸ウェイト（可変）', body: '【Phase 2拡張】技術・価格の2軸に加え、経営審査・サステナビリティ等の評価軸を追加できます。各軸のウェイト合計は100%。' },
+        { el: secs[4], title: '拡張オプション（Phase 2）', body: '【Phase 2拡張】エンベロープ方式（技術→価格の2段階評価）と、BAFO（最終見積再提示要請）を有効化できます。' },
+        { el: secs[5], title: '参加サプライヤ選定', body: '「🔍 サプライヤを検索して選択」からサプライヤマスタを検索し、招待するサプライヤを複数選びます（1社以上）。' },
+        { el: document.querySelector('.form-foot'), title: '案件を作成', body: '必須項目がすべて揃うと「案件を作成」が有効になります。押すと内容確認モーダルが開き、確定で招待通知が送信されます。' }
+      ].filter(function (s) { return s.el; });
+
+      var mask = document.getElementById('tourMask');
+      var spot = document.getElementById('tourSpot');
+      var pop = document.getElementById('tourPop');
+      var i = 0;
+
+      function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
+      function place() {
+        var st = STEPS[i];
+        // セクション上部をヘッダー下（約90px）へスクロールして、見出し・説明を必ず可視に
+        var y = window.scrollY + st.el.getBoundingClientRect().top - 90;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+        setTimeout(function () {
+          var r = st.el.getBoundingClientRect(), pad = 6;
+          spot.style.top = (r.top - pad) + 'px';
+          spot.style.left = (r.left - pad) + 'px';
+          spot.style.width = (r.width + pad * 2) + 'px';
+          spot.style.height = (r.height + pad * 2) + 'px';
+          document.getElementById('tpStep').textContent = 'STEP ' + (i + 1) + ' / ' + STEPS.length;
+          document.getElementById('tpTitle').textContent = st.title;
+          document.getElementById('tpBody').innerHTML = st.body;
+          document.getElementById('tpPrev').style.visibility = i === 0 ? 'hidden' : 'visible';
+          document.getElementById('tpNext').textContent = (i === STEPS.length - 1) ? '完了' : '次へ';
+          pop.classList.add('show');
+          var pw = pop.offsetWidth, ph = pop.offsetHeight, vw = window.innerWidth, vh = window.innerHeight, gap = 12, top, left;
+          if (r.bottom + gap + ph <= vh - 8) {            // 下に置く（重ならない）
+            top = r.bottom + gap; left = clamp(r.left, 8, vw - pw - 8);
+          } else if (r.top - gap - ph >= 8) {             // 上に置く
+            top = r.top - gap - ph; left = clamp(r.left, 8, vw - pw - 8);
+          } else if (r.right + gap + pw <= vw - 8) {      // 右に置く
+            left = r.right + gap; top = clamp(r.top, 8, vh - ph - 8);
+          } else if (r.left - gap - pw >= 8) {            // 左に置く
+            left = r.left - gap - pw; top = clamp(r.top, 8, vh - ph - 8);
+          } else {                                        // 最終手段：右下隅に固定（見出しは覆わない）
+            left = vw - pw - 16; top = vh - ph - 16;
+          }
+          pop.style.top = top + 'px';
+          pop.style.left = left + 'px';
+        }, 360);
+      }
+      function start() { i = 0; mask.classList.add('show'); spot.classList.add('show'); place(); }
+      function end() { mask.classList.remove('show'); spot.classList.remove('show'); pop.classList.remove('show'); try { sessionStorage.setItem('p2_tour_seen', '1'); } catch (e) {} }
+      function next() { if (i < STEPS.length - 1) { i++; place(); } else { end(); } }
+      function prev() { if (i > 0) { i--; place(); } }
+
+      document.getElementById('btnTour').addEventListener('click', start);
+      document.getElementById('tpNext').addEventListener('click', next);
+      document.getElementById('tpPrev').addEventListener('click', prev);
+      document.getElementById('tpSkip').addEventListener('click', end);
+      mask.addEventListener('click', end);
+      document.addEventListener('keydown', function (e) {
+        if (!mask.classList.contains('show')) return;
+        if (e.key === 'Escape') end();
+        else if (e.key === 'ArrowRight' || e.key === 'Enter') next();
+        else if (e.key === 'ArrowLeft') prev();
+      });
+      window.addEventListener('resize', function () { if (mask.classList.contains('show')) place(); });
+
+      // 初回アクセス時に自動開始（セッション内は再表示しない）
+      try { if (sessionStorage.getItem('p2_tour_seen') !== '1') setTimeout(start, 500); } catch (e) {}
+    })();
   })();
 </script>
 </body>

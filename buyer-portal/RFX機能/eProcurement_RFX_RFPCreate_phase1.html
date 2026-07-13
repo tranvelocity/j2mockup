@@ -57,7 +57,7 @@
         <span class="phase-tag phase-1">Phase 1</span>
         <span class="status-badge st-orange">RFP中</span>
         <div class="spacer"></div>
-        <a class="btn" href="eProcurement_RFX_RFPCreate_phase2.html" data-nav="">Phase 2版を見る ⇄</a>
+        <a class="btn" href="eProcurement_RFX_RFPCreate_phase2.html">Phase 2版を見る ⇄</a>
       </div>
 
       <div class="alert alert-warn">
@@ -67,7 +67,7 @@
 
       <div class="alert alert-info">
         <b>Phase 1 は固定の回答フォーマット</b>です（提案書テキスト＋ファイルアップロード・Q-RD-RFX-002）。
-        提出項目・入力型のカスタマイズ（可変項目の定義）は <b>Phase 2</b> で対応します（<a href="eProcurement_RFX_RFPCreate_phase2.html" data-nav="">Phase 2版</a> 参照）。
+        提出項目・入力型のカスタマイズ（可変項目の定義）は <b>Phase 2</b> で対応します（<a href="eProcurement_RFX_RFPCreate_phase2.html">Phase 2版</a> 参照）。
       </div>
 
       <form id="rfpForm" novalidate>
@@ -144,8 +144,8 @@
             <table class="data" style="margin-top:12px;">
               <thead><tr><th>ファイル名</th><th class="center">版</th><th>更新者</th><th>更新日時</th><th class="center">操作</th></tr></thead>
               <tbody>
-                <tr><td>RFP_要求仕様書.pdf</td><td class="center">v3</td><td>調達花子</td><td>2026-07-09 14:22:10</td><td class="center"><button type="button" class="btn btn-sm" data-nav="添付ファイル版一覧（BR-RFX-007）">版一覧</button></td></tr>
-                <tr><td>評価基準書.xlsx</td><td class="center">v1</td><td>技術太郎</td><td>2026-07-05 10:03:41</td><td class="center"><button type="button" class="btn btn-sm" data-nav="添付ファイル版一覧（BR-RFX-007）">版一覧</button></td></tr>
+                <tr><td>RFP_要求仕様書.pdf</td><td class="center">v3</td><td>調達花子</td><td>2026-07-09 14:22:10</td><td class="center"><button type="button" class="btn btn-sm btn-versions" data-file="rfp_spec">版一覧</button></td></tr>
+                <tr><td>評価基準書.xlsx</td><td class="center">v1</td><td>技術太郎</td><td>2026-07-05 10:03:41</td><td class="center"><button type="button" class="btn btn-sm btn-versions" data-file="eval_std">版一覧</button></td></tr>
               </tbody>
             </table>
             <div class="muted" style="margin-top:6px;">添付ファイルは版番号・更新日時・更新者を記録します（BR-RFX-007 / RD-RFX-011）。</div>
@@ -225,6 +225,23 @@
   </div>
 </div>
 
+<!-- モーダル: 添付ファイル版一覧（BR-RFX-007 / RD-RFX-011） -->
+<div class="modal-overlay" id="mVersions">
+  <div class="modal-box wide">
+    <div class="modal-head">添付ファイル 版一覧 — <span id="verFileName"></span><button class="close" data-close>×</button></div>
+    <div class="modal-body" style="padding:0;">
+      <table class="data">
+        <thead><tr><th class="center" style="width:110px;">版</th><th>更新者</th><th>更新日時</th><th>コメント</th><th class="center" style="width:70px;">DL</th></tr></thead>
+        <tbody id="verRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-foot">
+      <span class="muted" style="margin-right:auto;">版番号・更新日時・更新者を記録します（BR-RFX-007）。</span>
+      <button class="btn" data-close>閉じる</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/layout.js"></script>
 <script src="assets/datepicker.js"></script>
 <script>
@@ -266,6 +283,34 @@
     document.getElementById('btnSend').textContent = '送信済み';
     JienieLayout.toast('RFPをショートリスト3社へ送信しました。以降、内容は変更できません（BR-RFX-005）。');
   });
+
+  // ---- 添付ファイル 版一覧モーダル（RD-RFX-011 / BR-RFX-007）----
+  (function(){
+    function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+    var VERSIONS = {
+      rfp_spec: { file:'RFP_要求仕様書.pdf', rows:[
+        { v:'v3（最新）', by:'調達花子', at:'2026-07-09 14:22:10', c:'Q&A反映・要求仕様追記' },
+        { v:'v2', by:'調達花子', at:'2026-07-07 09:15:00', c:'予算範囲を修正' },
+        { v:'v1', by:'調達花子', at:'2026-07-03 16:40:22', c:'初版' }
+      ]},
+      eval_std: { file:'評価基準書.xlsx', rows:[
+        { v:'v1（最新）', by:'技術太郎', at:'2026-07-05 10:03:41', c:'初版' }
+      ]}
+    };
+    document.querySelectorAll('.btn-versions').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var d = VERSIONS[btn.getAttribute('data-file')];
+        if(!d) return;
+        document.getElementById('verFileName').textContent = d.file;
+        document.getElementById('verRows').innerHTML = d.rows.map(function(r){
+          return '<tr><td class="center">'+r.v+'</td><td>'+r.by+'</td><td>'+r.at+'</td><td>'+esc(r.c)+'</td>'+
+            '<td class="center"><button type="button" class="btn btn-sm" data-nav="旧版ダウンロード（service-file）">DL</button></td></tr>';
+        }).join('');
+        JienieLayout.openModal('mVersions');
+        if (JienieLayout.bindDataNavToasts) JienieLayout.bindDataNavToasts();
+      });
+    });
+  })();
 </script>
 </body>
 </html>

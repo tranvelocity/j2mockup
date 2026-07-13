@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-008（Buyer側 read）RFI/RFP回答内容確認（Phase 1）— Buyer Portal / RFXモジュール
+  「参加サプライヤ状況」表の「確認」ボタン（SCR-RFX-003）からの遷移先。指定サプライヤの提出済RFI/RFP回答を読み取り専用で確認する。
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-008（RFI/RFP回答・提出画面）, §3.2 RD-RFX-003/004/005（回答内容をBuyer側で確認）
+    - §3.2 RD-RFX-011（添付ファイルのバージョン管理）, §2.2 BR-RFX-005（提出後は変更不可＝read only）
+  Nguồn design: eProcurement_RFX_ProjectDetail_phase1.html（配色・カード・表）, assets/layout.css|layout.js
+  Demo data: _RFX_MOCKUP_SPEC.md（案件 RFX260700123 / 提出3社: 富士クラウド・日本デジタル・さくらインフラ）
+  Tự đề xuất / ■未確定:
+    - URLパラメータ ?sup=fuji|ndx|sakura でサプライヤ切替（提案）。既定=fuji。
+    - 見積金額・提案本文はデモ用のサンプル値。回答項目の構成は RFP フォーマットに依存（要確認）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回答内容確認 | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .rv-topbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .rv-topbar .sup-select { display:flex; align-items:center; gap:8px; }
+  .rv-topbar select { min-width:280px; }
+  .rv-topbar .spacer { flex:1; }
+  .summary-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  .sc { background:#fff; border:1px solid var(--j2-border); border-radius:6px; padding:12px 14px; }
+  .sc .sc-lbl { font-size:.74rem; color:#777; }
+  .sc .sc-val { font-size:1.15rem; font-weight:bold; margin-top:2px; }
+  .sc .sc-sub { font-size:.72rem; color:#999; }
+  .qa-item { padding:14px 16px; border-bottom:1px solid var(--j2-border); }
+  .qa-item:last-child { border-bottom:none; }
+  .qa-q { font-weight:bold; font-size:.86rem; color:#334155; margin-bottom:6px; }
+  .qa-q .qno { display:inline-block; min-width:22px; color:var(--j2-blue); }
+  .qa-a { font-size:.9rem; color:#1f2937; line-height:1.75; white-space:pre-line; padding-left:22px; }
+  .price-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .price-table tfoot td { font-weight:bold; background:#f7f9fc; }
+  .file-row .fname { font-weight:bold; }
+  .ro-banner { display:flex; align-items:center; gap:8px; }
+  .tab-nav { display:flex; gap:4px; border-bottom:2px solid var(--j2-border); margin-bottom:0; }
+  .tab-nav button { border:none; background:none; padding:10px 18px; font-size:.9rem; font-weight:bold; color:#64748b; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+  .tab-nav button.active { color:var(--j2-blue); border-bottom-color:var(--j2-blue); }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+  @media(max-width:900px){ .summary-cards{ grid-template-columns:repeat(2,1fr);} .rv-topbar select{min-width:0;width:100%;} }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li>回答内容確認</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">RFI/RFP 回答内容確認</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <span class="status-badge st-moss" id="submitBadge">提出済</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ProjectDetail_phase1.html">← 案件詳細へ戻る</a>
+      </div>
+
+      <div class="alert alert-info ro-banner">
+        <span>🔒</span>
+        <span>本画面は提出済回答の<b>読み取り専用</b>ビューです。提出後の回答内容は変更できません（<b>BR-RFX-005</b>）。案件：<b>社内基幹システム刷新に伴うクラウド基盤調達</b>（RFX260700123）</span>
+      </div>
+
+      <!-- サプライヤ切替 -->
+      <div class="rv-topbar">
+        <div class="sup-select">
+          <label for="supSwitch" style="font-weight:bold;font-size:.86rem;">サプライヤ：</label>
+          <select id="supSwitch">
+            <option value="fuji">富士クラウド株式会社</option>
+            <option value="ndx">日本デジタルソリューションズ株式会社</option>
+            <option value="sakura">さくらインフラ株式会社</option>
+          </select>
+        </div>
+        <div class="spacer"></div>
+        <a class="btn btn-primary" href="eProcurement_RFX_ScoreSheet_phase1.html">📊 この回答を評価する</a>
+      </div>
+
+      <!-- サマリー -->
+      <div class="summary-cards">
+        <div class="sc"><div class="sc-lbl">サプライヤ</div><div class="sc-val" id="scSup">—</div><div class="sc-sub" id="scSupCode">—</div></div>
+        <div class="sc"><div class="sc-lbl">RFP提案金額（税抜）</div><div class="sc-val" id="scAmount">—</div><div class="sc-sub">初年度・年額</div></div>
+        <div class="sc"><div class="sc-lbl">RFP提出日時</div><div class="sc-val" id="scSubmit" style="font-size:.95rem;">—</div><div class="sc-sub" id="scSubmitBy">—</div></div>
+        <div class="sc"><div class="sc-lbl">添付ファイル</div><div class="sc-val" id="scFiles">—</div><div class="sc-sub">提案書・見積書ほか</div></div>
+      </div>
+
+      <!-- タブ -->
+      <div class="section">
+        <div class="section-body" style="padding-bottom:0;">
+          <div class="tab-nav">
+            <button class="active" data-tab="rfp">RFP提案回答</button>
+            <button data-tab="rfi">RFI回答</button>
+            <button data-tab="files">添付ファイル</button>
+          </div>
+        </div>
+
+        <!-- RFP -->
+        <div class="tab-pane active" id="tab-rfp">
+          <div class="section-body" style="padding-top:16px;">
+            <div class="section-head" style="border-radius:6px;">提案回答（要求仕様への回答）</div>
+            <div id="rfpAnswers" style="border:1px solid var(--j2-border);border-top:none;"></div>
+
+            <div class="section-head" style="border-radius:6px;margin-top:22px;">見積内訳</div>
+            <table class="data price-table" style="margin-top:0;">
+              <thead><tr><th>項目</th><th class="center" style="width:90px;">数量</th><th class="num" style="width:150px;">単価（円）</th><th class="num" style="width:160px;">金額（円）</th></tr></thead>
+              <tbody id="priceRows"></tbody>
+              <tfoot>
+                <tr><td colspan="3" class="num">小計（税抜）</td><td class="num" id="priceSub">—</td></tr>
+                <tr><td colspan="3" class="num">消費税（10%）</td><td class="num" id="priceTax">—</td></tr>
+                <tr><td colspan="3" class="num">合計（税込）</td><td class="num" id="priceTotal">—</td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- RFI -->
+        <div class="tab-pane" id="tab-rfi">
+          <div class="section-body" style="padding-top:16px;">
+            <div class="alert alert-info" style="margin-top:0;">本案件はRFIフェーズを実施済みです。以下は当該サプライヤのRFI回答です。</div>
+            <div id="rfiAnswers" style="border:1px solid var(--j2-border);"></div>
+          </div>
+        </div>
+
+        <!-- Files -->
+        <div class="tab-pane" id="tab-files">
+          <div class="section-body" style="padding:0;">
+            <table class="data">
+              <thead><tr><th>ファイル名</th><th class="center" style="width:80px;">種別</th><th class="center" style="width:70px;">最新版</th><th class="center" style="width:100px;">サイズ</th><th>提出日時</th><th class="center" style="width:150px;">操作</th></tr></thead>
+              <tbody id="fileRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- 版一覧モーダル -->
+<div class="modal-overlay" id="mVersions">
+  <div class="modal-box wide">
+    <div class="modal-head">添付ファイル 版一覧<button class="close" data-close>×</button></div>
+    <div class="modal-body" style="padding:0;">
+      <table class="data">
+        <thead><tr><th class="center">版</th><th>更新者</th><th>更新日時</th><th>コメント</th><th class="center">DL</th></tr></thead>
+        <tbody id="verRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>閉じる</button></div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+
+  (function () {
+    function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+    function yen(n){ return n.toLocaleString('ja-JP'); }
+
+    // RFP要求仕様（全サプライヤ共通の質問項目）
+    var RFP_QUESTIONS = [
+      '提供するクラウド基盤（IaaS/PaaS）の構成と主要サービスを記載してください。',
+      'SLA（稼働率保証）と障害時のサポート体制を記載してください。',
+      'セキュリティ認証（ISO27001 / ISMS等）とデータ保管リージョンを記載してください。',
+      '導入スケジュールと移行支援体制を記載してください。'
+    ];
+    var RFI_QUESTIONS = [
+      '貴社の会社概要・クラウド事業の実績（同業種導入社数）を記載してください。',
+      '対応可能なカテゴリ・技術スタックの範囲を記載してください。'
+    ];
+
+    var DATA = {
+      fuji: {
+        name: '富士クラウド株式会社', code: 'SUP-0001',
+        submit: '2026-08-07 16:42:03', by: '営業部 佐藤',
+        amount: 42800000,
+        rfp: [
+          'マネージドKubernetesを中核としたPaaSと、国内2リージョン構成のIaaSを提供します。マネージドDB・オブジェクトストレージ・監視基盤を標準で含みます。',
+          'SLA稼働率99.95%を保証。24時間365日の一次窓口と、重大障害時は専任エンジニアが30分以内に対応を開始します。',
+          'ISO27001・ISMSクラウドセキュリティ認証を取得済み。データは東京・大阪リージョンに保管し、国外持ち出しは行いません。',
+          '全体20週間。移行専任チーム3名を配置し、既存基幹システムの段階移行（並行稼働2ヶ月）を支援します。'
+        ],
+        rfi: [
+          '2008年設立。国内クラウド導入実績1,200社超。製造・金融業種での基幹システム移行実績が豊富です。',
+          'IaaS/PaaS/コンテナ基盤に対応。主要技術スタック：Kubernetes・Terraform・PostgreSQL・Observability基盤。'
+        ],
+        price: [
+          { item: 'IaaS基盤（仮想サーバ・ストレージ・ネットワーク）', qty: '1式', unit: 18000000 },
+          { item: 'マネージドPaaS（K8s・DB・監視）', qty: '1式', unit: 14000000 },
+          { item: '移行支援・初期構築', qty: '1式', unit: 7800000 },
+          { item: '年間保守・サポート', qty: '1式', unit: 3000000 }
+        ],
+        files: [
+          { name: '技術提案書.pdf', type: '提案書', ver: 'v2', size: '4.2 MB', versions: [
+            { v:'v2（最新）', by:'営業部 佐藤', at:'2026-08-07 16:42:03', c:'Q&A反映・SLA条項追記' },
+            { v:'v1', by:'営業部 佐藤', at:'2026-08-05 11:20:10', c:'初版' }
+          ]},
+          { name: '見積書.pdf', type: '見積書', ver: 'v1', size: '0.8 MB', versions: [
+            { v:'v1（最新）', by:'営業部 佐藤', at:'2026-08-07 16:42:03', c:'初版' }
+          ]},
+          { name: '会社概要・実績資料.pdf', type: '参考', ver: 'v1', size: '2.1 MB', versions: [
+            { v:'v1（最新）', by:'営業部 佐藤', at:'2026-08-07 16:42:03', c:'初版' }
+          ]}
+        ]
+      },
+      ndx: {
+        name: '日本デジタルソリューションズ株式会社', code: 'SUP-0002',
+        submit: '2026-08-08 10:05:47', by: 'ソリューション本部 鈴木',
+        amount: 39500000,
+        rfp: [
+          'ハイブリッド構成（オンプレ連携）を得意とし、既存資産を活かしたIaaS移行とマネージドPaaSを提供します。',
+          'SLA稼働率99.9%。平日日中は専任担当、夜間休日はオンコール体制。重大障害は1時間以内に初動します。',
+          'ISO27001取得済み。ISMSクラウドは審査中（2026年内取得見込み）。データは東京リージョンに保管します。',
+          '全体24週間。既存システムの棚卸から着手し、リスクの低い周辺システムから順次移行します。'
+        ],
+        rfi: [
+          '1995年設立。SIer出身のクラウド事業者として官公庁・大手製造業への導入実績900社。',
+          'オンプレ連携・IaaS移行・データ移行を強みとする。技術スタック：VMware・OpenStack・Oracle DB。'
+        ],
+        price: [
+          { item: 'IaaS基盤（ハイブリッド構成）', qty: '1式', unit: 16500000 },
+          { item: 'マネージドPaaS', qty: '1式', unit: 12000000 },
+          { item: '移行支援・データ移行', qty: '1式', unit: 8000000 },
+          { item: '年間保守・サポート', qty: '1式', unit: 3000000 }
+        ],
+        files: [
+          { name: '提案書_日本デジタル.pdf', type: '提案書', ver: 'v1', size: '3.6 MB', versions: [
+            { v:'v1（最新）', by:'ソリューション本部 鈴木', at:'2026-08-08 10:05:47', c:'初版' }
+          ]},
+          { name: '御見積書.xlsx', type: '見積書', ver: 'v1', size: '0.5 MB', versions: [
+            { v:'v1（最新）', by:'ソリューション本部 鈴木', at:'2026-08-08 10:05:47', c:'初版' }
+          ]}
+        ]
+      },
+      sakura: {
+        name: 'さくらインフラ株式会社', code: 'SUP-0003',
+        submit: '2026-08-06 09:18:22', by: '事業開発部 田中',
+        amount: 45200000,
+        rfp: [
+          '国産クラウドとして3リージョン・完全国内運用のIaaS/PaaSを提供。データ主権を重視する要件に最適です。',
+          'SLA稼働率99.99%を保証。24時間365日有人監視、重大障害15分以内対応の最上位サポートを標準提供します。',
+          'ISO27001・ISMS・国内官公庁向けセキュリティ基準に準拠。全データを国内3リージョンに冗長保管します。',
+          '全体22週間。専任PM＋エンジニア4名体制で、要件定義から本番移行まで一貫支援します。'
+        ],
+        rfi: [
+          '2004年設立。国産クラウドのパイオニアとして官公庁・金融の導入実績多数。国内運用にこだわる。',
+          'IaaS/PaaS/ベアメタルに対応。技術スタック：独自ハイパーバイザ・Kubernetes・MySQL・国産監視基盤。'
+        ],
+        price: [
+          { item: 'IaaS基盤（国内3リージョン冗長）', qty: '1式', unit: 20000000 },
+          { item: 'マネージドPaaS（最上位サポート込）', qty: '1式', unit: 15200000 },
+          { item: '移行支援・初期構築', qty: '1式', unit: 7000000 },
+          { item: '年間保守・サポート（プレミアム）', qty: '1式', unit: 3000000 }
+        ],
+        files: [
+          { name: 'さくらインフラ_技術提案書.pdf', type: '提案書', ver: 'v3', size: '5.1 MB', versions: [
+            { v:'v3（最新）', by:'事業開発部 田中', at:'2026-08-06 09:18:22', c:'構成図を最新化' },
+            { v:'v2', by:'事業開発部 田中', at:'2026-08-04 14:00:00', c:'サポート内容追記' },
+            { v:'v1', by:'事業開発部 田中', at:'2026-08-02 17:30:00', c:'初版' }
+          ]},
+          { name: '見積書_さくら.pdf', type: '見積書', ver: 'v1', size: '0.9 MB', versions: [
+            { v:'v1（最新）', by:'事業開発部 田中', at:'2026-08-06 09:18:22', c:'初版' }
+          ]}
+        ]
+      }
+    };
+
+    function qaBlock(questions, answers) {
+      return questions.map(function (q, i) {
+        return '<div class="qa-item"><div class="qa-q"><span class="qno">Q' + (i + 1) + '</span>' + esc(q) + '</div>' +
+          '<div class="qa-a">' + esc(answers[i] || '（回答なし）') + '</div></div>';
+      }).join('');
+    }
+
+    var currentVersions = [];
+    function render(key) {
+      var d = DATA[key];
+      if (!d) return;
+      document.getElementById('scSup').textContent = d.name;
+      document.getElementById('scSupCode').textContent = d.code;
+      document.getElementById('scAmount').textContent = '¥' + yen(d.amount);
+      document.getElementById('scSubmit').textContent = d.submit.split(' ')[0];
+      document.getElementById('scSubmitBy').textContent = d.submit.split(' ')[1] + '　' + d.by;
+      document.getElementById('scFiles').textContent = d.files.length + ' 件';
+
+      document.getElementById('rfpAnswers').innerHTML = qaBlock(RFP_QUESTIONS, d.rfp);
+      document.getElementById('rfiAnswers').innerHTML = qaBlock(RFI_QUESTIONS, d.rfi);
+
+      var sub = 0;
+      document.getElementById('priceRows').innerHTML = d.price.map(function (p) {
+        sub += p.unit;
+        return '<tr><td>' + esc(p.item) + '</td><td class="center">' + p.qty + '</td>' +
+          '<td class="num">' + yen(p.unit) + '</td><td class="num">' + yen(p.unit) + '</td></tr>';
+      }).join('');
+      var tax = Math.round(sub * 0.1);
+      document.getElementById('priceSub').textContent = '¥' + yen(sub);
+      document.getElementById('priceTax').textContent = '¥' + yen(tax);
+      document.getElementById('priceTotal').textContent = '¥' + yen(sub + tax);
+
+      document.getElementById('fileRows').innerHTML = d.files.map(function (f, idx) {
+        return '<tr><td class="file-row"><span class="fname">📎 ' + esc(f.name) + '</span></td>' +
+          '<td class="center">' + f.type + '</td>' +
+          '<td class="center">' + f.ver + '</td>' +
+          '<td class="center">' + f.size + '</td>' +
+          '<td>' + d.submit + '</td>' +
+          '<td class="center"><button class="btn btn-sm" data-ver="' + idx + '">版一覧</button> ' +
+          '<button class="btn btn-sm" data-nav="ファイルダウンロード（service-file）">DL</button></td></tr>';
+      }).join('');
+      document.querySelectorAll('#fileRows button[data-ver]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          currentVersions = d.files[+b.getAttribute('data-ver')].versions;
+          document.getElementById('verRows').innerHTML = currentVersions.map(function (v) {
+            return '<tr><td class="center">' + v.v + '</td><td>' + v.by + '</td><td>' + v.at + '</td><td>' + esc(v.c) + '</td>' +
+              '<td class="center"><button class="btn btn-sm" data-nav="旧版ダウンロード（service-file）">DL</button></td></tr>';
+          }).join('');
+          JienieLayout.openModal('mVersions');
+          if (JienieLayout.bindDataNavToasts) JienieLayout.bindDataNavToasts();
+        });
+      });
+      if (JienieLayout.bindDataNavToasts) JienieLayout.bindDataNavToasts();
+    }
+
+    // タブ切替
+    document.querySelectorAll('.tab-nav button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('.tab-nav button').forEach(function (x) { x.classList.remove('active'); });
+        document.querySelectorAll('.tab-pane').forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        document.getElementById('tab-' + b.getAttribute('data-tab')).classList.add('active');
+      });
+    });
+
+    // URLパラメータでサプライヤ初期選択
+    var params = new URLSearchParams(location.search);
+    var initial = params.get('sup');
+    if (!DATA[initial]) initial = 'fuji';
+    document.getElementById('supSwitch').value = initial;
+    document.getElementById('supSwitch').addEventListener('change', function () { render(this.value); });
+    render(initial);
+  })();
+</script>
+</body>
+</html>

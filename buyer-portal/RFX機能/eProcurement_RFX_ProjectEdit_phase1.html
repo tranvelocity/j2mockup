@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-002 調達案件設定の編集（Phase 1）— Buyer Portal / RFXモジュール
+  「設定を編集」（SCR-RFX-003 基本情報）からの遷移先。既存案件（RFX260700123・ステータス=評価中）の設定を編集する。
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-002（案件設定の変更）, §3.2 RD-RFX-001 受入基準（案件担当者(作成者)のみ編集可）
+    - §3.2 RD-RFX-002（進行中の追加サプライヤ招待は担当者のみ可）
+    - §2.2 BR-RFX-005（送信済RFI/RFPの内容は変更不可）, BR-RFX-010（評価フェーズ開始で評価軸ウェイトはロック）
+  Nguồn design: eProcurement_RFX_ProjectCreate_phase1.html（作成画面のフォーム構成を踏襲）, assets/layout.css|layout.js|datepicker.js
+  Tự đề xuất / ■未確定:
+    - 「今日」= 2026-07-13。評価中のため RFI/RFP期限は送信済ロック、評価期限のみ延長可（提案）。
+    - 提出済サプライヤは除外不可（提案）。評価者変更時は再通知の警告を表示（提案）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調達案件設定の編集 | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .form-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .form-row > .lbl { width: 190px; flex: 0 0 190px; font-weight: bold; font-size: .84rem; padding-top: 8px; }
+  .form-row > .ctrl { flex: 1; min-width: 0; }
+  .form-row input[type=text], .form-row select { width: 100%; max-width: 540px; }
+  .form-row .date-input { max-width: 220px; }
+  .form-row .note { font-size: .78rem; color: #888; margin-top: 4px; }
+  .char-count { float: right; font-size: .74rem; color: #999; }
+  .char-count.over { color: var(--st-danger); font-weight: bold; }
+  .add-row { margin-top: 10px; display: flex; gap: 20px; align-items: center; }
+  .add-row button { background: none; border: none; color: var(--j2-link); cursor: pointer; font-weight: bold; font-size: .86rem; }
+  table.data select, table.data input[type=text] { width: 100%; }
+  table.data .w-in { width: 90px; text-align: right; }
+  .icon-remove { background: none; border: none; color: var(--st-danger); cursor: pointer; font-size: 1rem; }
+  select.dup-error { border-color: var(--st-danger); background: #fff5f5; }
+  .locked-input { background: #f3f4f6 !important; color: #6b7280; cursor: not-allowed; }
+  .lock-tag { font-size: .72rem; color: #6b7280; margin-left: 8px; }
+  /* 参加サプライヤ chips */
+  .sup-selected { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+  .sup-empty { color: #999; font-size: .85rem; }
+  .sup-chip { display: inline-flex; align-items: center; gap: 8px; background: #eef4ff; border: 1px solid #bcd3f7; color: #1c4d86; border-radius: 20px; padding: 5px 6px 5px 13px; font-size: .84rem; }
+  .sup-chip.locked { background: #eef2f5; border-color: #d3dae0; color: #55606b; padding-right: 13px; }
+  .sup-chip .st-mini { font-size: .72rem; background: #cfe0ff; color: #1c4d86; border-radius: 10px; padding: 1px 7px; }
+  .sup-chip.locked .st-mini { background: #dce3ea; color: #55606b; }
+  .sup-chip button { border: none; background: #cfe0ff; color: #1c4d86; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; line-height: 1; font-size: .78rem; display: flex; align-items: center; justify-content: center; }
+  .sup-chip button:hover { background: #b9d2f7; }
+  .sup-search { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .sup-search input { flex: 1; min-width: 220px; }
+  .sup-modal-meta { font-size: .8rem; color: #666; margin-bottom: 8px; }
+  #supTable td.center, #supTable th.center { text-align: center; }
+  #supTable tbody tr { cursor: pointer; }
+  .axis-ro { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .axis-ro .axis-pill { background: #f3f4f6; border: 1px solid var(--j2-border); border-radius: 6px; padding: 8px 16px; font-weight: bold; }
+  .form-foot { display: flex; gap: 12px; justify-content: flex-end; margin: 22px 0 10px; }
+  @media(max-width:800px){ .form-row{flex-direction:column;} .form-row>.lbl{flex-basis:auto;} }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li>設定を編集</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">調達案件設定の編集</h3>
+        <span class="phase-tag phase-1">Phase 1</span>
+        <span class="status-badge st-blue">評価中</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ProjectDetail_phase1.html">← 案件詳細へ戻る</a>
+      </div>
+
+      <div class="alert alert-info">
+        案件担当者（<b>調達花子</b>）のみが案件設定を編集できます（RD-RFX-001）。本案件は <b>評価中</b> のため、
+        <b>送信済のRFI/RFP期限</b>（BR-RFX-005）と <b>評価軸ウェイト</b>（BR-RFX-010）はロックされています。
+      </div>
+
+      <form id="editForm" novalidate>
+
+        <!-- ===== 基本情報 ===== -->
+        <div class="section">
+          <div class="section-head">基本情報</div>
+          <div class="section-body">
+            <div class="form-row">
+              <div class="lbl">案件名 <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fName">
+                <input type="text" id="nameInput" maxlength="100" value="社内基幹システム刷新に伴うクラウド基盤調達">
+                <div class="note">最大100文字<span class="char-count" id="nameCount">0 / 100</span></div>
+                <div class="field-error" id="errName">案件名を入力してください。</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">対象カテゴリ <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fCat">
+                <select id="catSel">
+                  <option value="">選択してください</option>
+                  <option selected>ITインフラ / クラウドサービス</option>
+                  <option>オフィス家具・什器</option>
+                  <option>物流・倉庫システム</option>
+                  <option>給食・フードサービス</option>
+                  <option>OA機器・複合機</option>
+                  <option>MRO・保守用品</option>
+                </select>
+                <div class="note">既存カテゴリマスタから選択</div>
+                <div class="field-error" id="errCat">対象カテゴリを選択してください。</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">案件概要 <span class="chip-opt">任意</span></div>
+              <div class="ctrl">
+                <textarea id="descInput" maxlength="2000" placeholder="調達の背景・目的・特記事項などを入力してください">全社の基幹システム刷新に伴い、クラウドインフラ基盤（IaaS/PaaS）の調達を行う。可用性・セキュリティ要件を満たすサプライヤを選定する。</textarea>
+                <div class="note">最大2,000文字<span class="char-count" id="descCount">0 / 2000</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== スケジュール ===== -->
+        <div class="section">
+          <div class="section-head">スケジュール</div>
+          <div class="section-body">
+            <div class="alert alert-warn" style="margin-bottom:14px;">
+              RFI・RFPは送信済のため期限を変更できません（<b>BR-RFX-005</b>）。延長が可能なのは <b>評価期限</b> のみです（本日 2026-07-13 以降）。
+            </div>
+            <div class="form-row">
+              <div class="lbl">RFI回答期限</div>
+              <div class="ctrl">
+                <input type="text" class="date-input locked-input" value="2026-07-18" disabled>
+                <span class="lock-tag">🔒 送信済（変更不可）</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">RFP提案期限</div>
+              <div class="ctrl">
+                <input type="text" class="date-input locked-input" value="2026-08-08" disabled>
+                <span class="lock-tag">🔒 送信済（変更不可）</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="lbl">評価期限 <span class="chip-req">必須</span></div>
+              <div class="ctrl" id="fEval">
+                <input type="text" class="date-input" id="evalDate" placeholder="YYYY-MM-DD" value="2026-08-22">
+                <div class="note">評価期限は本日（2026-07-13）以降・RFP提案期限（2026-08-08）より後で設定してください。</div>
+                <div class="field-error" id="errEval">評価期限は本日以降かつRFP提案期限より後の日付を指定してください。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 評価者 ===== -->
+        <div class="section">
+          <div class="section-head">評価者
+            <span class="sec-actions muted" style="color:#dbe6ff;font-weight:normal;">貢献度ウェイトの合計を 100% に設定（BR-RFX-003）</span>
+          </div>
+          <div class="section-body">
+            <div class="alert alert-warn" style="margin-bottom:12px;">
+              評価中に評価者を変更すると、追加・変更された評価者へ評価開始通知が再送されます。既存スコアには影響しません。
+            </div>
+            <table class="data" id="evalTable">
+              <thead><tr><th style="width:52%;">評価者（Buyerユーザー）</th><th>所属</th><th class="center" style="width:150px;">貢献度ウェイト</th><th class="center" style="width:56px;"></th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div class="add-row">
+              <button type="button" id="addEval">＋ 評価者を追加</button>
+              <button type="button" id="eqEval">⇋ ウェイトを均等配分</button>
+              <span style="margin-left:auto;">ウェイト合計：<span class="weight-total ok" id="evalSum">100</span> %</span>
+            </div>
+            <div class="field-error" id="errEvalDup">同じ評価者が重複して選択されています。</div>
+            <div class="field-error" id="errEval2">評価者を1名以上設定し、ウェイト合計を100%にしてください。</div>
+          </div>
+        </div>
+
+        <!-- ===== 評価軸ウェイト（ロック済） ===== -->
+        <div class="section">
+          <div class="section-head">評価軸ウェイト（技術 / 価格）
+            <span class="sec-actions"><span class="status-badge pill st-gray">🔒 ロック済</span></span>
+          </div>
+          <div class="section-body">
+            <div class="axis-ro">
+              <span class="axis-pill">技術評価　60%</span>
+              <span class="axis-pill">価格評価　40%</span>
+            </div>
+            <div class="alert alert-warn" style="margin-top:12px;">
+              評価フェーズ開始（ステータス：評価中）で評価軸ウェイトはロックされ、変更できません（<b>BR-RFX-010</b>）。
+              変更が必要な場合は案件をキャンセルして再作成します。
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 参加サプライヤ ===== -->
+        <div class="section">
+          <div class="section-head">参加サプライヤ
+            <span class="sec-actions"><button type="button" class="btn btn-sm" id="btnPickSup">＋ サプライヤ追加招待</button></span>
+          </div>
+          <div class="section-body">
+            <p class="muted" style="margin-top:0;">案件進行中でも追加のサプライヤを招待できます（RD-RFX-002・担当者のみ）。<b>提出済</b>のサプライヤは除外できません。</p>
+            <div class="sup-selected" id="supChips"></div>
+            <div class="note" style="margin-top:8px;font-size:.78rem;color:#888;">参加中：<span id="supCount">0</span> 社</div>
+          </div>
+        </div>
+
+        <div class="form-foot">
+          <button type="button" class="btn" onclick="location.href='eProcurement_RFX_ProjectDetail_phase1.html'">キャンセル</button>
+          <button type="submit" class="btn btn-primary btn-lg" id="btnSave">変更を保存</button>
+        </div>
+        <div class="muted" id="reqHint" style="text-align:right;"></div>
+
+      </form>
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<!-- ===== 保存確認モーダル ===== -->
+<div class="modal-overlay" id="mConfirm">
+  <div class="modal-box wide">
+    <div class="modal-head">設定変更の保存<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <p>以下の内容で案件設定を更新します。よろしいですか？</p>
+      <table class="data" id="confirmSummary"></table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>戻る</button>
+      <button class="btn btn-primary" id="btnConfirmOk">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== サプライヤ追加招待モーダル ===== -->
+<div class="modal-overlay" id="mSupplier">
+  <div class="modal-box wide">
+    <div class="modal-head">サプライヤ追加招待<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <p class="muted" style="margin-top:0;">既存サプライヤマスタから追加で招待するサプライヤを選択します（RD-RFX-002）。行クリックでも選択できます。</p>
+      <div class="sup-search">
+        <input type="text" id="supKw" placeholder="サプライヤ名・コード・カテゴリで検索">
+        <select id="supCatFilter">
+          <option value="">全カテゴリ</option>
+          <option>ITインフラ / クラウドサービス</option>
+          <option>オフィス家具・什器</option>
+          <option>物流・倉庫システム</option>
+          <option>給食・フードサービス</option>
+          <option>OA機器・複合機</option>
+          <option>MRO・保守用品</option>
+        </select>
+      </div>
+      <div class="sup-modal-meta"><span id="supShown">0</span> 件表示　｜　追加選択 <span id="supPicked">0</span> 社</div>
+      <table class="data" id="supTable">
+        <thead><tr><th class="center" style="width:44px;"></th><th style="width:120px;">コード</th><th>サプライヤ名</th><th style="width:210px;">カテゴリ</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="supNoResult" style="display:none;padding:16px 4px;color:#777;font-size:.9rem;">条件に一致するサプライヤがありません。</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="btnSupConfirm">追加招待を確定</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+  JienieDatepicker.init('#evalDate');
+
+  (function () {
+    var TODAY = '2026-07-13';
+    var RFP_DATE = '2026-08-08';
+    var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+    function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+    // ---- 文字数カウンタ ----
+    function counter(id, cid, max) {
+      var inp = document.getElementById(id), lb = document.getElementById(cid);
+      function upd() { lb.textContent = inp.value.length + ' / ' + max; lb.classList.toggle('over', inp.value.length >= max); }
+      inp.addEventListener('input', upd); upd();
+    }
+    counter('nameInput', 'nameCount', 100);
+    counter('descInput', 'descCount', 2000);
+
+    // ---- 評価者テーブル（既存3名で初期化）----
+    var USERS = {
+      '技術太郎（技術部長）': '技術部',
+      '品質次郎（品質管理課）': '品質管理課',
+      '現場三郎（利用部門）': '情報システム部',
+      '調達花子（購買部門リード）': '本社 総務部',
+      '経理雄之助（購買担当役員）': '経営管理部'
+    };
+    var tbody = document.querySelector('#evalTable tbody');
+    function userOptions(sel) {
+      return Object.keys(USERS).map(function (u) { return '<option' + (u === sel ? ' selected' : '') + '>' + u + '</option>'; }).join('');
+    }
+    function addEvalRow(user, weight) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><select class="ev-user">' + userOptions(user) + '</select></td>' +
+        '<td class="ev-dept">' + USERS[user] + '</td>' +
+        '<td class="center"><input type="text" class="w-in ev-w" value="' + weight + '"> %</td>' +
+        '<td class="center"><button type="button" class="icon-remove" title="削除">✕</button></td>';
+      tbody.appendChild(tr);
+      tr.querySelector('.ev-user').addEventListener('change', function () { tr.querySelector('.ev-dept').textContent = USERS[this.value]; checkEval(); });
+      tr.querySelector('.ev-w').addEventListener('input', checkEval);
+      tr.querySelector('.icon-remove').addEventListener('click', function () { tr.remove(); checkEval(); });
+      checkEval();
+    }
+    function evalSum() { var s = 0; tbody.querySelectorAll('.ev-w').forEach(function (i) { s += parseInt(i.value, 10) || 0; }); return s; }
+    function evalDup() {
+      var names = Array.prototype.slice.call(tbody.querySelectorAll('.ev-user')).map(function (s) { return s.value; });
+      var dup = false;
+      tbody.querySelectorAll('.ev-user').forEach(function (s) {
+        var d = names.filter(function (n) { return n === s.value; }).length > 1;
+        s.classList.toggle('dup-error', d); if (d) dup = true;
+      });
+      return dup;
+    }
+    function checkEval() {
+      var sum = evalSum(), el = document.getElementById('evalSum');
+      el.textContent = sum; el.className = 'weight-total ' + (sum === 100 ? 'ok' : 'bad');
+      document.getElementById('errEvalDup').classList.toggle('show', evalDup());
+      refreshBtn();
+      return tbody.querySelectorAll('tr').length > 0 && sum === 100 && !evalDup();
+    }
+    document.getElementById('addEval').addEventListener('click', function () {
+      var used = Array.prototype.slice.call(tbody.querySelectorAll('.ev-user')).map(function (s) { return s.value; });
+      var free = Object.keys(USERS).filter(function (u) { return used.indexOf(u) === -1; });
+      addEvalRow(free[0] || Object.keys(USERS)[0], 0);
+    });
+    document.getElementById('eqEval').addEventListener('click', function () {
+      var ins = tbody.querySelectorAll('.ev-w'); if (!ins.length) return;
+      var base = Math.floor(100 / ins.length), rem = 100 - base * ins.length;
+      ins.forEach(function (i, k) { i.value = base + (k === 0 ? rem : 0); });
+      checkEval(); JienieLayout.toast('貢献度ウェイトを均等配分しました');
+    });
+
+    // ---- 参加サプライヤ（既存：3社提出済ロック + 1社選外 + 追加招待）----
+    var SUPPLIERS = [
+      { code: 'SUP-0006', name: 'ネクストIT株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0007', name: '関西クラウドパートナーズ株式会社', cat: 'ITインフラ / クラウドサービス' },
+      { code: 'SUP-0008', name: 'オフィスクリエイト株式会社', cat: 'オフィス家具・什器' },
+      { code: 'SUP-0009', name: '東京ファニチャー株式会社', cat: 'オフィス家具・什器' },
+      { code: 'SUP-0010', name: 'ロジスティクスパートナー株式会社', cat: '物流・倉庫システム' },
+      { code: 'SUP-0012', name: 'キャノピーOAシステムズ株式会社', cat: 'OA機器・複合機' },
+      { code: 'SUP-0013', name: 'MRO総合商事株式会社', cat: 'MRO・保守用品' }
+    ];
+    // 既存参加者：submitted=提出済（除外不可）, removable=追加/選外で除外可
+    var participants = [
+      { name: '富士クラウド株式会社', state: '提出済', locked: true },
+      { name: '日本デジタルソリューションズ株式会社', state: '提出済', locked: true },
+      { name: 'さくらインフラ株式会社', state: '提出済', locked: true },
+      { name: 'グローバルテック株式会社', state: '選外', locked: false }
+    ];
+    var tempSel = [];
+
+    function renderChips() {
+      var box = document.getElementById('supChips');
+      box.innerHTML = participants.map(function (p) {
+        if (p.locked) {
+          return '<span class="sup-chip locked">' + esc(p.name) + '<span class="st-mini">🔒 ' + p.state + '</span></span>';
+        }
+        return '<span class="sup-chip">' + esc(p.name) + '<span class="st-mini">' + p.state + '</span>' +
+          '<button type="button" data-sup="' + esc(p.name) + '" title="除外">✕</button></span>';
+      }).join('');
+      box.querySelectorAll('button[data-sup]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var nm = b.getAttribute('data-sup');
+          participants = participants.filter(function (p) { return p.name !== nm; });
+          renderChips();
+          JienieLayout.toast(nm + ' を参加サプライヤから除外しました。');
+        });
+      });
+      document.getElementById('supCount').textContent = participants.length;
+    }
+
+    function updatePicked() {
+      document.getElementById('supPicked').textContent = tempSel.length;
+      document.getElementById('btnSupConfirm').textContent = '追加招待を確定（' + tempSel.length + '社）';
+    }
+    function toggleTemp(name, on) {
+      var i = tempSel.indexOf(name);
+      if (on && i === -1) tempSel.push(name);
+      if (!on && i > -1) tempSel.splice(i, 1);
+      updatePicked();
+    }
+    function renderSupTable() {
+      var kw = document.getElementById('supKw').value.trim().toLowerCase();
+      var cat = document.getElementById('supCatFilter').value;
+      var existing = participants.map(function (p) { return p.name; });
+      var rows = SUPPLIERS.filter(function (s) {
+        if (existing.indexOf(s.name) > -1) return false;
+        if (cat && s.cat !== cat) return false;
+        if (kw && ((s.name + ' ' + s.code + ' ' + s.cat).toLowerCase().indexOf(kw) === -1)) return false;
+        return true;
+      });
+      var tb = document.querySelector('#supTable tbody');
+      tb.innerHTML = rows.map(function (s) {
+        var ck = tempSel.indexOf(s.name) > -1 ? ' checked' : '';
+        return '<tr data-name="' + esc(s.name) + '"><td class="center"><input type="checkbox" class="sup-ck"' + ck + '></td>' +
+          '<td>' + s.code + '</td><td>' + esc(s.name) + '</td><td>' + s.cat + '</td></tr>';
+      }).join('');
+      document.getElementById('supShown').textContent = rows.length;
+      document.getElementById('supTable').style.display = rows.length ? '' : 'none';
+      document.getElementById('supNoResult').style.display = rows.length ? 'none' : 'block';
+      tb.querySelectorAll('tr').forEach(function (tr) {
+        var ck = tr.querySelector('.sup-ck');
+        ck.addEventListener('change', function () { toggleTemp(tr.getAttribute('data-name'), ck.checked); });
+        tr.addEventListener('click', function (e) {
+          if (e.target.tagName !== 'INPUT') { ck.checked = !ck.checked; toggleTemp(tr.getAttribute('data-name'), ck.checked); }
+        });
+      });
+      updatePicked();
+    }
+    document.getElementById('btnPickSup').addEventListener('click', function () {
+      tempSel = [];
+      document.getElementById('supKw').value = '';
+      document.getElementById('supCatFilter').value = '';
+      renderSupTable();
+      JienieLayout.openModal('mSupplier');
+      setTimeout(function () { document.getElementById('supKw').focus(); }, 60);
+    });
+    document.getElementById('supKw').addEventListener('input', renderSupTable);
+    document.getElementById('supCatFilter').addEventListener('change', renderSupTable);
+    document.getElementById('btnSupConfirm').addEventListener('click', function () {
+      if (!tempSel.length) { JienieLayout.toast('追加するサプライヤを選択してください。'); return; }
+      tempSel.forEach(function (nm) { participants.push({ name: nm, state: '招待中', locked: false }); });
+      renderChips();
+      JienieLayout.closeModal('mSupplier');
+      JienieLayout.toast(tempSel.length + '社へ追加の招待通知を送信しました（service-notification経由）。');
+    });
+
+    // ---- 評価期限バリデーション ----
+    function setErr(wrapId, errId, on) {
+      document.getElementById(wrapId).querySelectorAll('input,select,textarea')[0].classList.toggle('error', on);
+      var e = document.getElementById(errId); if (e) e.classList.toggle('show', on);
+      return !on;
+    }
+    function evalDateBad() {
+      var ev = document.getElementById('evalDate').value.trim();
+      return !DATE_RE.test(ev) || ev < TODAY || ev <= RFP_DATE;
+    }
+    document.getElementById('evalDate').addEventListener('blur', function () { setErr('fEval', 'errEval', evalDateBad()); refreshBtn(); });
+    document.getElementById('evalDate').addEventListener('input', refreshBtn);
+    document.getElementById('nameInput').addEventListener('input', function () { setErr('fName', 'errName', false); refreshBtn(); });
+    document.getElementById('catSel').addEventListener('change', function () { setErr('fCat', 'errCat', false); refreshBtn(); });
+
+    // ---- 保存ボタン活性制御 ----
+    function missing() {
+      var m = [];
+      if (!document.getElementById('nameInput').value.trim()) m.push('案件名');
+      if (!document.getElementById('catSel').value) m.push('対象カテゴリ');
+      if (evalDateBad()) m.push('評価期限');
+      if (!(tbody.querySelectorAll('tr').length > 0 && evalSum() === 100 && !evalDup())) m.push('評価者（ウェイト合計100%）');
+      return m;
+    }
+    function refreshBtn() {
+      var m = missing();
+      document.getElementById('btnSave').disabled = m.length > 0;
+      document.getElementById('reqHint').innerHTML = m.length
+        ? '<span style="color:var(--st-danger);">未入力・エラー：' + m.join('・') + '</span>'
+        : '<span style="color:var(--st-green);font-weight:bold;">✓ 保存できます</span>';
+    }
+
+    // ---- 送信 → validate → 確認モーダル ----
+    document.getElementById('editForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var ok = true;
+      ok = setErr('fName', 'errName', !document.getElementById('nameInput').value.trim()) && ok;
+      ok = setErr('fCat', 'errCat', !document.getElementById('catSel').value) && ok;
+      ok = setErr('fEval', 'errEval', evalDateBad()) && ok;
+      ok = checkEval() && ok;
+      document.getElementById('errEval2').classList.toggle('show', !(tbody.querySelectorAll('tr').length > 0 && evalSum() === 100));
+      if (!ok) { JienieLayout.toast('入力内容にエラーがあります。赤枠の項目を確認してください。'); return; }
+
+      var evs = Array.prototype.slice.call(tbody.querySelectorAll('tr')).map(function (tr) {
+        return tr.querySelector('.ev-user').value + '（' + (parseInt(tr.querySelector('.ev-w').value, 10) || 0) + '%）';
+      });
+      var sups = participants.map(function (p) { return p.name + '（' + p.state + '）'; });
+      document.getElementById('confirmSummary').innerHTML =
+        '<tr><th style="width:180px;">案件名</th><td>' + esc(document.getElementById('nameInput').value) + '</td></tr>' +
+        '<tr><th>対象カテゴリ</th><td>' + document.getElementById('catSel').value + '</td></tr>' +
+        '<tr><th>評価期限</th><td>' + document.getElementById('evalDate').value + '</td></tr>' +
+        '<tr><th>評価者（' + evs.length + '名）</th><td>' + evs.join('、') + '</td></tr>' +
+        '<tr><th>評価軸ウェイト</th><td>技術 60% / 価格 40%　<span class="status-badge pill st-gray">🔒 ロック済</span></td></tr>' +
+        '<tr><th>参加サプライヤ（' + sups.length + '社）</th><td>' + sups.join('、') + '</td></tr>';
+      JienieLayout.openModal('mConfirm');
+    });
+
+    document.getElementById('btnConfirmOk').addEventListener('click', function () {
+      JienieLayout.closeModal('mConfirm');
+      JienieLayout.toast('案件設定を更新しました。案件詳細画面（SCR-RFX-003）へ戻ります…');
+      setTimeout(function () { window.location.href = 'eProcurement_RFX_ProjectDetail_phase1.html'; }, 1300);
+    });
+
+    // ---- 初期化 ----
+    addEvalRow('技術太郎（技術部長）', 50);
+    addEvalRow('品質次郎（品質管理課）', 25);
+    addEvalRow('現場三郎（利用部門）', 25);
+    renderChips();
+    refreshBtn();
+  })();
+</script>
+</body>
+</html>
