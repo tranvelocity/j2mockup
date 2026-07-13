@@ -117,7 +117,7 @@ h3.page-title { font-size: 1.7rem; margin: 0; font-weight: bold; }
 .btn .ico { color: var(--j2-blue); }
 .btn-primary { background: linear-gradient(to bottom, var(--j2-blue-grad-from) 0%, var(--j2-blue-grad-to) 100%); border-color: var(--j2-blue-dark); color: #fff; font-weight: bold; }
 .btn-primary .ico { color: #fff; }
-.btn-primary:hover { filter: brightness(1.05); background: linear-gradient(to bottom, var(--j2-blue-grad-from) 0%, var(--j2-blue-grad-to) 100%); }
+.btn-primary:hover { filter: none; background: var(--j2-blue-dark); border-color: var(--j2-blue-dark); }
 .btn-search { min-width: 210px; }
 .btn-lg { padding: 11px 26px; font-size: .95rem; }
 .btn-sm { padding: 5px 11px; font-size: .78rem; }

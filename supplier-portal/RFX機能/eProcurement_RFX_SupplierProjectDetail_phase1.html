@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-014 案件詳細・進行状況画面（Supplier側・限定ビュー・Phase 1）— Supplier Portal / RFXモジュール
+  参加案件一覧（SCR-RFX-013）から遷移するサプライヤ向けハブ。自社の参加案件の進行状況・期限・提出状況・Q&A・結果を一元表示する。
+  ★ 限定ビュー（重要）：Buyer側 SCR-RFX-003 とは異なり、評価スコア・他サプライヤの情報・審査内部は一切表示しない。
+     （03_基本設計書 アクセス制御：提案書は案件担当者・評価者のみ閲覧可 / 参加サプライヤ間の相互参照は不可 / §8.5 情報隔離）
+  Nguồn yêu cầu:
+    - 02_要件定義書.md §4.2 SCR-RFX-014（新規）, §3.2 RD-RFX-005（自身の案件を確認）, RD-RFX-010（ステータス・期限リマインド）
+    - BR-RFX-002（Q&Aは公開分のみ参照）, BR-RFX-005（提出後は変更不可）
+    - §8.5 セキュリティ（参加サプライヤ間の情報隔離）
+  Nguồn design: eProcurement_RFX_Supplier_ProjectList.html / buyer側 ProjectDetail_phase1（flow・kv-grid・summary-cards）, assets/layout.css|js
+  Demo data: 3案件（RFX260700123 RFP受付中 / RFX260600088 RFI回答待ち / RFX260500042 評価中）。自社視点=富士クラウド株式会社。
+  Tự đề xuất / ■未確定:
+    - 画面ID「SCR-RFX-014」・ファイル名は自己提案（要件定義書へ反映予定）。
+    - URLパラメータ ?anken=RFX260700123|RFX260600088|RFX260500042 で案件切替（提案）。
+    - Supplier Portal のRFXナビ配置は ■未確定（Q-RD-RFX-003 / Q-BD-RFX-004）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件詳細・進行状況 | 調達案件(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .summary-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  .sc { background:#fff; border:1px solid var(--j2-border); border-radius:6px; padding:12px 14px; }
+  .sc .sc-lbl { font-size:.74rem; color:#777; }
+  .sc .sc-val { font-size:1.15rem; font-weight:bold; margin-top:2px; }
+  .sc .sc-sub { font-size:.72rem; color:#999; }
+  .action-bar { display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 18px; }
+  .limited-note { border-left:4px solid var(--j2-blue); }
+  .task-box { border:1px solid var(--j2-border); border-radius:6px; padding:14px 16px; background:#fbfdff; }
+  .task-box .task-title { font-weight:bold; font-size:.9rem; margin-bottom:6px; }
+  @media(max-width:900px){ .summary-cards{ grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_Supplier_ProjectList.html">調達案件(RFX)</a></li>
+      <li>案件詳細・進行状況</li>
+    </ul>
+    <div class="page-content">
+
+      <p style="margin:0 0 8px;"><a href="eProcurement_RFX_Supplier_ProjectList.html">← 参加案件一覧に戻る</a></p>
+
+      <div class="page-title-row">
+        <h3 class="page-title" id="pTitle">社内基幹システム刷新に伴うクラウド基盤調達</h3>
+        <span class="status-badge st-orange" id="pStatus">RFP回答受付中</span>
+        <div class="spacer"></div>
+        <span class="status-badge st-blue" style="min-width:auto;">Supplier Portal</span>
+      </div>
+
+      <div class="alert alert-info limited-note">
+        本画面は<b>貴社の参加案件のみ</b>を表示する限定ビューです。<b>評価スコア・他サプライヤの提案内容・審査の内部情報は表示されません</b>（§8.5 情報隔離／アクセス制御）。
+      </div>
+
+      <!-- サマリー -->
+      <div class="summary-cards">
+        <div class="sc"><div class="sc-lbl">発注企業</div><div class="sc-val" style="font-size:.98rem;">ジーニーソリューションズ株式会社</div><div class="sc-sub" id="scAnken">案件番号：RFX260700123</div></div>
+        <div class="sc"><div class="sc-lbl">現在のフェーズ</div><div class="sc-val" id="scPhase">RFP（提案依頼）</div><div class="sc-sub">貴社は参加確定済</div></div>
+        <div class="sc"><div class="sc-lbl">次の期限</div><div class="sc-val" id="scDue" style="color:var(--st-orange);">2026-08-08</div><div class="sc-sub" id="scDueLbl">RFP提案期限</div></div>
+        <div class="sc"><div class="sc-lbl">貴社の提出状況</div><div class="sc-val" id="scSubmit">未提出</div><div class="sc-sub" id="scSubmitSub">期限までに提出してください</div></div>
+      </div>
+
+      <!-- 進行状況（Supplier視点） -->
+      <div class="section">
+        <div class="section-head">進行状況（貴社の視点）</div>
+        <div class="section-body">
+          <div class="flow" id="flow">
+            <div class="flow-step done" data-step="invite"><div class="connector"></div><div class="dot">✓</div><div class="flow-label">招待受信</div></div>
+            <div class="flow-step done" data-step="join"><div class="connector"></div><div class="dot">✓</div><div class="flow-label">参加確定</div></div>
+            <div class="flow-step" data-step="rfi"><div class="connector"></div><div class="dot"></div><div class="flow-label">RFI回答（任意）</div></div>
+            <div class="flow-step" data-step="rfp"><div class="connector"></div><div class="dot"></div><div class="flow-label">RFP回答</div></div>
+            <div class="flow-step" data-step="eval"><div class="connector"></div><div class="dot"></div><div class="flow-label">審査中</div></div>
+            <div class="flow-step" data-step="result"><div class="dot"></div><div class="flow-label">結果通知</div></div>
+          </div>
+          <div class="alert alert-info" style="margin:12px 0 0;">
+            「審査中」フェーズでは、発注企業が評価を実施します。<b>評価の内容・スコア・順位は開示されません</b>。結果は「結果通知」フェーズで落札／非落札としてお知らせします。
+          </div>
+        </div>
+      </div>
+
+      <!-- あなたのタスク -->
+      <div class="section">
+        <div class="section-head">あなたのタスク</div>
+        <div class="section-body">
+          <div class="task-box" id="taskBox">
+            <div class="task-title" id="taskTitle">📝 RFP提案書・見積書の提出</div>
+            <div class="muted" id="taskDesc">提案期限 2026-08-08 までに、提案書と見積書を提出してください。提出後は内容を変更できません（BR-RFX-005）。</div>
+            <div class="action-bar" style="margin:12px 0 0;" id="taskActions"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 基本情報 -->
+      <div class="section">
+        <div class="section-head">案件情報</div>
+        <div class="section-body">
+          <div class="kv-grid">
+            <div class="k">案件番号</div><div class="v" id="kvAnken">RFX260700123</div>
+            <div class="k">案件名</div><div class="v" id="kvName">社内基幹システム刷新に伴うクラウド基盤調達</div>
+            <div class="k">発注企業</div><div class="v">ジーニーソリューションズ株式会社</div>
+            <div class="k">対象カテゴリ</div><div class="v" id="kvCat">ITインフラ / クラウドサービス</div>
+            <div class="k">貴社の参加状態</div><div class="v"><span class="status-badge pill st-green">参加確定</span></div>
+            <div class="k">RFI回答期限</div><div class="v" id="kvRfi">2026-07-18</div>
+            <div class="k">RFP提案期限</div><div class="v" id="kvRfp">2026-08-08</div>
+            <div class="k">貴社の提出状況</div><div class="v" id="kvSubmit"><span class="status-badge pill st-pink">未提出</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q&A サマリ -->
+      <div class="section">
+        <div class="section-head">Q&amp;A（公開分）
+          <span class="sec-actions"><a class="btn btn-sm" href="eProcurement_RFX_QA_Supplier.html">Q&amp;A掲示板を開く</a></span>
+        </div>
+        <div class="section-body">
+          <p class="muted" style="margin-top:0;">全参加サプライヤへ<b>公開された</b>Q&amp;Aのみ表示されます（未公開の質問・他社の質問者名は表示されません・BR-RFX-002）。</p>
+          <div class="kv-grid">
+            <div class="k">公開済みQ&amp;A</div><div class="v" id="kvQaPub">3 件</div>
+            <div class="k">貴社が投稿した質問</div><div class="v" id="kvQaMine">1 件（うち回答済み 1 件）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 結果通知 -->
+      <div class="section">
+        <div class="section-head">結果通知</div>
+        <div class="section-body" id="resultBody">
+          <div class="alert alert-info" style="margin:0;">審査完了後、落札／非落札の結果をこの欄と通知でお知らせします。現在は審査前です。</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'supplier', activeNav:'rfx', user:'富士 太郎', company:'富士クラウド株式会社' };
+  JienieLayout.init();
+
+  (function () {
+    // フェーズ順序（Supplier視点）
+    var STEPS = ['invite','join','rfi','rfp','eval','result'];
+
+    var CASES = {
+      'RFX260700123': {
+        name:'社内基幹システム刷新に伴うクラウド基盤調達', cat:'ITインフラ / クラウドサービス',
+        status:'RFP回答受付中', statusCls:'st-orange', phase:'RFP（提案依頼）',
+        current:'rfp', done:['invite','join','rfi'],
+        due:'2026-08-08', dueLbl:'RFP提案期限', rfi:'2026-07-18', rfp:'2026-08-08',
+        submit:'未提出', submitCls:'st-pink', submitSub:'期限までに提出してください',
+        task:{ title:'📝 RFP提案書・見積書の提出', desc:'提案期限 2026-08-08 までに、提案書と見積書を提出してください。提出後は内容を変更できません（BR-RFX-005）。',
+                actions:[ {label:'📝 RFP回答を作成・提出', primary:true, href:'eProcurement_RFX_SupplierResponse_phase1.html'}, {label:'💬 Q&A掲示板', href:'eProcurement_RFX_QA_Supplier.html'} ] },
+        qaPub:'3 件', qaMine:'1 件（うち回答済み 1 件）',
+        result:{ type:'pending' }
+      },
+      'RFX260600088': {
+        name:'データセンター移設に伴う回線・ネットワーク調達', cat:'ネットワーク',
+        status:'RFI回答待ち', statusCls:'st-pink', phase:'RFI（情報収集）',
+        current:'rfi', done:['invite','join'],
+        due:'2026-07-16', dueLbl:'RFI回答期限', rfi:'2026-07-16', rfp:'（RFP未開始）',
+        submit:'未提出', submitCls:'st-pink', submitSub:'RFI回答期限が近づいています',
+        task:{ title:'📄 RFI回答の作成', desc:'RFI回答期限 2026-07-16 までに、情報提供依頼（RFI）への回答を作成してください。',
+                actions:[ {label:'📄 RFI回答を作成', primary:true, href:'eProcurement_RFX_SupplierResponse_phase1.html'}, {label:'💬 Q&A掲示板', href:'eProcurement_RFX_QA_Supplier.html'} ] },
+        qaPub:'2 件', qaMine:'0 件',
+        result:{ type:'pending' }
+      },
+      'RFX260500042': {
+        name:'オフィス什器・OA機器リプレース', cat:'オフィス備品',
+        status:'評価中（結果通知待ち）', statusCls:'st-blue', phase:'審査中',
+        current:'eval', done:['invite','join','rfi','rfp'],
+        due:'—', dueLbl:'提出済', rfi:'（実施なし）', rfp:'2026-06-30（提出済）',
+        submit:'提出済', submitCls:'st-moss', submitSub:'2026-06-30 提出・変更不可',
+        task:{ title:'⏳ 発注企業による審査中', desc:'提案は提出済みです。発注企業が審査を行っています。結果通知までお待ちください（審査内容・スコアは開示されません）。',
+                actions:[ {label:'📝 回答提出済み（変更不可）', disabled:true}, {label:'💬 Q&A掲示板', href:'eProcurement_RFX_QA_Supplier.html'} ] },
+        qaPub:'4 件', qaMine:'2 件（うち回答済み 2 件）',
+        result:{ type:'pending' }
+      }
+    };
+
+    function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+    function render(key) {
+      var c = CASES[key]; if (!c) return;
+      document.getElementById('pTitle').textContent = c.name;
+      var st = document.getElementById('pStatus'); st.className = 'status-badge ' + c.statusCls; st.textContent = c.status;
+      document.getElementById('scAnken').textContent = '案件番号：' + key;
+      document.getElementById('scPhase').textContent = c.phase;
+      document.getElementById('scDue').textContent = c.due;
+      document.getElementById('scDueLbl').textContent = c.dueLbl;
+      document.getElementById('scSubmit').textContent = c.submit;
+      document.getElementById('scSubmitSub').textContent = c.submitSub;
+
+      // flow
+      var curIdx = STEPS.indexOf(c.current);
+      document.querySelectorAll('#flow .flow-step').forEach(function (el) {
+        var step = el.getAttribute('data-step');
+        el.classList.remove('done','current');
+        var dot = el.querySelector('.dot');
+        if (c.done.indexOf(step) !== -1) { el.classList.add('done'); dot.textContent = '✓'; }
+        else if (step === c.current) { el.classList.add('current'); dot.textContent = '●'; }
+        else { dot.textContent = ''; }
+      });
+
+      // task
+      document.getElementById('taskTitle').textContent = c.task.title;
+      document.getElementById('taskDesc').textContent = c.task.desc;
+      document.getElementById('taskActions').innerHTML = c.task.actions.map(function (a) {
+        if (a.disabled) return '<button class="btn" disabled title="提出済み・変更不可（BR-RFX-005）">' + esc(a.label) + '</button>';
+        var cls = 'btn' + (a.primary ? ' btn-primary' : '');
+        return '<a class="' + cls + '" href="' + esc(a.href) + '">' + esc(a.label) + '</a>';
+      }).join('');
+
+      // kv
+      document.getElementById('kvAnken').textContent = key;
+      document.getElementById('kvName').textContent = c.name;
+      document.getElementById('kvCat').textContent = c.cat;
+      document.getElementById('kvRfi').textContent = c.rfi;
+      document.getElementById('kvRfp').textContent = c.rfp;
+      document.getElementById('kvSubmit').innerHTML = '<span class="status-badge pill ' + c.submitCls + '">' + esc(c.submit) + '</span>';
+
+      // qa
+      document.getElementById('kvQaPub').textContent = c.qaPub;
+      document.getElementById('kvQaMine').textContent = c.qaMine;
+
+      // result
+      var rb = document.getElementById('resultBody');
+      if (c.result.type === 'award') rb.innerHTML = '<div class="alert" style="margin:0;border-left:4px solid var(--st-green);background:#eefaf0;color:#2f7d32;"><b>落札</b>：貴社が選定されました。担当者より見積依頼のご連絡をいたします。</div>';
+      else if (c.result.type === 'reject') rb.innerHTML = '<div class="alert" style="margin:0;">今回は非落札となりました。ご参加ありがとうございました。</div>';
+      else rb.innerHTML = '<div class="alert alert-info" style="margin:0;">審査完了後、落札／非落札の結果をこの欄と通知でお知らせします。現在は審査前です。</div>';
+    }
+
+    var params = new URLSearchParams(location.search);
+    var initial = params.get('anken');
+    if (!CASES[initial]) initial = 'RFX260700123';
+    render(initial);
+  })();
+</script>
+</body>
+</html>

@@ -12,3 +12,4 @@
    ============================================================ */
 document.write('<script src="../assets/layout.js"><\/script>');
 document.write('<script src="assets/rfx-augment.js"><\/script>');
+document.write('<script src="assets/tour.js"><\/script>');

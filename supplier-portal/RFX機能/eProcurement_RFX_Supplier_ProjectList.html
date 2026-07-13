@@ -27,6 +27,17 @@
   .ls { background:#fff; border:1px solid var(--j2-border); border-radius:6px; padding:12px 14px; }
   .ls .ls-lbl { font-size:.74rem; color:#777; }
   .ls .ls-val { font-size:1.5rem; font-weight:bold; margin-top:2px; }
+  /* 進行状況ミニバー（Phase 1 参加案件一覧の強化） */
+  .mini-flow { display:flex; align-items:center; margin:12px 0 2px; flex-wrap:wrap; row-gap:6px; }
+  .mini-step { display:flex; align-items:center; font-size:.72rem; color:#9aa1ac; }
+  .mini-step .m-dot { width:12px; height:12px; border-radius:50%; background:#d9d9d9; margin-right:5px; flex-shrink:0; }
+  .mini-step.done .m-dot { background:#5cb85c; }
+  .mini-step.current .m-dot { background:var(--j2-blue); box-shadow:0 0 0 3px rgba(65,105,225,.18); }
+  .mini-step.done { color:#4b5563; }
+  .mini-step.current { color:var(--j2-blue); font-weight:bold; }
+  .mini-step.skip { color:#c7ccd4; }
+  .mini-sep { width:20px; height:2px; background:#e2e5ea; margin:0 8px; flex-shrink:0; }
+  .submit-line { margin-top:2px; }
   @media(max-width:900px){ .list-summary{ grid-template-columns:1fr;} }
 </style>
 </head>
@@ -107,16 +118,25 @@
           </div>
           <div class="rfx-card-body">
             <div class="rfx-card-title">
-              <a href="eProcurement_RFX_SupplierResponse_phase1.html">社内基幹システム刷新に伴うクラウド基盤調達</a>
+              <a href="eProcurement_RFX_SupplierProjectDetail_phase1.html?anken=RFX260700123">社内基幹システム刷新に伴うクラウド基盤調達</a>
             </div>
             <div class="rfx-meta">
               <span>発注企業：<b>ジーニーソリューションズ株式会社</b></span>
               <span>フェーズ：<b>RFP（提案依頼）</b></span>
               <span>提案期限：<b>2026-08-08</b></span>
+              <span>提出状況：<b style="color:var(--st-danger);">未提出</b></span>
               <span>カテゴリ：ITインフラ / クラウド</span>
             </div>
+            <div class="mini-flow">
+              <span class="mini-step done"><span class="m-dot"></span>参加</span><span class="mini-sep"></span>
+              <span class="mini-step done"><span class="m-dot"></span>RFI</span><span class="mini-sep"></span>
+              <span class="mini-step current"><span class="m-dot"></span>RFP</span><span class="mini-sep"></span>
+              <span class="mini-step"><span class="m-dot"></span>審査</span><span class="mini-sep"></span>
+              <span class="mini-step"><span class="m-dot"></span>結果</span>
+            </div>
             <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-              <a class="btn btn-primary" href="eProcurement_RFX_SupplierResponse_phase1.html">📝 RFP回答を作成・提出</a>
+              <a class="btn btn-primary" href="eProcurement_RFX_SupplierProjectDetail_phase1.html?anken=RFX260700123">📋 案件詳細・進行状況</a>
+              <a class="btn" href="eProcurement_RFX_SupplierResponse_phase1.html">📝 RFP回答を作成・提出</a>
               <a class="btn" href="eProcurement_RFX_QA_Supplier.html">💬 Q&amp;A掲示板</a>
             </div>
           </div>
@@ -132,16 +152,25 @@
           </div>
           <div class="rfx-card-body">
             <div class="rfx-card-title">
-              <a href="eProcurement_RFX_SupplierResponse_phase1.html" data-nav="RFI回答画面（SCR-RFX-008・別案件）">データセンター移設に伴う回線・ネットワーク調達</a>
+              <a href="eProcurement_RFX_SupplierProjectDetail_phase1.html?anken=RFX260600088">データセンター移設に伴う回線・ネットワーク調達</a>
             </div>
             <div class="rfx-meta">
               <span>発注企業：<b>ジーニーソリューションズ株式会社</b></span>
               <span>フェーズ：<b>RFI（情報収集）</b></span>
               <span>回答期限：<b>2026-07-16</b></span>
+              <span>提出状況：<b style="color:var(--st-danger);">未提出</b></span>
               <span>カテゴリ：ネットワーク</span>
             </div>
+            <div class="mini-flow">
+              <span class="mini-step done"><span class="m-dot"></span>参加</span><span class="mini-sep"></span>
+              <span class="mini-step current"><span class="m-dot"></span>RFI</span><span class="mini-sep"></span>
+              <span class="mini-step"><span class="m-dot"></span>RFP</span><span class="mini-sep"></span>
+              <span class="mini-step"><span class="m-dot"></span>審査</span><span class="mini-sep"></span>
+              <span class="mini-step"><span class="m-dot"></span>結果</span>
+            </div>
             <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-              <a class="btn btn-primary" href="eProcurement_RFX_SupplierResponse_phase1.html" data-nav="RFI回答画面（SCR-RFX-008・別案件）">📄 RFI回答を作成</a>
+              <a class="btn btn-primary" href="eProcurement_RFX_SupplierProjectDetail_phase1.html?anken=RFX260600088">📋 案件詳細・進行状況</a>
+              <a class="btn" href="eProcurement_RFX_SupplierResponse_phase1.html" data-nav="RFI回答画面（SCR-RFX-008・別案件）">📄 RFI回答を作成</a>
               <a class="btn" href="eProcurement_RFX_QA_Supplier.html" data-nav="Q&amp;A掲示板（別案件）">💬 Q&amp;A掲示板</a>
             </div>
           </div>
@@ -156,15 +185,25 @@
             </div>
           </div>
           <div class="rfx-card-body">
-            <div class="rfx-card-title">オフィス什器・OA機器リプレース</div>
+            <div class="rfx-card-title">
+              <a href="eProcurement_RFX_SupplierProjectDetail_phase1.html?anken=RFX260500042">オフィス什器・OA機器リプレース</a>
+            </div>
             <div class="rfx-meta">
               <span>発注企業：<b>ジーニーソリューションズ株式会社</b></span>
-              <span>フェーズ：<b>評価中</b></span>
-              <span>提出済み：<b>2026-06-30</b></span>
+              <span>フェーズ：<b>審査中</b></span>
+              <span>提出状況：<b style="color:var(--st-moss);">提出済（2026-06-30）</b></span>
               <span>カテゴリ：オフィス備品</span>
             </div>
+            <div class="mini-flow">
+              <span class="mini-step done"><span class="m-dot"></span>参加</span><span class="mini-sep"></span>
+              <span class="mini-step skip"><span class="m-dot"></span>RFI（なし）</span><span class="mini-sep"></span>
+              <span class="mini-step done"><span class="m-dot"></span>RFP</span><span class="mini-sep"></span>
+              <span class="mini-step current"><span class="m-dot"></span>審査</span><span class="mini-sep"></span>
+              <span class="mini-step"><span class="m-dot"></span>結果</span>
+            </div>
             <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-              <button class="btn" disabled title="提出済み・評価中のため回答は変更できません（BR-RFX-005）">📝 回答提出済み（変更不可）</button>
+              <a class="btn btn-primary" href="eProcurement_RFX_SupplierProjectDetail_phase1.html?anken=RFX260500042">📋 案件詳細・進行状況</a>
+              <button class="btn" disabled title="提出済み・審査中のため回答は変更できません（BR-RFX-005）">📝 回答提出済み（変更不可）</button>
               <a class="btn" href="eProcurement_RFX_QA_Supplier.html" data-nav="Q&amp;A掲示板（別案件）">💬 Q&amp;A掲示板</a>
             </div>
           </div>

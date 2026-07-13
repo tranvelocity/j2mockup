@@ -267,6 +267,50 @@ body {
   background: #fcfcfd;
 }
 
+/* ===== PHASE SITEMAP ===== */
+.sitemap {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg,#fbfdff 0%,#f6f9fe 100%);
+  padding: 20px 22px;
+  margin: 4px 0 26px;
+}
+.sm-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sm-head h3 { font-size: 15px; font-weight: 700; color: var(--ink); }
+.sm-head .sm-sub { font-size: 12px; color: var(--ink-sub); flex: 1; min-width: 180px; }
+.sm-toggle { display: inline-flex; border: 1px solid var(--brand-border); border-radius: 9px; overflow: hidden; flex-shrink: 0; }
+.sm-toggle button { border: none; background: #fff; color: var(--brand); font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 7px 16px; cursor: pointer; transition: background .15s, color .15s; }
+.sm-toggle button + button { border-left: 1px solid var(--brand-border); }
+.sm-toggle button.active { background: var(--brand); color: #fff; }
+.sm-legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 12px 0 4px; font-size: 11px; color: var(--ink-sub); }
+.sm-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sm-legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.sm-portal { margin-top: 16px; }
+.sm-portal-label { font-size: 11.5px; font-weight: 700; color: var(--brand); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.sm-flow { display: flex; align-items: stretch; gap: 6px; overflow-x: auto; padding-bottom: 8px; }
+.sm-flow::-webkit-scrollbar { height: 6px; }
+.sm-flow::-webkit-scrollbar-thumb { background: rgba(37,99,235,.2); border-radius: 3px; }
+.sm-stage { display: flex; flex-direction: column; gap: 8px; min-width: 160px; flex-shrink: 0; }
+.sm-stage-label { font-size: 10.5px; font-weight: 700; color: var(--ink-sub); text-align: center; padding: 3px 6px; background: #eaeff7; border-radius: 6px; }
+.sm-arrow { align-self: center; color: var(--brand-border); font-size: 22px; flex-shrink: 0; padding: 0 1px; }
+.sm-node {
+  position: relative; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  padding: 9px 11px; cursor: pointer; flex: 1;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.sm-node:hover { border-color: var(--brand-border); box-shadow: 0 3px 10px rgba(37,99,235,.13); transform: translateY(-1px); }
+.sm-node:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.sm-node .sm-id { font-family: "Consolas", monospace; font-size: 9px; font-weight: 700; color: var(--brand); opacity: .85; letter-spacing: .02em; }
+.sm-node .sm-name { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.3; margin-top: 1px; }
+.sm-node .sm-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.sm-tag { font-size: 8.5px; font-weight: 800; border-radius: 6px; padding: 1px 5px; letter-spacing: .02em; }
+.sm-tag.phase { background: var(--brand-soft); color: var(--brand); border: 1px solid var(--brand-border); }
+.sm-tag.common { background: #f1f5f9; color: var(--wip); border: 1px solid var(--line); }
+.sm-tag.diff { background: #fff4e0; color: #8a6100; border: 1px solid #ffce54; }
+.sm-tag.big { background: var(--new-bg); color: var(--new); border: 1px solid var(--new-border); }
+.sm-node.hub { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft); }
+.sm-node.hub .sm-name::after { content: " ★"; color: var(--brand); }
+
 /* ===== MODAL ===== */
 .modal-overlay {
   position: fixed; inset: 0;
@@ -594,12 +638,150 @@ const PORTAL_LABELS = { buyer: "Buyer Portal", supplier: "Supplier Portal", prov
 const SCREEN_ICONS = {
   "SCR-001": "📋", "SCR-002": "📝", "SCR-003": "🗂️", "SCR-004": "📨", "SCR-005": "📑",
   "SCR-006": "💬", "SCR-007": "💬", "SCR-008": "📤", "SCR-009": "📊", "SCR-010": "🏆",
-  "SCR-011": "🏅", "SCR-012": "✅", "SCR-P01": "⚙️"
+  "SCR-011": "🏅", "SCR-012": "✅", "SCR-013": "📋", "SCR-014": "🗂️", "SCR-P01": "⚙️"
 };
 
 /* 表示する機能（今は RFX機能 のみ。他機能を表示するには id を追加） */
 const VISIBLE_IDS = ["rfx"];
 const VISIBLE = FEATURES.filter(f => VISIBLE_IDS.includes(f.id));
+
+/* ============ PHASE SITEMAP (RFX機能) ============ */
+/* diff: common=両フェーズ同じ / diff=Phase 2 差分あり / big=Phase 2 差分大（phase_scope.md） */
+const RFX_SITEMAP = {
+  buyer: { path: RFX, label: "Buyer Portal", stages: [
+    { label: "案件準備", nodes: [
+      { id: "SCR-001", name: "調達案件一覧", file: "eProcurement_RFX_ProjectList.html", diff: "common" },
+      { id: "SCR-002", name: "調達案件作成・設定", base: "eProcurement_RFX_ProjectCreate", phased: true, diff: "diff" }
+    ]},
+    { label: "ハブ", nodes: [
+      { id: "SCR-003", name: "案件詳細・進行状況", base: "eProcurement_RFX_ProjectDetail", phased: true, diff: "diff", hub: true }
+    ]},
+    { label: "RFI（任意）", nodes: [
+      { id: "SCR-004", name: "RFI作成・送信", file: "eProcurement_RFX_RFICreate.html", diff: "common" }
+    ]},
+    { label: "RFP・Q&A", nodes: [
+      { id: "SCR-005", name: "RFP作成・送信", base: "eProcurement_RFX_RFPCreate", phased: true, diff: "diff" },
+      { id: "SCR-006", name: "Q&A掲示板（Buyer）", file: "eProcurement_RFX_QA.html", diff: "common" },
+      { id: "SCR-008", name: "回答内容確認（Buyer）", base: "eProcurement_RFX_ResponseView", phased: true, diff: "diff" }
+    ]},
+    { label: "評価", nodes: [
+      { id: "SCR-009", name: "評価シート入力", base: "eProcurement_RFX_ScoreSheet", phased: true, diff: "big" },
+      { id: "SCR-010", name: "評価結果・比較", base: "eProcurement_RFX_ScoreResult", phased: true, diff: "big" }
+    ]},
+    { label: "Award", nodes: [
+      { id: "SCR-011", name: "Award確定申請", base: "eProcurement_RFX_AwardRequest", phased: true, diff: "diff" },
+      { id: "SCR-012", name: "Award承認", file: "eProcurement_RFX_AwardApproval.html", diff: "common" }
+    ]}
+  ]},
+  supplier: { path: "supplier-portal/RFX機能/", label: "Supplier Portal", stages: [
+    { label: "参加", nodes: [
+      { id: "SCR-013", name: "参加案件一覧", file: "eProcurement_RFX_Supplier_ProjectList.html", diff: "common" }
+    ]},
+    { label: "ハブ（限定ビュー）", nodes: [
+      { id: "SCR-014", name: "案件詳細・進行状況", file: "eProcurement_RFX_SupplierProjectDetail_phase1.html", diff: "common", hub: true }
+    ]},
+    { label: "回答・Q&A", nodes: [
+      { id: "SCR-008", name: "RFI/RFP回答・提出", base: "eProcurement_RFX_SupplierResponse", phased: true, diff: "diff" },
+      { id: "SCR-007", name: "Q&A掲示板（Supplier）", file: "eProcurement_RFX_QA_Supplier.html", diff: "common" }
+    ]}
+  ]},
+  provider: { path: "provider-portal/RFX機能/", label: "Provider Portal", stages: [
+    { label: "設定", nodes: [
+      { id: "SCR-P01", name: "RFXシステム設定", file: "eProcurement_RFX_ProviderSettings.html", diff: "common" }
+    ]}
+  ]}
+};
+
+function smNodeHtml(node, path) {
+  const attrs = [
+    `data-path="${esc(path)}"`,
+    `data-phased="${node.phased ? 1 : 0}"`,
+    `data-diff="${node.diff || 'common'}"`,
+    node.phased ? `data-base="${esc(node.base)}"` : `data-file="${esc(node.file)}"`
+  ].join(" ");
+  const idHtml = node.id ? `<div class="sm-id">${esc(node.id)}</div>` : "";
+  return `<div class="sm-node ${node.hub ? 'hub' : ''}" ${attrs} tabindex="0" role="link">
+      ${idHtml}
+      <div class="sm-name">${esc(node.name)}</div>
+      <div class="sm-tags"></div>
+    </div>`;
+}
+
+function smPortalHtml(key) {
+  const p = RFX_SITEMAP[key];
+  const flow = p.stages
+    .map(st => `
+      <div class="sm-stage">
+        <div class="sm-stage-label">${esc(st.label)}</div>
+        ${st.nodes.map(n => smNodeHtml(n, p.path)).join("")}
+      </div>`)
+    .join('<div class="sm-arrow" aria-hidden="true">›</div>');
+  return `<div class="sm-portal">
+      <div class="sm-portal-label">${esc(p.label)}</div>
+      <div class="sm-flow">${flow}</div>
+    </div>`;
+}
+
+function buildSitemap() {
+  return `<div class="sitemap" id="rfxSitemap" data-phase="1">
+    <div class="sm-head">
+      <h3>🗺️ サイトマップ（フェーズ別）</h3>
+      <span class="sm-sub">画面カードをクリックすると別タブで開きます。トグルで Phase 1 / Phase 2 のモックアップを切り替えます。</span>
+      <div class="sm-toggle">
+        <button type="button" data-phase="1" class="active">Phase 1</button>
+        <button type="button" data-phase="2">Phase 2</button>
+      </div>
+    </div>
+    <div class="sm-legend">
+      <span><i style="background:var(--brand-soft);border:1px solid var(--brand-border)"></i>現在のフェーズ画面</span>
+      <span><i style="background:#f1f5f9;border:1px solid var(--line)"></i>共通（両フェーズ同じ）</span>
+      <span><i style="background:#fff4e0;border:1px solid #ffce54"></i>Phase 2 差分あり</span>
+      <span><i style="background:var(--new-bg);border:1px solid var(--new-border)"></i>★差分大</span>
+      <span>★ = ハブ画面</span>
+    </div>
+    ${smPortalHtml("buyer")}
+    ${smPortalHtml("supplier")}
+    ${smPortalHtml("provider")}
+  </div>`;
+}
+
+function initSitemap() {
+  const root = document.getElementById("rfxSitemap");
+  if (!root) return;
+  function resolveUrl(node, phase) {
+    const path = node.dataset.path;
+    return node.dataset.phased === "1"
+      ? path + node.dataset.base + "_phase" + phase + ".html"
+      : path + node.dataset.file;
+  }
+  function apply(phase) {
+    root.dataset.phase = phase;
+    root.querySelectorAll(".sm-toggle button").forEach(b => b.classList.toggle("active", b.dataset.phase === phase));
+    root.querySelectorAll(".sm-node").forEach(node => {
+      const phased = node.dataset.phased === "1";
+      const diff = node.dataset.diff;
+      let tags = phased
+        ? `<span class="sm-tag phase">Phase ${phase}</span>`
+        : `<span class="sm-tag common">共通</span>`;
+      if (diff === "diff") tags += `<span class="sm-tag diff">P2差分</span>`;
+      if (diff === "big") tags += `<span class="sm-tag big">★差分大</span>`;
+      node.querySelector(".sm-tags").innerHTML = tags;
+      const url = resolveUrl(node, phase);
+      node.dataset.url = url;
+      node.title = url;
+    });
+  }
+  root.querySelectorAll(".sm-toggle button").forEach(b => {
+    b.addEventListener("click", () => apply(b.dataset.phase));
+  });
+  root.querySelectorAll(".sm-node").forEach(node => {
+    node.addEventListener("click", () => { if (node.dataset.url) window.open(node.dataset.url, "_blank"); });
+    node.addEventListener("keydown", e => {
+      if ((e.key === "Enter" || e.key === " ") && node.dataset.url) { e.preventDefault(); window.open(node.dataset.url, "_blank"); }
+    });
+  });
+  apply("1");
+}
 
 /* ============ RENDER ============ */
 const svgInfo = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>';
@@ -683,9 +865,9 @@ function renderSections() {
           <div class="desc">${esc(f.desc)}</div>
         </div>
       </div>
-      <div class="portals">
-        ${["buyer","supplier","provider"].map(k => buildPortal(f, k)).join("")}
-      </div>
+      ${f.id === "rfx"
+        ? buildSitemap()
+        : `<div class="portals">${["buyer","supplier","provider"].map(k => buildPortal(f, k)).join("")}</div>`}
     </section>
   `).join("");
 
@@ -737,6 +919,7 @@ function initScroll() {
 
 /* ============ INIT ============ */
 renderSections();
+initSitemap();
 initScroll();
 </script>
 
