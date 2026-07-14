@@ -82,6 +82,14 @@
           <div class="section-body">
             <p class="muted">提案期限：2026-08-08　｜　固定フォーマット（提案概要テキスト＋提案書・見積書ファイル）。</p>
 
+            <div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px;padding:8px 10px;background:#f6f7fb;border:1px dashed #c8cde0;border-radius:6px;">
+              <label style="font-size:.82rem;color:#555;cursor:pointer;"><input type="checkbox" id="expiredDemo"> 締切後の表示を確認（デモ）</label>
+              <span class="muted" style="font-size:.78rem;">※ 提案期限を過ぎた状態を再現します（RD-RFX-005・BR-RFX-005）</span>
+            </div>
+            <div class="alert alert-danger" id="expiredAlert" style="display:none;">
+              <b>回答期限が過ぎているため、提出できません。</b>提案期限（2026-08-08）を経過したため、回答の入力・提出はできません（BR-RFX-005 / 03 §エラー処理）。ご不明な点は発注企業までお問い合わせください。
+            </div>
+
             <label class="req-lbl">提案概要 <span class="chip-req">必須</span></label>
             <textarea id="rpText" maxlength="4000" placeholder="提案の要点・体制・スケジュール・概算金額等を入力してください"></textarea>
             <div class="field-error" id="rpTextErr">提案概要を入力してください。</div>
@@ -157,6 +165,16 @@
   document.getElementById('btnFile1').addEventListener('click', function(){ f1=true; document.getElementById('file1Name').textContent='提案書_富士クラウド.pdf（v1）'; document.getElementById('file1Err').classList.remove('show'); });
   document.getElementById('btnFile2').addEventListener('click', function(){ f2=true; document.getElementById('file2Name').textContent='見積書_富士クラウド.xlsx（v1）'; document.getElementById('file2Err').classList.remove('show'); });
   document.getElementById('btnSave').addEventListener('click', function(){ JienieLayout.toast('下書きを一時保存しました（未提出）。'); });
+
+  // 締切後の表示（デモ）：期限超過時は入力・提出を不可にする（RD-RFX-005・BR-RFX-005）
+  document.getElementById('expiredDemo').addEventListener('change', function(){
+    var ex=this.checked;
+    document.getElementById('expiredAlert').style.display = ex ? 'block' : 'none';
+    ['rpText','btnFile1','btnFile2','btnSave','btnSubmit'].forEach(function(id){ document.getElementById(id).disabled = ex; });
+    var badge=document.querySelector('#tab-rfp .section-head .status-badge');
+    if(badge){ badge.textContent = ex ? '受付終了（期限超過）' : '未提出'; badge.className='status-badge pill '+(ex?'st-danger':'st-orange'); badge.style.marginLeft='8px'; }
+    if(ex){ JienieLayout.toast('提案期限を過ぎているため提出できません（デモ表示）。'); }
+  });
 
   document.getElementById('btnSubmit').addEventListener('click', function(){
     var t=document.getElementById('rpText'); var ok=true;

@@ -30,6 +30,9 @@
   .no-result.show { display: block; }
   .date-range { display: inline-flex; align-items: center; gap: 6px; }
   .date-range input { width: 150px; }
+  /* 回答遅延（FB-004・RD-RFX-010） */
+  .delay-badge { background: #fdecea; color: #b1273a; border: 1px solid #f1b6bb; border-radius: 12px; padding: 2px 9px; font-size: .76rem; font-weight: bold; white-space: nowrap; }
+  .rfx-meta .delay-txt { color: #b1273a; font-weight: bold; }
 
   /* 検索・クリアボタンを中央寄せ */
   .wrapper-search .search-actions { justify-content: center; }
@@ -99,6 +102,10 @@
               <label><input type="checkbox" value="s600">Award完了</label>
               <label><input type="checkbox" value="s900">キャンセル</label>
             </div>
+          </div>
+          <div class="filter-group">
+            <span class="lbl">回答状況</span>
+            <div class="chk-row"><label><input type="checkbox" id="delayedOnly" value="delayed">⚠ 回答遅延ありのみ</label></div>
           </div>
           <div class="filter-group">
             <span class="lbl">対象カテゴリ</span>
@@ -193,13 +200,13 @@
         </div>
 
         <!-- 2) RFP中（st-orange） -->
-        <div class="rfx-card" data-status="s300" data-no="RFX260700118"
+        <div class="rfx-card" data-status="s300" data-no="RFX260700118" data-delayed="1"
              data-name="オフィス什器一括調達（新本社移転）" data-category="オフィス家具・什器"
              data-created="2026-06-24" data-rfp="2026-07-31" data-eval="2026-08-14">
           <div class="rfx-card-head">
             <span class="type-badge rfp">RFP</span>
             <span class="anken-no">案件番号: RFX260700118</span>
-            <div class="card-head-right"><span class="status-badge st-orange">RFP中</span></div>
+            <div class="card-head-right"><span class="delay-badge">⚠ 回答遅延 2社</span><span class="status-badge st-orange">RFP中</span></div>
           </div>
           <div class="rfx-card-body">
             <div class="rfx-card-title"><a href="#" data-nav="案件詳細・進行状況（SCR-RFX-003）オフィス什器一括調達">オフィス什器一括調達（新本社移転）</a></div>
@@ -208,6 +215,7 @@
               <span>カテゴリ: <b>オフィス家具・什器</b></span>
               <span>RFP提案期限: <b>2026-07-31</b></span>
               <span>参加社数: <b>6社</b></span>
+              <span class="delay-txt">⚠ 期限超過・未提出: 2社</span>
             </div>
           </div>
         </div>
@@ -233,13 +241,13 @@
         </div>
 
         <!-- 4) RFI中（st-orange） -->
-        <div class="rfx-card" data-status="s200" data-no="RFX260700120"
+        <div class="rfx-card" data-status="s200" data-no="RFX260700120" data-delayed="1"
              data-name="社員食堂運営委託（本社・研究所）" data-category="給食・フードサービス"
              data-created="2026-07-03" data-rfp="2026-08-28" data-eval="2026-09-11">
           <div class="rfx-card-head">
             <span class="type-badge rfi">RFI</span>
             <span class="anken-no">案件番号: RFX260700120</span>
-            <div class="card-head-right"><span class="status-badge st-orange">RFI中</span></div>
+            <div class="card-head-right"><span class="delay-badge">⚠ 回答遅延 3社</span><span class="status-badge st-orange">RFI中</span></div>
           </div>
           <div class="rfx-card-body">
             <div class="rfx-card-title"><a href="#" data-nav="案件詳細・進行状況（SCR-RFX-003）社員食堂運営委託">社員食堂運営委託（本社・研究所）</a></div>
@@ -248,6 +256,7 @@
               <span>カテゴリ: <b>給食・フードサービス</b></span>
               <span>RFI回答期限: <b>2026-07-24</b></span>
               <span>参加社数: <b>7社</b></span>
+              <span class="delay-txt">⚠ 期限超過・未提出: 3社</span>
             </div>
           </div>
         </div>
@@ -380,6 +389,8 @@
       if (to && d.created > to) return false;
       var checked = Array.prototype.slice.call(document.querySelectorAll('#statusChks input:checked')).map(function (c) { return c.value; });
       if (checked.length > 0 && checked.indexOf(d.status) === -1) return false;
+      // 回答遅延ありのみ（FB-004・RD-RFX-010：回答期限超過かつ未提出サプライヤが存在する案件）
+      if (document.getElementById('delayedOnly').checked && d.delayed !== '1') return false;
       return true;
     }
 
@@ -424,10 +435,12 @@
       document.getElementById('dFrom').value = '';
       document.getElementById('dTo').value = '';
       document.querySelectorAll('#statusChks input').forEach(function (c) { c.checked = false; });
+      document.getElementById('delayedOnly').checked = false;
       document.querySelectorAll('#opBtns button').forEach(function (b, i) { b.classList.toggle('active', i === 0); });
       apply();
     });
 
+    document.getElementById('delayedOnly').addEventListener('change', apply);
     document.getElementById('sortKey').addEventListener('change', sortCards);
     document.querySelectorAll('#sortDir button').forEach(function (btn) {
       btn.addEventListener('click', function () {
