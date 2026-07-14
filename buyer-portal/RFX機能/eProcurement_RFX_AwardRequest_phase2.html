@@ -107,11 +107,14 @@
           <label class="req-lbl">承認者 <span class="chip-req">必須</span></label>
           <div style="margin:4px 0 4px;">
             <select id="approver">
+              <option value="">— 承認者を選択 —</option>
               <option value="経理雄之助">経理雄之助（購買担当役員）</option>
-              <option value="">— その他の承認者を選択 —</option>
+              <option value="部門長一郎">部門長一郎（購買部長）</option>
+              <option value="調達花子" disabled>調達花子（購買部門リード）／申請者本人は指定不可</option>
             </select>
           </div>
-          <p class="muted" style="margin-top:0;">※ 承認者の指定方法は R-07 未確定。</p>
+          <div class="field-error" id="approverErr">承認者を選択してください（申請者本人＝案件担当者は指定できません）。</div>
+          <p class="muted" style="margin-top:6px;">※ <b>承認者は案件担当者（申請者）自身を指定できません（自己承認防止・R-07 暫定確定／Q-BD-RFX-009）。</b>候補範囲・代理承認は未確定。</p>
           <label class="req-lbl" style="display:block;margin-top:12px;">推薦コメント <span class="chip-req">必須</span></label>
           <textarea id="recComment" maxlength="1000" placeholder="Award候補の選定理由・Award Scenario/BAFO結果の総括を記載してください。">多軸評価総合1位の日本DSは技術・価格自動換算・サステナのバランスが最良。BAFO要請で最終価格を確定のうえ第一候補として承認を申請します。</textarea>
           <div class="field-error" id="commentErr">推薦コメントを入力してください。</div>
@@ -156,7 +159,7 @@
     <div class="modal-body">
       <div class="alert alert-info">承認者（<b id="mApprover">経理雄之助</b>）へ承認依頼を送信します（BR-RFX-009）。</div>
       <p><b>Award候補：</b><span id="mCands">—</span></p>
-      <p class="muted">送信後、案件ステータスは「Award承認待ち（500）」へ遷移します。</p>
+      <p class="muted">送信後、案件ステータスは「Award承認待ち（450）」へ遷移します。</p>
     </div>
     <div class="modal-foot">
       <button class="btn" data-close>閉じる</button>
@@ -175,9 +178,13 @@
   var candErr = document.getElementById('candErr');
   var commentErr = document.getElementById('commentErr');
   var recComment = document.getElementById('recComment');
+  var approver = document.getElementById('approver');
+  var approverErr = document.getElementById('approverErr');
+  var OWNER = '調達花子'; // 案件担当者（申請者）。自己承認防止（R-07）
   function selectedCands(){ return Array.prototype.slice.call(document.querySelectorAll('.cand:checked')).map(function(c){return c.value;}); }
   document.querySelectorAll('.cand').forEach(function(c){ c.addEventListener('change', function(){ if(selectedCands().length>0) candErr.classList.remove('show'); }); });
   recComment.addEventListener('input', function(){ if(recComment.value.trim()){ recComment.classList.remove('error'); commentErr.classList.remove('show'); } });
+  approver.addEventListener('change', function(){ if(approver.value && approver.value!==OWNER){ approver.classList.remove('error'); approverErr.classList.remove('show'); } });
 
   document.getElementById('btnBafoDo').addEventListener('click', function(){
     var n = document.querySelectorAll('#mBafo .bafo-cand:checked').length;
@@ -191,6 +198,7 @@
   document.getElementById('btnSubmit').addEventListener('click', function(){
     var cands = selectedCands(); var ok = true;
     if(cands.length===0){ candErr.classList.add('show'); ok=false; }
+    if(!approver.value || approver.value===OWNER){ approver.classList.add('error'); approverErr.classList.add('show'); ok=false; } // 自己承認防止（R-07）
     if(!recComment.value.trim()){ recComment.classList.add('error'); commentErr.classList.add('show'); ok=false; }
     if(!ok){ JienieLayout.toast('入力内容を確認してください。'); return; }
     document.getElementById('mApprover').textContent = document.getElementById('approver').value || '（未選択）';
@@ -203,7 +211,7 @@
     var badge = document.querySelector('.page-title-row .status-badge');
     badge.className = 'status-badge st-pink'; badge.textContent = 'Award承認待ち';
     var foot = document.getElementById('btnSubmit').parentNode;
-    foot.innerHTML = '<span class="status-badge pill st-pink">承認申請済（500）</span> <a class="btn" href="eProcurement_RFX_ProjectDetail_phase2.html">案件詳細へ戻る</a> <a class="btn btn-primary" href="eProcurement_RFX_AwardApproval.html">承認者ビューを見る（デモ）</a>';
+    foot.innerHTML = '<span class="status-badge pill st-pink">承認申請済（450）</span> <a class="btn" href="eProcurement_RFX_ProjectDetail_phase2.html">案件詳細へ戻る</a> <a class="btn btn-primary" href="eProcurement_RFX_AwardApproval.html">承認者ビューを見る（デモ）</a>';
   });
 </script>
 </body>

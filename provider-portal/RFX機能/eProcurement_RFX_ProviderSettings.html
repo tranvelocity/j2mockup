@@ -283,6 +283,26 @@
           </div>
         </div>
 
+        <!-- ===== 一般閲覧範囲設定（R-19/Q5） ===== -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <span>一般閲覧Buyerの閲覧範囲</span>
+            <span class="role-note">R-19／確認事項シートQ5（米谷社長 2026-07-14 確定）</span>
+          </div>
+          <div class="form-section-body">
+            <div class="f-row">
+              <div class="f-label">閲覧範囲</div>
+              <div class="f-input">
+                <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                  <label><input type="radio" name="viewScope" value="dept" checked> 所属部門単位（自部門の案件のみ）</label>
+                  <label><input type="radio" name="viewScope" value="all"> 全社共通（全案件を閲覧可）</label>
+                </div>
+                <div class="note">案件担当者・評価者以外のBuyer（一般閲覧）が閲覧できるRFX案件の範囲。システム全体で1設定（デフォルト：部門単位）。テナント別設定はPhase 2以降。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="form-buttons">
           <button type="button" class="btn-reset" id="btnReset" disabled>元に戻す</button>
           <button type="button" class="btn-save" id="btnSave" disabled>保存する</button>
@@ -485,6 +505,16 @@
   refreshAll();
 </script>
 
+<script>
+  // 一般閲覧範囲（R-19/Q5）：変更で保存ボタンを活性化（他項目のバリデーションとは独立）
+  document.querySelectorAll('input[name="viewScope"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      var save = document.getElementById('btnSave'); if (save) save.disabled = false;
+      var reset = document.getElementById('btnReset'); if (reset) reset.disabled = false;
+      if (window.JienieLayout && JienieLayout.toast) JienieLayout.toast('一般閲覧範囲を変更しました。「保存する」で確定します。');
+    });
+  });
+</script>
 <script src="assets/tour.js"></script>
 </body>
 </html>

@@ -638,7 +638,7 @@ const PORTAL_LABELS = { buyer: "Buyer Portal", supplier: "Supplier Portal", prov
 const SCREEN_ICONS = {
   "SCR-001": "📋", "SCR-002": "📝", "SCR-003": "🗂️", "SCR-004": "📨", "SCR-005": "📑",
   "SCR-006": "💬", "SCR-007": "💬", "SCR-008": "📤", "SCR-009": "📊", "SCR-010": "🏆",
-  "SCR-011": "🏅", "SCR-012": "✅", "SCR-013": "📋", "SCR-014": "🗂️", "SCR-P01": "⚙️"
+  "SCR-011": "🏅", "SCR-012": "✅", "SCR-013": "📋", "SCR-014": "🗂️", "SCR-015": "📧", "SCR-P01": "⚙️"
 };
 
 /* 表示する機能（今は RFX機能 のみ。他機能を表示するには id を追加） */
@@ -670,7 +670,8 @@ const RFX_SITEMAP = {
     ]},
     { label: "Award", nodes: [
       { id: "SCR-011", name: "Award確定申請", base: "eProcurement_RFX_AwardRequest", phased: true, diff: "diff" },
-      { id: "SCR-012", name: "Award承認", file: "eProcurement_RFX_AwardApproval.html", diff: "common" }
+      { id: "SCR-012", name: "Award承認", file: "eProcurement_RFX_AwardApproval.html", diff: "common" },
+      { id: "SCR-015", name: "Award結果通知作成", file: "eProcurement_RFX_AwardResultNotify.html", diff: "common" }
     ]}
   ]},
   supplier: { path: "supplier-portal/RFX機能/", label: "Supplier Portal", stages: [

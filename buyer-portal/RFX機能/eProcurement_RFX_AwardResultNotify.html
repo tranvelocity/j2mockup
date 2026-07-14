@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<!--
+  Mockup: SCR-RFX-015 Award結果通知作成画面（担当者）— Buyer Portal / RFXモジュール
+  Award承認確定後、案件担当者が選定/非選定サプライヤ向けの結果通知を作成・送信する（RD-RFX-012・BR-RFX-011・FB-006）。
+  Nguồn yêu cầu:
+    - 03_基本設計書.md §3.3 SCR-RFX-015 項目定義（テンプレート選択→プリフィル→編集→送信 or 予約送信）
+    - 02_要件定義書.md RD-RFX-012・BR-RFX-011（テンプレート選択・編集・送信日時指定）
+    - 米谷社長判断（確認事項シート Q7・2026-07-14）：予約送信をPhase 1で対応
+  Nguồn design: 既存の取引先修正依頼メール送信（RequestMailTransmissionForm.vue）パターン踏襲。assets/layout.css|js
+  Demo data: 案件 RFX260700123 / 選定2社（日本DS・富士C）・非選定1社（さくらI）
+  Tự đề xuất / ■未確定:
+    - テンプレートの内容・件数はデモ用サンプル。テンプレコード体系は Q-BD-RFX-007（■未確定）。
+    - {会社名} 等の差込項目は送信時に宛先ごとへ自動置換される想定（本モックでは共通本文を表示）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Award結果通知作成 | 調達ソーシング(RFX)</title>
+<link rel="stylesheet" href="assets/layout.css">
+<style>
+  .notify-grid { display:grid; grid-template-columns:150px 1fr; gap:0; }
+  .notify-grid > .ng-k { background:#f6f8fc; border:1px solid var(--j2-th-border); padding:10px 12px; font-weight:bold; font-size:.82rem; display:flex; align-items:center; }
+  .notify-grid > .ng-v { border:1px solid var(--j2-th-border); border-left:none; padding:10px 12px; }
+  .notify-grid input[type=text], .notify-grid select, .notify-grid textarea { width:100%; }
+  .send-opt { display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  .send-opt label { display:flex; align-items:center; gap:6px; font-size:.88rem; }
+  .dt-wrap { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .dt-wrap.hidden { display:none; }
+  .dt-wrap input { max-width:170px; }
+  .notify-foot { display:flex; gap:10px; margin-top:12px; align-items:center; }
+  .recip-chip { display:inline-block; background:#eef4ff; border:1px solid #bcd3f7; color:#1c4d86; border-radius:16px; padding:2px 11px; font-size:.82rem; margin:2px 4px 2px 0; }
+  .recip-chip.rej { background:#f3f0ef; border-color:#d8ccc9; color:#6b524d; }
+  @media(max-width:800px){ .notify-grid{ grid-template-columns:110px 1fr; } }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="#" data-nav="ホーム">ホーム</a></li>
+      <li><a href="eProcurement_RFX_ProjectList.html">調達ソーシング(RFX)</a></li>
+      <li><a href="eProcurement_RFX_ProjectDetail_phase1.html">案件詳細・進行状況</a></li>
+      <li>Award結果通知作成</li>
+    </ul>
+    <div class="page-content">
+
+      <div class="page-title-row">
+        <h3 class="page-title">Award結果通知の作成・送信</h3>
+        <span class="status-badge st-green">Award完了</span>
+        <div class="spacer"></div>
+        <a class="btn" href="eProcurement_RFX_ProjectDetail_phase1.html">← 案件詳細へ戻る</a>
+      </div>
+
+      <div class="alert alert-info">
+        Award承認確定後、<b>選定／非選定</b>の結果通知を作成します。テンプレートを選択して件名・本文をプリフィルし、編集のうえ
+        <b>今すぐ送信</b>または<b>送信日時を指定（予約送信）</b>できます（BR-RFX-011・RD-RFX-012）。件名・本文は宛先ごとに差込項目（会社名等）が自動置換されます。
+      </div>
+
+      <!-- 基本情報 -->
+      <div class="section">
+        <div class="section-head">案件情報</div>
+        <div class="section-body" style="padding:0;">
+          <div class="notify-grid">
+            <div class="ng-k">案件番号</div><div class="ng-v"><b>RFX260700123</b>　社内基幹システム刷新に伴うクラウド基盤調達</div>
+            <div class="ng-k">Awardステータス</div><div class="ng-v"><span class="status-badge pill st-green">承認済（Award完了・500）</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 選定サプライヤ向け -->
+      <div class="section">
+        <div class="section-head">選定サプライヤ向け 通知
+          <span class="sec-actions"><span class="status-badge pill st-gray" id="stateSel">未作成</span></span>
+        </div>
+        <div class="section-body">
+          <div style="margin-bottom:10px;">宛先（選定 2社）：<span class="recip-chip">日本デジタルソリューションズ株式会社</span><span class="recip-chip">富士クラウド株式会社</span></div>
+          <div class="notify-grid">
+            <div class="ng-k">テンプレート</div>
+            <div class="ng-v"><select id="tplSel"></select></div>
+            <div class="ng-k">件名</div>
+            <div class="ng-v"><input type="text" id="subjSel"></div>
+            <div class="ng-k">本文</div>
+            <div class="ng-v"><textarea id="bodySel" style="min-height:150px;"></textarea></div>
+          </div>
+          <div style="margin-top:12px;">
+            <label class="req-lbl">送信方法</label>
+            <div class="send-opt" style="margin-top:4px;">
+              <label><input type="radio" name="sendSel" value="now" checked> 今すぐ送信</label>
+              <label><input type="radio" name="sendSel" value="reserve"> 送信日時を指定（予約送信）</label>
+            </div>
+            <div class="dt-wrap hidden" id="dtWrapSel">
+              <input type="text" class="date-input" id="dtDateSel" placeholder="YYYY-MM-DD">
+              <input type="text" id="dtTimeSel" placeholder="HH:MM" style="max-width:90px;">
+              <span class="muted">に送信予約</span>
+              <div class="field-error" id="dtErrSel">送信日時は未来の日時（YYYY-MM-DD／HH:MM）で指定してください。</div>
+            </div>
+          </div>
+          <div class="notify-foot">
+            <button class="btn btn-primary" id="sendSelBtn">📧 今すぐ送信</button>
+            <button class="btn" id="cancelSelBtn" style="display:none;">予約を取り消す</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 非選定サプライヤ向け -->
+      <div class="section">
+        <div class="section-head">非選定サプライヤ向け 通知
+          <span class="sec-actions"><span class="status-badge pill st-gray" id="stateRej">未作成</span></span>
+        </div>
+        <div class="section-body">
+          <div style="margin-bottom:10px;">宛先（非選定 1社）：<span class="recip-chip rej">さくらインフラ株式会社</span></div>
+          <div class="notify-grid">
+            <div class="ng-k">テンプレート</div>
+            <div class="ng-v"><select id="tplRej"></select></div>
+            <div class="ng-k">件名</div>
+            <div class="ng-v"><input type="text" id="subjRej"></div>
+            <div class="ng-k">本文</div>
+            <div class="ng-v"><textarea id="bodyRej" style="min-height:130px;"></textarea></div>
+          </div>
+          <div style="margin-top:12px;">
+            <label class="req-lbl">送信方法</label>
+            <div class="send-opt" style="margin-top:4px;">
+              <label><input type="radio" name="sendRej" value="now" checked> 今すぐ送信</label>
+              <label><input type="radio" name="sendRej" value="reserve"> 送信日時を指定（予約送信）</label>
+            </div>
+            <div class="dt-wrap hidden" id="dtWrapRej">
+              <input type="text" class="date-input" id="dtDateRej" placeholder="YYYY-MM-DD">
+              <input type="text" id="dtTimeRej" placeholder="HH:MM" style="max-width:90px;">
+              <span class="muted">に送信予約</span>
+              <div class="field-error" id="dtErrRej">送信日時は未来の日時（YYYY-MM-DD／HH:MM）で指定してください。</div>
+            </div>
+          </div>
+          <div class="notify-foot">
+            <button class="btn btn-primary" id="sendRejBtn">📧 今すぐ送信</button>
+            <button class="btn" id="cancelRejBtn" style="display:none;">予約を取り消す</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warn">
+        本通知は Award 承認確定後にのみ送信できます。送信後は取り消せません（予約送信の場合は送信予定日時まで「予約を取り消す」で取消可能）。RFP採用＝発注確定ではないため、選定サプライヤへは別途「見積依頼」を作成します（BR-RFX-004）。
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="assets/layout.js"></script>
+<script src="assets/datepicker.js"></script>
+<script>
+  window.J2_CONFIG = { portal:'buyer', activeNav:'rfx', user:'調達花子', company:'ジーニーソリューションズ株式会社　本社 総務部' };
+  JienieLayout.init();
+  JienieDatepicker.init('#dtDateSel, #dtDateRej');
+
+  (function () {
+    var TODAY = '2026-08-25';
+    var DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+    // テンプレート（デモ）
+    var TEMPLATES = {
+      sel: [
+        { name: '標準（選定通知）', subj: '【選定のご連絡】社内基幹システム刷新に伴うクラウド基盤調達', body: '{会社名} 御中\n\n平素より格別のご高配を賜り厚く御礼申し上げます。\nこのたびの「社内基幹システム刷新に伴うクラウド基盤調達」につきまして、慎重に評価いたしました結果、貴社を選定いたしましたのでご連絡申し上げます。\n\nつきましては、追って正式な見積依頼をお送りいたします。引き続きよろしくお願い申し上げます。' },
+        { name: '簡易（選定通知）', subj: '【選定のご連絡】RFX260700123', body: '{会社名} 御中\n\n本件、貴社を選定いたしました。追って見積依頼をお送りします。よろしくお願いいたします。' }
+      ],
+      rej: [
+        { name: '標準（非選定通知）', subj: '【選定結果のご連絡】社内基幹システム刷新に伴うクラウド基盤調達', body: '{会社名} 御中\n\n平素より格別のご高配を賜り厚く御礼申し上げます。\nこのたびはご提案をいただき誠にありがとうございました。慎重に検討いたしました結果、今回は他社様を選定する運びとなりました。\n\nご期待に沿えず恐縮ですが、今後とも変わらぬお引き立てのほどお願い申し上げます。' },
+        { name: '簡易（非選定通知）', subj: '【選定結果のご連絡】RFX260700123', body: '{会社名} 御中\n\nこのたびはご提案ありがとうございました。今回は誠に残念ながら見送りとさせていただきます。今後ともよろしくお願いいたします。' }
+      ]
+    };
+
+    function setup(key, label) {
+      var tpl = document.getElementById('tpl' + key);
+      var subj = document.getElementById('subj' + key);
+      var body = document.getElementById('body' + key);
+      var state = document.getElementById('state' + key);
+      var dtWrap = document.getElementById('dtWrap' + key);
+      var dtDate = document.getElementById('dtDate' + key);
+      var dtTime = document.getElementById('dtTime' + key);
+      var dtErr = document.getElementById('dtErr' + key);
+      var sendBtn = document.getElementById('send' + key + 'Btn');
+      var cancelBtn = document.getElementById('cancel' + key + 'Btn');
+      var list = TEMPLATES[key.toLowerCase() === 'sel' ? 'sel' : 'rej'];
+
+      tpl.innerHTML = list.map(function (t, i) { return '<option value="' + i + '">' + t.name + '</option>'; }).join('');
+      function applyTpl() { var t = list[+tpl.value]; subj.value = t.subj; body.value = t.body; }
+      applyTpl();
+      tpl.addEventListener('change', applyTpl);
+
+      function mode() { return document.querySelector('input[name="send' + key + '"]:checked').value; }
+      function syncMode() {
+        var reserve = mode() === 'reserve';
+        dtWrap.classList.toggle('hidden', !reserve);
+        sendBtn.textContent = reserve ? '🗓 送信を予約する' : '📧 今すぐ送信';
+      }
+      document.querySelectorAll('input[name="send' + key + '"]').forEach(function (r) { r.addEventListener('change', syncMode); });
+      syncMode();
+
+      sendBtn.addEventListener('click', function () {
+        if (!subj.value.trim() || !body.value.trim()) { JienieLayout.toast('件名・本文を入力してください。'); return; }
+        if (mode() === 'reserve') {
+          var bad = !DATE_RE.test(dtDate.value) || dtDate.value <= TODAY || !TIME_RE.test(dtTime.value);
+          dtErr.classList.toggle('show', bad);
+          if (bad) { return; }
+          state.className = 'status-badge pill st-orange';
+          state.textContent = '予約中（' + dtDate.value + ' ' + dtTime.value + '）';
+          cancelBtn.style.display = '';
+          JienieLayout.toast(label + '通知を ' + dtDate.value + ' ' + dtTime.value + ' に予約しました（service-schedule ワンオフジョブ登録）。');
+        } else {
+          state.className = 'status-badge pill st-moss';
+          state.textContent = '送信済（' + TODAY + '）';
+          cancelBtn.style.display = 'none';
+          JienieLayout.toast(label + '通知を送信しました。');
+        }
+        sendBtn.disabled = true;
+        tpl.disabled = subj.disabled = body.disabled = true;
+      });
+
+      cancelBtn.addEventListener('click', function () {
+        state.className = 'status-badge pill st-gray'; state.textContent = '未作成';
+        cancelBtn.style.display = 'none';
+        sendBtn.disabled = false; tpl.disabled = subj.disabled = body.disabled = false;
+        JienieLayout.toast(label + '通知の送信予約を取り消しました。');
+      });
+    }
+
+    setup('Sel', '選定');
+    setup('Rej', '非選定');
+  })();
+</script>
+</body>
+</html>

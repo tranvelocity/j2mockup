@@ -192,6 +192,8 @@
         </div>
 
         <div class="footer-bar">
+          <button type="button" class="btn btn-danger" data-open-modal="mCancelRfp" title="送信済みRFPをキャンセルします（R-04）">RFPをキャンセル</button>
+          <span style="flex:1;"></span>
           <button type="button" class="btn" data-nav="RFP下書き保存（rfx_event ステータス:作成中）">下書き保存</button>
           <button type="button" class="btn btn-primary btn-lg" id="btnSend">RFPを送信</button>
         </div>
@@ -242,6 +244,23 @@
   </div>
 </div>
 
+<!-- モーダル: RFPキャンセル（R-04） -->
+<div class="modal-overlay" id="mCancelRfp">
+  <div class="modal-box">
+    <div class="modal-head">RFPのキャンセル<button class="close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger">送信済みRFPをキャンセルします（R-04・BR-RFX-005）。この操作は取り消せません。<b>全参加サプライヤへキャンセル通知が送信され、当該RFPに提出済みの回答は無効化されます。</b>内容を変更する場合は、キャンセル後に新しいRFPを作成して再送してください（rfx_event ステータス40）。</div>
+      <label class="req-lbl">キャンセル理由 <span class="chip-req">必須</span></label>
+      <textarea id="rfpCancelReason" placeholder="例：要求仕様に誤りがあったため差し替え"></textarea>
+      <div class="field-error" id="rfpCancelErr">キャンセル理由を入力してください。</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>閉じる</button>
+      <button class="btn btn-danger" id="btnCancelRfpDo">キャンセルを確定</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/layout.js"></script>
 <script src="assets/datepicker.js"></script>
 <script>
@@ -282,6 +301,15 @@
     document.getElementById('btnSend').setAttribute('disabled','disabled');
     document.getElementById('btnSend').textContent = '送信済み';
     JienieLayout.toast('RFPをショートリスト3社へ送信しました。以降、内容は変更できません（BR-RFX-005）。');
+  });
+
+  // RFPキャンセル（R-04）
+  document.getElementById('btnCancelRfpDo').addEventListener('click', function(){
+    var r = document.getElementById('rfpCancelReason');
+    if(!r.value.trim()){ r.classList.add('error'); document.getElementById('rfpCancelErr').classList.add('show'); return; }
+    r.classList.remove('error'); document.getElementById('rfpCancelErr').classList.remove('show');
+    JienieLayout.closeModal('mCancelRfp');
+    JienieLayout.toast('RFPをキャンセルしました（rfx_event ステータス40）。全参加サプライヤへ通知し、提出済み回答を無効化しました。再作成して送り直せます。');
   });
 
   // ---- 添付ファイル 版一覧モーダル（RD-RFX-011 / BR-RFX-007）----
