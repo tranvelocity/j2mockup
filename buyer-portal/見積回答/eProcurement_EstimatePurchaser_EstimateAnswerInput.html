@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: eProcurement_EstimatePurchaser_EstimateAnswerInput  (見積回答作成)
+  Module: Buyer Portal / 購買担当（EstimatePurchaser） — 購買担当がサプライヤの見積回答を代理入力
+  Route thật: /eProcurement/EstimatePurchaser/AnswerInput
+              ?estimateNo=QDEMO2607000001&estimateAnswerCode=...&from=eProcurement_Purchaser_ComparisonToEstimate&back=true
+  Thư mục chức năng: 見積回答/ ; dùng assets dùng chung qua ../assets/ (đồng nhất cấu trúc đã tổ chức).
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU / SOURCE CODE (mô phỏng đúng — màn hình ĐÃ TỒN TẠI):
+    - View chính: src-vbizhw/src/modules/Buyer/views/Purchaser/EstimateAnswer/EstimateAnswerInput.vue
+      + component: components/Purchaser/EstimateAnswer/ItemSkeleton.vue, EstimateAnswerInputDetail.vue
+      → item-skeleton (案件ヘッダ) → 1..n「見積回答情報」card (回答追加/回答削除) →
+        見積有効期限(必須)+発注制限 / 見積書番号 / 支払サイト / 備考(社内用) / 連絡事項 / 前提条件チェック / 添付 /
+        納品n 明細table(明細追加) / 合計(税抜・税込) → nút cuối 戻る + 入力内容確認.
+      → Case demo: 通常見積 (estimateControlType=0, non-service, non-contract). Các nhánh
+        契約条件(isEstimateContract) / service(FormTableUsed) / カタログ掲載 / 検収完了日 được lược bỏ theo v-if source.
+    - Nhãn i18n (nguyên văn) src-vbizhw/src/locales/prod/ja.json:
+        ESTIMATE_SUPPLIER_ANSWER_INPUT.TITLE=見積回答作成, ADD_ANSWER_BTN=回答追加, DELETE_ANSWER_BTN=回答削除, ADD_ITEM_BTN=明細追加;
+        APPLICANT_NEW_SUPPLIER.BTN_001=戻る; SUPPLIER_ITEM_ESTIMATE.BTN_001=見積依頼情報を確認する;
+        OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_040=見積回答情報, _046=一回のみ発注可能, _047=見積書番号, _051=明細内容, _055=提供単価, _059=辞退, _062=未定;
+        OPPORTUNITY_LIST_ESTIMATE.LB_NO_LIMIT_ORDER=見積有効期限内に限り発注回数制限無し;
+        ESTIMATE_SUPPLIER_ANSWER_INPUT_COMPLETION.LB_EST_VALID=見積有効, LB_CONTACT_CHECK=連絡事項に見積の前提条件が記載されている場合は, LB_PLEASE_CHECK=チェックを入れてください。;
+        ESTIMATE_SUPPLIER_AFTER_ANSWER.DEADLINE_LB=期限, HAVE_TO_LB=必ず, ANSWER_DELIVERY_DATE_LB=回答納期;
+        APPROVAL_COMPLETION.COMP_OAD_LB_035=備考, COMP_ED_LB_024=連絡事項; ESTIMATE_SUPPLIER_ANSWER_INPUT.INTERAL_USE=（社内用）;
+        MASTER_SETTING.LB_PAYMENT=支払サイト, LB_WITHIN_CHARACTERS=文字以内, LB_DELIVERY=納品先, LB_TOTAL=合計;
+        VALID_AKEN_APPROVER.ANKEN_NUMBER_OPTION=明細番号; Estimate_Template_Service.quantity=数量; Estimate_Template_Product.askDeliveryDate=希望納品日;
+        Answer_Template.listPrice=標準価格（定価）, amountPrice=提供合計金額; Estimate_Template_Service.unitPriceExpect=希望単価;
+        ESTIMATE_APPROVAL.COMP_FTU_LB_005=提供価格合計金額（税抜）; COMMON_MULTI_LANG.TOTAL_AMOUNT_WITH_TAX=合計金額（税込）, COMP_AC_LB_002=必須;
+        ACCEPTANCE_APPROVAL.BTN_011=¥; DIRECT_ORDER_CONFIRMATION.TITLE=入力内容確認.
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN: các mockup cùng bộ (eProcurement_Purchaser_*.html) + assets/layout.css/js/datepicker.js (KHÔNG viết lại).
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - 見積有効期限: JienieDatepicker + validate 必須.
+    - 提供単価 nhập → 提供合計金額 = 提供単価 × 数量 (auto); tổng 税抜/消費税(10%)/税込 recompute theo dòng chưa 辞退.
+    - 明細追加 (nhân bản dòng); 辞退 toggle (xám + loại khỏi tổng).
+    - 前提条件 checkbox; 発注制限 select.
+    - 回答追加 (nhân bản card 見積回答情報, đổi số) / 回答削除.
+    - 入力内容確認 (submit): validate 見積有効期限 (mỗi回答) → OK: data-nav toast (sang完了/確認 - chưa có mockup); lỗi: focus.
+    - 戻る / 見積依頼情報を確認する → data-nav toast (ComparisonToEstimate / EstimateAnswerShow - chưa có mockup).
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定 (cần confirm khi 詳細設計):
+    (1) 見積内訳比較(ComparisonToEstimate) & 完了画面 & EstimateAnswerShow CHƯA có mockup → data-nav toast.
+    (2) Thuế suất demo 10%; danh sách明細/tiền là demo. item-skeleton rút gọn (chỉ field chính).
+    (3) case demo 通常見積 non-service; các nhánh契約/サービス/カタログ掲載/検収完了日 lược bỏ theo điều kiện source.
+  --------------------------------------------------------------------------------
+  DEMO DATA: 案件番号 QDEMO2607000001「2026年度製品パンフレット印刷」通常;
+    サプライヤ 株式会社プリントパック 営業部; 依頼者 依頼裕三; 購買担当 購買一郎;
+    明細01 製品パンフレット 3,000部 × 提供単価¥45 = ¥135,000 (税込¥148,500).
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>見積回答作成</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; flex-wrap: wrap; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; margin: 1.25rem 0 .3rem; flex-wrap: wrap; gap: .6rem; }
+  .title-row h3 { margin: 0; font-size: 1.7rem; }
+  .title-actions { display: flex; gap: .6rem; }
+  .warn-note { background: #fff8e1; border: 1px solid #ffd24d; color: #7a5b00; padding: .5rem .9rem; border-radius: 4px; font-size: .9rem; margin-bottom: 1rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: .4rem 0 1.2rem; }
+
+  .btn { font-size: .95rem; padding: .55rem 1.2rem; border-radius: 4px; cursor: pointer; border: 1px solid #cccccc; background: #fff; color: #111; }
+  .btn-light .ico { color: #4169e1; }
+  .btn-success { background: linear-gradient(to bottom,#5cb85c,#419641); border-color:#3d8b3d; color:#fff; font-weight:bold; }
+  .btn-success.huge { padding: .8rem 3rem; font-size: 1.1rem; }
+  .btn-primary-blue { background: linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+  .btn-sm { padding: .35rem .9rem; font-size: .85rem; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  .card { border: 1px solid #ededed; margin-bottom: 1.3rem; background: #fff; }
+  .card-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .7rem 1.3rem; display:flex; justify-content:space-between; align-items:center; }
+  .card-body { padding: 1.1rem 1.3rem; }
+
+  /* 案件 header (item-skeleton compact) */
+  .anken-head { display:flex; align-items:center; flex-wrap:wrap; gap:.6rem; }
+  .badge-order-type { min-width:90px; text-align:center; padding:4px 12px; font-size:.9rem; border:1px solid #3333ff; color:#3333ff; background:#fff; }
+  .status-badge { min-width:120px; text-align:center; border:1px solid #008000; color:#008000; padding:4px 10px; font-size:.9rem; background:#fff; }
+  .anken-title { font-size:1.35rem; font-weight:bold; margin:.6rem 0; }
+  .kv { display:flex; margin-bottom:.35rem; font-size:.95rem; }
+  .kv > .lb { width:120px; flex-shrink:0; font-weight:bold; }
+
+  .frow { display:flex; margin-bottom:1rem; align-items:flex-start; gap:1rem; flex-wrap:wrap; }
+  .frow > .flabel { width:190px; flex-shrink:0; font-weight:bold; padding-top:.35rem; }
+  .frow > .fbody { flex:1; min-width:260px; }
+  .req { color:#fff; background:#d9534f; font-size:.7rem; border-radius:3px; padding:1px 7px; margin-left:.4rem; }
+  input[type="text"], select, textarea { font-family:inherit; font-size:.92rem; padding:.5rem .7rem; border:1px solid #ccc; border-radius:4px; background:#fff; }
+  textarea { width:100%; min-height:80px; resize:vertical; }
+  .maxlen { color:#888; font-size:.8rem; margin-left:.4rem; }
+  .has-error { border-color:#dc3545 !important; }
+  .err { color:#dc3545; font-size:.82rem; margin-top:.3rem; display:none; }
+  .err.show { display:block; }
+  .readonly-val { padding-top:.35rem; }
+  .chk { display:flex; align-items:flex-start; gap:.5rem; }
+  .chk .color-red { color:#d9534f; font-weight:bold; }
+
+  .deliv-h { font-weight:bold; margin:.6rem 0; display:flex; justify-content:space-between; align-items:center; }
+  table.detail { width:100%; border-collapse:collapse; font-size:.86rem; }
+  table.detail th { background:#eef1f7; border:1px solid #e3e3e6; padding:.5rem .4rem; text-align:center; vertical-align:middle; }
+  table.detail td { border:1px solid #e3e3e6; padding:.4rem .5rem; background:#fff; vertical-align:middle; text-align:center; }
+  table.detail td.left { text-align:left; }
+  table.detail input { width:100%; text-align:right; }
+  table.detail input.txt { text-align:left; }
+  tr.declined { background:#f1f1f1; color:#999; }
+  tr.declined input { background:#f1f1f1; }
+  .deliv-foot { font-size:.9rem; color:#333; margin:.4rem 0 1rem; }
+  .totals { width:340px; margin-left:auto; border-collapse:collapse; font-size:.9rem; }
+  .totals th { background:#eef1f7; border:1px solid #e3e3e6; padding:.5rem; text-align:left; width:60%; }
+  .totals td { border:1px solid #e3e3e6; padding:.5rem; text-align:right; font-weight:bold; }
+  .link-decline { color:#d9534f; text-decoration:underline; cursor:pointer; font-size:.82rem; }
+
+  .bottom-actions { border:1px solid #ededed; padding:1.1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="見積内訳比較（eProcurement_Purchaser_ComparisonToEstimate）">見積内訳比較</a></li>
+      <li class="active">見積回答作成</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="title-row">
+        <h3>見積回答作成</h3>
+        <div class="title-actions">
+          <button type="button" class="btn btn-light" data-nav="見積内訳比較へ戻る（eProcurement_Purchaser_ComparisonToEstimate）"><span class="ico">‹</span>&nbsp;戻る</button>
+          <button type="button" class="btn btn-light" data-nav="見積依頼情報を確認する（EstimateAnswerShow・別タブ）">見積依頼情報を確認する&nbsp;⧉</button>
+        </div>
+      </div>
+      <hr class="title-sep">
+      <div class="warn-note">サプライヤから受領した見積内容を代理入力します。見積有効期限・提供単価・回答納期をご確認ください。</div>
+
+      <!-- ===== 案件ヘッダ (item-skeleton compact) ===== -->
+      <div class="card">
+        <div class="card-body">
+          <div class="anken-head">
+            <span class="badge-order-type">見積購買</span>
+            <span>案件番号：QDEMO2607000001</span>
+            <span style="margin-left:auto;">回答ステータス：</span>
+            <span class="status-badge">回答待ち</span>
+          </div>
+          <hr>
+          <div class="anken-title">案件名：2026年度製品パンフレット印刷</div>
+          <div class="kv"><span class="lb">サプライヤ</span><span>[SUP0001] 株式会社プリントパック　営業部</span></div>
+          <div class="kv"><span class="lb">依頼者</span><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+          <div class="kv"><span class="lb">購買担当者</span><span>購買部 調達1課　購買一郎</span></div>
+          <div class="kv"><span class="lb">見積依頼日</span><span>2026-07-03</span></div>
+        </div>
+      </div>
+
+      <!-- ===== 見積回答情報 (回答リスト) ===== -->
+      <div id="answerList">
+        <div class="card answer-card">
+          <div class="card-header">
+            <span class="ans-title">見積回答情報</span>
+            <button type="button" class="btn btn-light btn-sm add-answer">回答追加</button>
+          </div>
+          <div class="card-body">
+            <div class="frow">
+              <div class="flabel">見積有効期限<span class="req">必須</span></div>
+              <div class="fbody" style="max-width:280px;">
+                <input type="text" class="expired-date" value="2026-08-25" placeholder="YYYY-MM-DD">
+                <div class="err expired-err">必須項目です。</div>
+              </div>
+              <div class="fbody" style="max-width:360px;">
+                <select>
+                  <option>一回のみ発注可能</option>
+                  <option>見積有効期限内に限り発注回数制限無し</option>
+                </select>
+              </div>
+            </div>
+            <div class="frow">
+              <div class="flabel">見積書番号</div>
+              <div class="fbody" style="max-width:360px; display:flex; align-items:center;">
+                <input type="text" maxlength="50" value="PP-2026-0731">
+                <span class="maxlen">50文字以内</span>
+              </div>
+              <div class="fbody"><div class="readonly-val"><b>支払サイト：</b>口座引き落とし／15日締め翌月10日払い</div></div>
+            </div>
+            <div class="frow">
+              <div class="flabel">備考<br>（社内用）</div>
+              <div class="fbody"><textarea maxlength="1000" placeholder="社内用メモ（サプライヤには非公開）"></textarea><span class="maxlen">1000文字以内</span></div>
+            </div>
+            <div class="frow">
+              <div class="flabel">連絡事項</div>
+              <div class="fbody"><textarea maxlength="1000">校了後10営業日で納品可能です。用紙はマットコート90kgを想定。</textarea><span class="maxlen">1000文字以内</span></div>
+            </div>
+            <div class="frow">
+              <div class="flabel"></div>
+              <div class="fbody">
+                <label class="chk"><input type="checkbox">
+                  <span>連絡事項に見積の前提条件が記載されている場合は<span class="color-red"> 必ず </span>チェックを入れてください。</span>
+                </label>
+              </div>
+            </div>
+            <div class="frow">
+              <div class="flabel"></div>
+              <div class="fbody"><button type="button" class="btn btn-light btn-sm" data-nav="添付ファイルを追加（InputFile）">＋ 添付ファイルを追加</button></div>
+            </div>
+
+            <!-- 明細 (納品1) -->
+            <div class="deliv-h">
+              <span>納品1</span>
+              <button type="button" class="btn btn-light btn-sm add-detail">明細追加</button>
+            </div>
+            <table class="detail">
+              <thead>
+                <tr>
+                  <th style="width:5%;">明細番号</th>
+                  <th style="width:20%;">明細内容</th>
+                  <th style="width:9%;">数量</th>
+                  <th style="width:9%;">希望単価</th>
+                  <th style="width:12%;">標準価格<br>（定価）</th>
+                  <th style="width:11%;">提供単価<span class="req">必須</span></th>
+                  <th style="width:12%;">提供合計金額</th>
+                  <th style="width:14%;">希望納品日<br>回答納期</th>
+                  <th style="width:6%;">辞退</th>
+                </tr>
+              </thead>
+              <tbody class="detail-body">
+                <tr class="detail-row">
+                  <td class="rowno">1</td>
+                  <td class="left"><input class="txt" type="text" value="製品パンフレット（2026年度版）"></td>
+                  <td><input class="qty" type="text" value="3,000"></td>
+                  <td>¥0</td>
+                  <td><input class="list-price" type="text" value="60"></td>
+                  <td><input class="unit-price" type="text" value="45"></td>
+                  <td class="amount">¥135,000</td>
+                  <td><input class="ans-delivery txt" type="text" value="2026-08-10" placeholder="YYYY-MM-DD" style="text-align:left;"></td>
+                  <td><a class="link-decline">辞退</a></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="deliv-foot">納品先：ジーニーソリューションズ株式会社 本社 総務部 依頼裕三　〒160-0023 東京都新宿区西新宿6-8-1</div>
+
+            <table class="totals">
+              <tr><th>提供価格合計金額（税抜）</th><td class="sum-notax">¥135,000</td></tr>
+              <tr><th>内消費税（10%相当額）</th><td class="sum-tax">¥13,500</td></tr>
+              <tr><th>合計金額（税込）</th><td class="sum-withtax">¥148,500</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Bottom actions ===== -->
+      <div class="bottom-actions">
+        <button type="button" class="btn btn-light" data-nav="見積内訳比較へ戻る（eProcurement_Purchaser_ComparisonToEstimate）"><span class="ico">‹</span>&nbsp;戻る</button>
+        <button type="button" class="btn btn-success huge" id="btnConfirm">入力内容確認&nbsp;›</button>
+        <span style="min-width:80px;"></span>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/datepicker.js"></script>
+<script>
+JienieLayout.init();
+JienieDatepicker.init('.expired-date, .ans-delivery');
+
+(function () {
+  var TAX = 0.10;
+  function toNum(s){ return parseInt(String(s).replace(/[^0-9]/g,''),10) || 0; }
+  function yen(n){ return '¥' + n.toLocaleString('en-US'); }
+
+  function recalcCard(card){
+    var sub = 0;
+    card.querySelectorAll('.detail-row').forEach(function(tr){
+      if (tr.classList.contains('declined')) { tr.querySelector('.amount').textContent = '-'; return; }
+      var qty = toNum(tr.querySelector('.qty').value);
+      var up  = toNum(tr.querySelector('.unit-price').value);
+      var amt = qty * up;
+      tr.querySelector('.amount').textContent = yen(amt);
+      sub += amt;
+    });
+    var tax = Math.floor(sub * TAX);
+    card.querySelector('.sum-notax').textContent   = yen(sub);
+    card.querySelector('.sum-tax').textContent     = yen(tax);
+    card.querySelector('.sum-withtax').textContent = yen(sub + tax);
+  }
+
+  function bindCard(card){
+    // recompute on qty / unit-price / list-price input
+    card.querySelectorAll('.qty, .unit-price').forEach(function(inp){
+      if (inp.dataset.b) return; inp.dataset.b='1';
+      inp.addEventListener('input', function(){ recalcCard(card); });
+    });
+    // 辞退 toggle
+    card.querySelectorAll('.link-decline').forEach(function(a){
+      if (a.dataset.b) return; a.dataset.b='1';
+      a.addEventListener('click', function(){
+        var tr = a.closest('.detail-row');
+        var on = tr.classList.toggle('declined');
+        a.textContent = on ? '辞退解除' : '辞退';
+        recalcCard(card);
+      });
+    });
+    // 明細追加
+    var add = card.querySelector('.add-detail');
+    if (add && !add.dataset.b) { add.dataset.b='1';
+      add.addEventListener('click', function(){
+        var body = card.querySelector('.detail-body');
+        var base = body.querySelector('.detail-row');
+        var clone = base.cloneNode(true);
+        clone.classList.remove('declined');
+        clone.querySelectorAll('input').forEach(function(i){ if(!i.classList.contains('qty')) i.value=''; });
+        clone.querySelector('.qty').value = '0';
+        clone.querySelector('.amount').textContent = '¥0';
+        var dec = clone.querySelector('.link-decline'); dec.textContent='辞退'; dec.dataset.b='';
+        body.appendChild(clone);
+        // renumber
+        body.querySelectorAll('.detail-row').forEach(function(tr,i){ tr.querySelector('.rowno').textContent = i+1; });
+        JienieDatepicker.init('.ans-delivery');
+        bindCard(card);
+        JienieLayout.toast('明細を追加しました。');
+      });
+    }
+    // 見積有効期限 clear error on input
+    var ed = card.querySelector('.expired-date');
+    if (ed && !ed.dataset.b) { ed.dataset.b='1';
+      ed.addEventListener('input', function(){ if(ed.value.trim()){ ed.classList.remove('has-error'); card.querySelector('.expired-err').classList.remove('show'); } });
+    }
+  }
+
+  var answerList = document.getElementById('answerList');
+  document.querySelectorAll('.answer-card').forEach(bindCard);
+
+  // 回答追加 / 回答削除
+  function refreshAnswerButtons(){
+    var cards = answerList.querySelectorAll('.answer-card');
+    cards.forEach(function(card, i){
+      var hdr = card.querySelector('.card-header');
+      card.querySelector('.ans-title').textContent = '見積回答情報' + (cards.length === 1 ? '' : (i+1));
+      var btn = hdr.querySelector('.add-answer, .del-answer');
+      if (i === 0) { btn.textContent='回答追加'; btn.className='btn btn-light btn-sm add-answer'; }
+      else { btn.textContent='回答削除'; btn.className='btn btn-light btn-sm del-answer'; }
+    });
+  }
+  answerList.addEventListener('click', function(e){
+    var addB = e.target.closest('.add-answer');
+    var delB = e.target.closest('.del-answer');
+    if (addB) {
+      var base = answerList.querySelector('.answer-card');
+      var clone = base.cloneNode(true);
+      clone.querySelectorAll('input,textarea').forEach(function(i){ i.dataset.b=''; });
+      clone.querySelectorAll('input[type="checkbox"]').forEach(function(c){ c.checked=false; });
+      // reset về 1 明細
+      var rows = clone.querySelectorAll('.detail-row');
+      rows.forEach(function(r,i){ if(i>0) r.remove(); });
+      answerList.appendChild(clone);
+      JienieDatepicker.init('.expired-date, .ans-delivery');
+      refreshAnswerButtons();
+      bindCard(clone);
+      recalcCard(clone);
+      JienieLayout.toast('回答を追加しました。');
+    } else if (delB) {
+      delB.closest('.answer-card').remove();
+      refreshAnswerButtons();
+      JienieLayout.toast('回答を削除しました。');
+    }
+  });
+
+  // 入力内容確認 (submit) validate: mỗi回答 phải có 見積有効期限
+  document.getElementById('btnConfirm').addEventListener('click', function(){
+    var ok = true, first = null;
+    answerList.querySelectorAll('.answer-card').forEach(function(card){
+      var ed = card.querySelector('.expired-date');
+      if (!ed.value.trim()) { ed.classList.add('has-error'); card.querySelector('.expired-err').classList.add('show'); ok=false; first=first||ed; }
+    });
+    if (!ok) { first.scrollIntoView({behavior:'smooth',block:'center'}); JienieLayout.toast('見積有効期限は必須です。'); return; }
+    JienieLayout.toast('実際の画面では「入力内容確認（eProcurement_EstimatePurchaser_EstimateAnswerInputCompletion）」へ遷移します');
+  });
+})();
+</script>
+
+</body>
+</html>

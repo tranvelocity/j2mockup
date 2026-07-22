@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-002 補正承認モーダル（補正処理Buyer承認機能・新規作成画面）
+  Portal: Buyer Portal — src/components/eProcurement/Dialogs/CorrectionApproval.vue（新規）
+  親からマウントされる想定（SCR-COR-004b 検収待ち詳細 / SCR-COR-004c 検収待ち一覧）。
+  本ファイルはモーダル単体を確認するためのデモホスト＋モーダルで構成。
+  Thư mục chức năng: 補正処理Buyer承認機能/ ; assets dùng chung qua ../assets/.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 §4.2 新規作成画面 — SCR-COR-002 — bám sát):
+    「補正前・後の数量・単価・金額を並べて表示。承認ボタン・否認ボタンを配置。
+      否認時は否認理由の入力欄を表示（必須）。Supplierが申請理由を入力していた場合は参照表示する」
+    Liên quan trong tài liệu:
+      · §2.2 業務ルール: BR-COR-004 否認理由必須 / BR-COR-006 タイムアウト自動否認(デフォルト7日) / BR-COR-007 承認者=購買承認者.
+      · §3.1-3.2 RD-COR-003 Buyer承認 / RD-COR-004 Buyer否認 / RD-COR-005 承認時DB反映 / RD-COR-006 否認時値保持 / RD-COR-013 申請理由(任意).
+      · §3.3(backlog) ステータス: COR-10 補正承認待ち → COR-20 補正承認済み / COR-30 補正否認.
+      · §6.1 correction_request カラム: requested/original quantity・unit_price, request_reason(任意), reject_reason(否認時必須), requested_at.
+      · §7 メール: 承認→COR002(Supplier) / 否認→COR003(否認理由付き).
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN: bộ mockup 補正処理Buyer承認機能/ (SCR-COR-004a/004b) + assets/layout.css・layout.js (KHÔNG viết lại).
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - モーダル開閉（× / キャンセル / 背景クリック / 再度開くボタン）.
+    - 承認する → 完了バナー「補正を承認しました（COR-20）」+ toast（COR002 送信・DB反映のイメージ）.
+    - 否認する → 否認理由欄を表示 → 必須バリデーション（BR-COR-004）→ 完了バナー「補正を否認しました（COR-30）」+ toast（COR003）.
+    - 申請理由の参照表示（任意入力・入力なしの場合は「（申請理由なし）」表示に切替可能なデモ）.
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定 (màn MỚI, cần confirm khi 基本/詳細設計):
+    (1) Nhãn i18n toàn bộ SCR-COR-002 (補正承認/補正前/補正後/申請理由/否認理由/申請日時/申請者…) là KEY MỚI 未確定,
+        dùng chữ Nhật theo 要件定義. 数量/単価/金額/必須 dùng nhãn J2 sẵn có.
+    (2) Các trường context hiển thị (発注番号/明細/サプライヤ/申請者/申請日時) là đề xuất bố cục.
+    (3) タイムアウト残り日数 (BR-COR-006・7日) hiển thị dạng chú thích — cách thể hiện chốt ở 基本設計.
+    (4) Demo data khớp SCR-COR-004a/004b.
+  --------------------------------------------------------------------------------
+  DEMO DATA: 発注番号 PDEMO2607000031「2026年度製品パンフレット印刷」;
+    明細02 製品パンフレット; サプライヤ 株式会社プリントパック 営業部;
+    補正前 3,000部×¥45=¥135,000 → 補正後 2,800部×¥48=¥134,400;
+    申請者 プリントパック 佐藤; 申請日時 2026-07-16 10:24; タイムアウト 残り6日.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>補正承認モーダル（SCR-COR-002）</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; flex-wrap: wrap; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 .4rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: .4rem 0 1rem; }
+
+  /* Demo host */
+  .host-note { background:#eef4ff; border:1px solid #b9c9f5; border-radius:6px; padding:.9rem 1.1rem; font-size:.9rem; margin-bottom:1rem; }
+  .host-note b { color:#26408f; }
+  .host-actions { display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+  .result-banner { display:none; padding:.7rem 1rem; border-radius:4px; font-weight:bold; margin-bottom:1rem; }
+  .result-banner.ok  { display:block; background:#e8f5e9; border:1px solid #66bb6a; color:#1b5e20; }
+  .result-banner.rej { display:block; background:#f4f4f4; border:1px solid #9e9e9e; color:#444; }
+
+  .btn { font-size:.95rem; padding:.55rem 1.2rem; border-radius:4px; cursor:pointer; border:1px solid #cccccc; background:#fff; color:#111; }
+  .btn-sm { padding:.35rem .9rem; font-size:.85rem; }
+  .btn-primary-blue { background: linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+  .btn-approve { background: linear-gradient(to bottom,#5cb85c,#419641); border-color:#3d8b3d; color:#fff; font-weight:bold; }
+  .btn-reject { background:#fff; border-color:#d9534f; color:#d9534f; font-weight:bold; }
+
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#fff; border-radius:8px; width:660px; max-width:100%; max-height:92vh; overflow:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.3rem; border-bottom:1px solid #ededed; }
+  .modal-header h4 { margin:0; font-size:1.15rem; font-weight:bold; }
+  .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; line-height:1; color:#666; }
+  .modal-body { padding:1.1rem 1.3rem; }
+  .modal-footer { display:flex; justify-content:center; gap:1rem; padding:1rem 1.3rem 1.4rem; }
+
+  .cor-wait-badge { display:inline-block; border:1px solid #ff6699; color:#ff6699; background:#fff; font-weight:bold; font-size:.78rem; padding:2px 9px; border-radius:3px; }
+  .kv { display:flex; margin-bottom:.4rem; font-size:.93rem; }
+  .kv > .lb { width:104px; flex-shrink:0; font-weight:bold; color:#333; }
+  .timeout-note { font-size:.82rem; color:#c0392b; margin:.2rem 0 .6rem; }
+
+  .cmp-table { width:100%; border-collapse:collapse; margin:.5rem 0 1rem; }
+  .cmp-table th, .cmp-table td { border:1px solid #e3e3e6; padding:.6rem .7rem; text-align:center; }
+  .cmp-table thead th { background:#eef1f7; }
+  .cmp-table td.item { text-align:left; font-weight:bold; background:#f7f9fc; width:26%; }
+  .cmp-table td.after { font-weight:bold; color:#4169e1; }
+  .cmp-diff { color:#d9534f; font-size:.8rem; }
+
+  .sec-lbl { font-weight:bold; margin:.9rem 0 .35rem; }
+  .reason-box { background:#f7f7f7; border:1px solid #e3e3e6; border-radius:4px; padding:.6rem .8rem; font-size:.92rem; white-space:pre-line; }
+  .reason-empty { color:#999; }
+  .req { color:#fff; background:#d9534f; font-size:.7rem; border-radius:3px; padding:1px 7px; margin-left:.4rem; }
+  #rejectWrap { display:none; margin-top:1rem; }
+  #rejectWrap textarea { width:100%; min-height:90px; padding:.6rem; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:.92rem; resize:vertical; }
+  #rejectWrap textarea.has-error { border-color:#dc3545; }
+  .modal-err { color:#dc3545; font-size:.85rem; margin-top:.3rem; display:none; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="検収一覧（eProcurement_Requester_WaitingAcceptance）">検収</a></li>
+      <li><a href="SCR-COR-004b_検収待ち詳細.html">検収待ち詳細</a></li>
+      <li class="active">補正承認モーダル（SCR-COR-002）</li>
+    </ul>
+
+    <div class="page-content">
+      <div class="page-title"><h3>補正承認モーダル（SCR-COR-002）</h3></div>
+      <hr class="title-sep">
+
+      <div class="host-note">
+        本画面は <b>SCR-COR-002 補正承認モーダル</b>（新規 <code>CorrectionApproval.vue</code>）の単体確認用デモです。
+        実際は <b>SCR-COR-004b 検収待ち詳細</b> の「補正内容を承認／否認」から親コンポーネントがマウントして表示します。
+      </div>
+
+      <div id="resultBanner" class="result-banner"></div>
+
+      <div class="host-actions">
+        <button type="button" class="btn btn-primary-blue" id="openModal">補正承認モーダルを開く</button>
+        <label style="font-size:.88rem;"><input type="checkbox" id="tglReason" checked> 申請理由あり（サプライヤが入力した場合の参照表示）</label>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===== SCR-COR-002 補正承認モーダル ===== -->
+<div class="modal-overlay show" id="modalApproval">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h4>補正承認&nbsp;<span class="cor-wait-badge">補正承認待ち（COR-10）</span></h4>
+      <button type="button" class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="kv"><span class="lb">発注番号</span><span>PDEMO2607000031</span></div>
+      <div class="kv"><span class="lb">案件名</span><span>2026年度製品パンフレット印刷</span></div>
+      <div class="kv"><span class="lb">明細</span><span>明細02　製品パンフレット（2026年度版）</span></div>
+      <div class="kv"><span class="lb">サプライヤ</span><span>[SUP0001] 株式会社プリントパック　営業部</span></div>
+      <div class="kv"><span class="lb">申請者</span><span>株式会社プリントパック　佐藤　健</span></div>
+      <div class="kv"><span class="lb">申請日時</span><span>2026-07-16 10:24</span></div>
+      <div class="timeout-note">※ 未対応のまま7日を経過すると自動否認されます（残り6日・BR-COR-006）</div>
+
+      <div class="sec-lbl">補正前 / 補正後</div>
+      <table class="cmp-table">
+        <thead><tr><th style="width:26%;">項目</th><th style="width:37%;">補正前</th><th style="width:37%;">補正後</th></tr></thead>
+        <tbody>
+          <tr><td class="item">数量</td><td>3,000 部</td><td class="after">2,800 部 <span class="cmp-diff">(−200)</span></td></tr>
+          <tr><td class="item">単価</td><td>¥45</td><td class="after">¥48 <span class="cmp-diff">(+¥3)</span></td></tr>
+          <tr><td class="item">金額</td><td>¥135,000</td><td class="after">¥134,400 <span class="cmp-diff">(−¥600)</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="sec-lbl">申請理由（サプライヤ・任意）</div>
+      <div class="reason-box" id="reasonBox">用紙をマットコート90kgへ変更したため単価を改定。あわせて予備分を見直し数量を調整しました。</div>
+
+      <div id="rejectWrap">
+        <div class="sec-lbl" style="margin-bottom:.35rem;">否認理由<span class="req">必須</span></div>
+        <textarea id="rejectReason" maxlength="1000" placeholder="否認理由を入力してください（サプライヤへ通知されます）"></textarea>
+        <div class="modal-err" id="rejectErr">否認理由を入力してください。</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-approve" id="btnApprove">承認する</button>
+      <button type="button" class="btn btn-reject" id="btnReject">否認する</button>
+      <button type="button" class="btn" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var overlay = document.getElementById('modalApproval');
+  var banner = document.getElementById('resultBanner');
+  var rejectMode = false;
+
+  function openM(){ resetReject(); overlay.classList.add('show'); }
+  function closeM(){ overlay.classList.remove('show'); resetReject(); }
+  function resetReject(){
+    rejectMode = false;
+    document.getElementById('rejectWrap').style.display = 'none';
+    var ta = document.getElementById('rejectReason'); ta.value=''; ta.classList.remove('has-error');
+    document.getElementById('rejectErr').style.display = 'none';
+  }
+  overlay.addEventListener('click', function(e){ if (e.target === overlay || e.target.hasAttribute('data-close')) closeM(); });
+  document.getElementById('openModal').addEventListener('click', openM);
+
+  // 申請理由あり/なし デモ切替（RD-COR-013 任意入力）
+  document.getElementById('tglReason').addEventListener('change', function(e){
+    var box = document.getElementById('reasonBox');
+    if (e.target.checked) {
+      box.classList.remove('reason-empty');
+      box.textContent = '用紙をマットコート90kgへ変更したため単価を改定。あわせて予備分を見直し数量を調整しました。';
+    } else {
+      box.classList.add('reason-empty');
+      box.textContent = '（申請理由なし）';
+    }
+  });
+
+  // 承認する（RD-COR-003 / COR-20 / COR002）
+  document.getElementById('btnApprove').addEventListener('click', function(){
+    banner.className = 'result-banner ok';
+    banner.textContent = '補正を承認しました（COR-20）。注文明細の数量・単価を補正後の値に更新し、サプライヤへ承認済みメール（COR002）を送信します。';
+    closeM();
+    JienieLayout.toast('補正を承認しました（COR-20）');
+    banner.scrollIntoView({behavior:'smooth', block:'center'});
+  });
+
+  // 否認する（RD-COR-004 / BR-COR-004 否認理由必須 / COR-30 / COR003）
+  document.getElementById('btnReject').addEventListener('click', function(){
+    var wrap = document.getElementById('rejectWrap');
+    if (!rejectMode) { rejectMode = true; wrap.style.display='block'; document.getElementById('rejectReason').focus(); return; }
+    var ta = document.getElementById('rejectReason');
+    if (!ta.value.trim()) { ta.classList.add('has-error'); document.getElementById('rejectErr').style.display='block'; return; }
+    banner.className = 'result-banner rej';
+    banner.textContent = '補正を否認しました（COR-30）。注文明細は補正前の値を保持し、サプライヤへ否認理由付きメール（COR003）を送信します。';
+    closeM();
+    JienieLayout.toast('補正を否認しました（COR-30）');
+    banner.scrollIntoView({behavior:'smooth', block:'center'});
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: eProcurement_Purchaser_Input  (依頼情報入力)
+  Module: Buyer Portal / 購買担当（Purchaser） — 見積依頼を作成しサプライヤへ展開する入力画面
+  Route thật: /eProcurement/Purchaser/Input
+              ?estimateCode=...&estimateRequestCode=...&isReview=false
+              &from=eProcurement_Purchaser_AllProject
+  Dùng chung header/sidebar/back-to-top qua assets/layout.css + assets/layout.js + datepicker.js.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU / SOURCE CODE (mô phỏng đúng — màn hình ĐÃ TỒN TẠI):
+    - View chính: src-vbizhw/src/modules/Buyer/views/Purchaser/Input.vue
+        → cấu trúc 3 card (基本情報 / 依頼内容 / 希望サプライヤ情報), nút header (戻る / 見積依頼申請を確認する),
+          form入力 + validate (案件名 必須, カテゴリ 必須, 交渉期限 必須, サプライヤ 必須),
+          明細 thêm/xoá, サプライヤ thêm/xoá, nút cuối (承認先入力 submit / 一時保存).
+        Breadcrumb (customBreadcrumb, isWarning=true):
+          HOME › from(全案件) › 見積依頼詳細 › 依頼情報入力.
+    - Nhãn i18n (nguyên văn): src-vbizhw/src/locales/prod/ja.json
+        PURCHASER_INPUT.TITLE=依頼情報入力, LB_055=選択されたサプライヤ, LB_EMPTY_01=サプライヤーを選定してください。,
+        LB_H6=希望サプライヤ(削除済);
+        APPROVER_INFO_CHANGE_INPUT.ANKEN_NUMBER_HEADER=案件番号, ANKEN_NAME_HEADER=案件名;
+        APPLICANT_NEW_SUPPLIER.BTN_001=戻る, BTN_002=見積依頼申請を確認する, BTN_003=削除取消,
+          BTN_012=サプライヤ削除, BTN_013=購買部向け添付ファイルをコピー, LB_004=購入品目, LB_017=該当品目カテゴリ;
+        OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_065=基本情報, _071=通常, _076=依頼者情報, _081=依頼内容,
+          _082=回答希望日, _083=交渉期限, _084=明細情報, _093=サプライヤ見積番号, _095=関連案件, _107=サプライヤ向け連絡事項;
+        MASTER_SETTING.CATEGORY=品目カテゴリ, LB_REQUIRED=必須項目です。, LB_PAYMENT=支払サイト, LB_DELIVERY=納品先,
+          SUBCONTRACT_ACT=取適法, ESTIMATE_TEMPLATE_LB_006=削除, BTN_ADD_LANGUAGE=追加;
+        ESTIMATE_APPROVAL.COMP_EST_D_LB_014/015/016=大カテゴリ/中カテゴリ/小カテゴリ, COMP_EST_D_LB_005=日付の形式が不正です。半角数字で入力下さい。;
+        ESTIMATE_ORDER_INPUT.LB_030=各明細へ反映; Estimate_Template_Product.askDeliveryDate=希望納品日;
+        ESTIMATE_SUPPLIER_ANSWER_INPUT.ADD_ITEM_BTN=明細追加;
+        DIRECT_ORDER_INPUT.LB_007=100文字以内, LB_008=案件名を入力してください。, LB_015=（カタログ品番／メーカー品番／品名）, LB_052=サプライヤに連絡したい内容ご記入ください。;
+        COMMON_MULTI_LANG.COMP_AC_LB_002=必須, LB_UNSPECIFIED=指定なし;
+        ACCEPTANCE_APPROVAL.COMP_IS_LB_026=1000文字以内;
+        PURCHASER_COMPARISON_TO_ESTIMATE.LB_009=希望;
+        ESTIMATE_INPUT.BTN_ADD_RELATE_ESTIMATE=関連案件を追加;
+        PURCHASER_CONFIRMATION.LB_021=サプライヤ情報;
+        CONTRACT_REGIST_GOTO_APPROVAL.TITLE=承認先入力 (nút submit → sang màn nhập承認先);
+        PURCHASER_SELECTION_NOTIFICATION_INPUT.BTN_002=一時保存, MSG_004=一時保存しました。.
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN (đối chiếu pixel):
+    - eProcurement_Requester_EstimateApplicationApplicantList.html (verify staging 2026-07-05):
+      copy CSS card-header #4169e1, bảng明細, status/tag, modal base.
+    - eProcurement_Purchaser_EstimateRequestDetail.html (mockup cùng bộ, link 2 chiều).
+    - assets/layout.css + layout.js + datepicker.js: KHÔNG viết lại.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT (cập nhật DOM tại chỗ):
+    - 案件名: validate 必須 (rỗng → viền đỏ + message).
+    - 品名検索 🔍 → mở modal「該当品目カテゴリ」→ chọn 1 dòng → điền 大/中/小 select + đóng.
+    - 品目カテゴリ 大→中→小: cascade (đổi 大 reset 中/小, enable/disable), validate 必須.
+    - 交渉期限: JienieDatepicker + nút ✕ xoá + validate 必須.
+    - 希望納品日一括設定: datepicker → nút「各明細へ反映」set希望納品日 cho tất cả明細.
+    - 納品先: mở modal chọn納品先 → điền vào các明細.
+    - 明細追加 (nhân bản dòng) / 削除 (đánh dấu xoá + đổi nút thành 削除取消, toggle lại).
+    - サプライヤ追加 (modal candidate) → thêm card; サプライヤ削除 → chuyển sang mục削除済; 追加 → phục hồi.
+    - 承認先入力 (submit): validate toàn bộ → nếu OK href sang eProcurement_Purchaser_ApproverSelection.html; lỗi → hiện message + focus.
+    - 一時保存 → toast MSG_004.
+    - 戻る / 見積依頼申請を確認する → href thật sang eProcurement_Purchaser_EstimateRequestDetail.html.
+  --------------------------------------------------------------------------------
+  LINK 2 CHIỀU:
+    - Trang này ⇄ eProcurement_Purchaser_EstimateRequestDetail.html:
+        · 戻る (btn-gray) + 見積依頼申請を確認する → href sang EstimateRequestDetail.
+        · Đã sửa nút「見積依頼へ進む」ở EstimateRequestDetail (data-nav → href) trỏ về trang này.
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定 (cần confirm khi 詳細設計):
+    (1) 全案件 / 承認先入力画面 CHƯA có mockup → link tương ứng là data-nav toast.
+    (2) APPLICANT_NEW_SUPPLIER.LB_010 (tiền tố dòng依頼者情報) chọn「申請者」theo ngữ nghĩa gần nhất
+        trong ja.json (giá trị ngắn, không có「：」) — cần confirm nếu khác.
+    (3) Danh sách candidate サプライヤ / 納品先 / カテゴリ trong modal là demo (thực tế lấy từ API
+        RecommendListCommon / DeliveryDestinationSelection / searchCategoryEstimateInput).
+    (4) Case demo là 通常見積 (estimateControlType=0, non-service, non-contract): các nhánh
+        契約支払管理 / 手配依頼 / カタログ掲載 / CC email / 取引会社(trading) ĐƯỢC LƯỢC BỎ theo điều kiện v-if của source.
+  --------------------------------------------------------------------------------
+  DEMO DATA (NHẤT QUÁN với EstimateRequestDetail + EstimateApplicationApplicantList):
+    案件番号 QDEMO2607000021「2026年度製品パンフレット印刷」通常, 回答希望日 2026-07-25,
+    交渉期限 2026-08-25, 依頼者/申請者 ジーニーソリューションズ株式会社 本社 総務部 依頼裕三,
+    希望サプライヤ 株式会社プリントパック / デコルデザイン株式会社.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>依頼情報入力</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+
+  /* Breadcrumb + title */
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; flex-wrap: wrap; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; margin: 1.25rem 0 .3rem; flex-wrap: wrap; gap: .6rem; }
+  .title-row h3 { margin: 0; font-size: 1.7rem; }
+  .title-actions { display: flex; gap: .6rem; }
+  .warn-note { background: #fff8e1; border: 1px solid #ffd24d; color: #7a5b00; padding: .5rem .9rem; border-radius: 4px; font-size: .9rem; margin-bottom: 1rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: .4rem 0 1.2rem; }
+
+  /* Buttons */
+  .btn { font-size: .95rem; padding: .55rem 1.2rem; border-radius: 4px; cursor: pointer; border: 1px solid #cccccc; background: #fff; color: #111; }
+  .btn-gray { background: #6c757d; border-color: #6c757d; color: #fff; }
+  .btn-light .ico, .btn-gray .ico { }
+  .btn-success { background: linear-gradient(to bottom,#5cb85c,#419641); border-color:#3d8b3d; color:#fff; font-weight:bold; }
+  .btn-success.huge { padding: .8rem 3rem; font-size: 1.1rem; }
+  .btn-primary-blue { background: linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+  .btn-search-cat { background: linear-gradient(to bottom,#5cb85c,#449d44); border-color:#3d8b3d; color:#fff; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-sm { padding: .4rem .9rem; font-size: .85rem; }
+
+  /* Card + section header bar */
+  .card { border: 1px solid #ededed; margin-bottom: 1.3rem; background: #fff; }
+  .card-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; display:flex; justify-content:space-between; align-items:center; }
+  .card-body { padding: 1.1rem 1.3rem; }
+
+  .frow { display: flex; margin-bottom: 1.1rem; align-items: flex-start; gap: 1rem; }
+  .frow > .flabel { width: 190px; flex-shrink: 0; font-weight: bold; padding-top: .35rem; display:flex; justify-content:space-between; }
+  .frow > .fbody { flex: 1; min-width: 0; }
+  .req-chip { font-size: .7rem; color: #fff; border-radius: 3px; padding: 1px 7px; margin-left:.4rem; }
+  .req-chip.must { background: #d9534f; }
+  .req-chip.any { background: #999; }
+  .readonly-val { padding-top: .35rem; }
+
+  input[type="text"], select, textarea { font-family: inherit; font-size: .92rem; padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+  input[type="text"]:disabled, select:disabled { background: #f0f0f0; color:#888; }
+  .in-name { width: 70%; }
+  .in-full { width: 100%; }
+  textarea { width: 100%; min-height: 90px; resize: vertical; }
+  .has-error { border-color: #dc3545 !important; }
+  .err-msg { color: #dc3545; font-size: .82rem; margin-top: .3rem; display: none; }
+  .err-msg.show { display: block; }
+  .maxlen-note { color: #888; font-size: .8rem; margin-left: .5rem; white-space: nowrap; }
+  .tag-label { font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 2px; color: #fff; margin-left:.5rem; }
+  .tag-green { background: #92d050; }
+
+  .cat-selects { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .cat-selects .cat-field { display: flex; flex-direction: column; gap: .25rem; }
+  .cat-selects .cat-field > span { font-size: .82rem; }
+  .cat-selects select { min-width: 190px; }
+  .input-search { display: flex; gap: .5rem; align-items: flex-start; }
+  .input-clearable { position: relative; display:inline-block; width: 55%; }
+  .input-clearable input { width: 100%; padding-right: 26px; }
+  .input-clearable .clr { position:absolute; right:8px; top:50%; transform:translateY(-50%); color:#4169e1; cursor:pointer; }
+
+  /* fieldset 各明細へ反映 */
+  fieldset.batch { border: 1px solid #dcdcdc; border-radius: 4px; padding: .8rem 1rem; margin-bottom: 1rem; }
+  fieldset.batch legend { font-size: .85rem; font-weight: bold; padding: 0 .4rem; width:auto; }
+  .batch-row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+
+  .sub-heading { font-weight: bold; margin: .6rem 0; }
+  hr.sec-sep { border: none; border-top: 1px solid #e3e3e6; margin: .4rem 0 1rem; }
+
+  /* 明細 table (editable) */
+  .detail-block { border: 1px solid #cccccc; margin-bottom: 1rem; }
+  .detail-block.deleted { border: 2px solid #848484; opacity: .7; }
+  .detail-bar { display:flex; justify-content: space-between; align-items:center; background:#eef1f7; padding:.5rem .8rem; }
+  .detail-bar .sec { font-weight: bold; }
+  table.detail { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  table.detail th { background:#eef1f7; border:1px solid #e3e3e6; padding:.5rem; width:110px; text-align:center; vertical-align: middle; }
+  table.detail td { border:1px solid #e3e3e6; padding:.45rem .6rem; background:#fff; vertical-align: middle; }
+  table.detail td input { width: 100%; }
+
+  /* supplier card */
+  .recommend-box { background:#f5f7fb; border:1px dashed #b9c6ef; border-radius:5px; padding: .9rem 1rem; margin-bottom: 1rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .supplier-card { border:1px solid #e3e3e6; border-radius:5px; padding: 1rem; margin-bottom: 1rem; }
+  .supplier-card.removed { background:#f1f1f1; }
+  .sc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; }
+  .sc-title { font-weight:bold; font-size:1.05rem; }
+  .biz-open { border:1px solid #84ae55; color:#84ae55; font-weight:bold; background:#fff; font-size:11px; padding:1px 5px; margin-right:.4rem; }
+  .has-subcontract { border:1px solid #d9534f; color:#d9534f; font-weight:bold; background:#fff; font-size:11px; padding:1px 5px; margin-left:.4rem; }
+  .prefer-tag { background:#d9534f; color:#fff; font-size:11px; font-weight:bold; padding:2px 7px; border-radius:2px; margin-left:.4rem; }
+  .link-danger { color:#4169e1; text-decoration:underline; cursor:pointer; }
+  .link-anken { color:#045eb4; text-decoration:underline; cursor:pointer; }
+
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#fff; border-radius:8px; width:640px; max-width:100%; max-height:90vh; overflow:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.3rem; border-bottom:1px solid #ededed; }
+  .modal-header h4 { margin:0; font-size:1.1rem; font-weight:bold; }
+  .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; line-height:1; color:#666; }
+  .modal-body { padding:1.1rem 1.3rem; }
+  .modal-footer { display:flex; justify-content:center; gap:1rem; padding:1rem 1.3rem 1.4rem; }
+  .pick-list { list-style:none; margin:0; padding:0; }
+  .pick-list li { border:1px solid #e3e3e6; border-radius:4px; padding:.7rem .9rem; margin-bottom:.5rem; cursor:pointer; }
+  .pick-list li:hover { background:#edf1f6; }
+  .pick-list li.selected { border-color:#4169e1; background:#eaf0ff; }
+
+  .bottom-actions { border:1px solid #ededed; padding:1.1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <!-- Breadcrumb: HOME › 全案件 › 見積依頼詳細 › 依頼情報入力 -->
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="全案件一覧（eProcurement_Purchaser_AllProject）">全案件</a></li>
+      <li><a href="eProcurement_Purchaser_EstimateRequestDetail.html">見積依頼詳細</a></li>
+      <li class="active">依頼情報入力</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="title-row">
+        <h3>依頼情報入力</h3>
+        <div class="title-actions">
+          <a href="eProcurement_Purchaser_EstimateRequestDetail.html" class="btn btn-gray"><span class="ico">‹</span>&nbsp;戻る</a>
+          <a href="eProcurement_Purchaser_EstimateRequestDetail.html" class="btn btn-light">見積依頼申請を確認する&nbsp;⧉</a>
+        </div>
+      </div>
+      <hr class="title-sep">
+      <div class="warn-note">サプライヤへ見積依頼を展開する前に、依頼内容と展開先サプライヤをご確認ください。</div>
+
+      <!-- ===== 基本情報 ===== -->
+      <div class="card">
+        <div class="card-header">基本情報</div>
+        <div class="card-body">
+          <div class="frow">
+            <div class="flabel"><span>案件番号</span></div>
+            <div class="fbody"><div class="readonly-val">QDEMO2607000021</div></div>
+          </div>
+          <div class="frow">
+            <div class="flabel"><span>案件名</span><span class="req-chip must">必須</span></div>
+            <div class="fbody">
+              <div style="display:flex; align-items:center; flex-wrap:wrap;">
+                <input type="text" id="ankenName" class="in-name" maxlength="100" placeholder="案件名を入力してください" value="2026年度製品パンフレット印刷">
+                <span class="maxlen-note">100文字以内</span>
+                <span class="tag-label tag-green">通常</span>
+              </div>
+              <div class="err-msg" id="ankenNameErr">案件名を入力してください。</div>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="flabel"><span>購入品目</span></div>
+            <div class="fbody">
+              <div class="input-search">
+                <div class="input-clearable">
+                  <input type="text" id="productName" maxlength="100" placeholder="（カタログ品番／メーカー品番／品名）">
+                  <span class="clr" id="productClear" title="クリア">✕</span>
+                </div>
+                <button type="button" class="btn btn-search-cat" id="btnSearchCat" title="カテゴリ検索">🔍</button>
+              </div>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="flabel"><span>品目カテゴリ</span><span class="req-chip must">必須</span></div>
+            <div class="fbody">
+              <div class="cat-selects">
+                <div class="cat-field">
+                  <span>大カテゴリ</span>
+                  <select id="catLarge">
+                    <option value="">---</option>
+                    <option value="印刷、写真、オーディオおよびビジュアル機器と供給品" selected>印刷、写真、オーディオおよびビジュアル機器と供給品</option>
+                    <option value="事務用品および備品類">事務用品および備品類</option>
+                  </select>
+                  <div class="err-msg" id="catLargeErr">必須項目です。</div>
+                </div>
+                <div class="cat-field">
+                  <span>中カテゴリ</span>
+                  <select id="catMedium">
+                    <option value="">---</option>
+                    <option value="印刷物" selected>印刷物</option>
+                    <option value="製本サービス">製本サービス</option>
+                  </select>
+                  <div class="err-msg" id="catMediumErr">必須項目です。</div>
+                </div>
+                <div class="cat-field">
+                  <span>小カテゴリ</span>
+                  <select id="catSmall">
+                    <option value="">---</option>
+                    <option value="パンフレット・カタログ" selected>パンフレット・カタログ</option>
+                    <option value="チラシ・フライヤー">チラシ・フライヤー</option>
+                  </select>
+                  <div class="err-msg" id="catSmallErr">必須項目です。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="flabel"><span>依頼者情報</span></div>
+            <div class="fbody"><div class="readonly-val">申請者：ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 依頼内容 ===== -->
+      <div class="card">
+        <div class="card-header">依頼内容</div>
+        <div class="card-body">
+          <div class="frow">
+            <div class="flabel"><span>回答希望日</span></div>
+            <div class="fbody"><div class="readonly-val">2026-07-25</div></div>
+          </div>
+          <div class="frow">
+            <div class="flabel"><span>交渉期限</span><span class="req-chip must">必須</span></div>
+            <div class="fbody">
+              <div style="display:flex; gap:.6rem; align-items:flex-start;">
+                <input type="text" id="negotiationDeadline" style="width:200px;" value="2026-08-25" placeholder="YYYY-MM-DD">
+                <button type="button" class="btn btn-light btn-sm" id="clearDeadline" title="クリア">✕</button>
+              </div>
+              <div class="err-msg" id="deadlineErr">必須項目です。</div>
+            </div>
+          </div>
+
+          <div class="sub-heading">明細情報</div>
+          <hr class="sec-sep">
+
+          <fieldset class="batch">
+            <legend>各明細へ反映</legend>
+            <div class="batch-row">
+              <label>希望納品日一括設定：</label>
+              <input type="text" id="batchDeliveryDate" style="width:180px;" placeholder="YYYY-MM-DD">
+              <button type="button" class="btn btn-light btn-sm" id="applyBatchDate">各明細へ反映</button>
+              <button type="button" class="btn btn-light btn-sm" id="clearBatchDate" title="クリア">✕</button>
+              <button type="button" class="btn btn-light btn-sm" id="btnDelivery">納品先</button>
+            </div>
+          </fieldset>
+
+          <div id="detailList">
+            <!-- 明細01 -->
+            <div class="detail-block" data-detail>
+              <div class="detail-bar">
+                <span class="sec">明細01</span>
+                <button type="button" class="btn btn-light btn-sm det-del">削除</button>
+              </div>
+              <table class="detail">
+                <tr>
+                  <th>品名</th><td colspan="3"><input type="text" class="d-name" maxlength="100" value="製品パンフレット（2026年度版）"></td>
+                  <th>規格・仕様</th><td colspan="3"><input type="text" maxlength="100" value="A4／8ページ／フルカラー／両面／中綴じ"></td>
+                </tr>
+                <tr>
+                  <th>数量</th><td><input type="text" value="3,000" style="width:90px;"></td>
+                  <th>単位</th><td><input type="text" value="部" style="width:70px;"></td>
+                  <th>希望単価</th><td><input type="text" value="0" style="width:100px;"></td>
+                  <th>希望納品日</th><td><input type="text" class="d-delivery" placeholder="YYYY-MM-DD" value="2026-08-10"></td>
+                </tr>
+                <tr>
+                  <th>納品先</th><td colspan="5" class="d-dest">ジーニーソリューションズ株式会社 本社 総務部 依頼裕三</td>
+                  <th>代替品可</th><td><select style="width:80px;"><option>いいえ</option><option>はい</option></select></td>
+                </tr>
+                <tr>
+                  <th>原価センタ</th><td colspan="2"><input type="text" value="[DM1CC007] 商品企画部"></td>
+                  <th>勘定科目</th><td colspan="4"><input type="text" value="[jn-solKJ002] 事務用品費"></td>
+                </tr>
+                <tr>
+                  <th>備考</th><td colspan="7"><input type="text" maxlength="200" value="表紙は特色1色希望。校正2回込みで見積願います。"></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-light" id="addDetail">＋ 明細追加</button>
+        </div>
+      </div>
+
+      <!-- ===== 希望サプライヤ情報 ===== -->
+      <div class="card">
+        <div class="card-header">サプライヤ情報</div>
+        <div class="card-body">
+          <div class="recommend-box">
+            <span>サプライヤリコメンデーション：カテゴリ実績に基づく候補を表示します。</span>
+            <button type="button" class="btn btn-primary-blue" id="btnAddSupplier">＋ サプライヤを追加</button>
+          </div>
+
+          <div class="sub-heading">選択されたサプライヤ</div>
+
+          <div id="supplierList">
+            <!-- Supplier 1 -->
+            <div class="supplier-card" data-supplier data-code="SUP0001">
+              <div class="sc-head">
+                <div>
+                  <span class="biz-open">Open</span>
+                  <span class="sc-title">[SUP0001] 株式会社プリントパック　営業部</span>
+                  <span class="has-subcontract">取適法</span>
+                  <span class="prefer-tag">希望</span>
+                </div>
+                <button type="button" class="btn btn-light btn-sm sup-del"><span class="link-danger">🗑 サプライヤ削除</span></button>
+              </div>
+              <div class="frow" style="margin-top:.8rem;">
+                <div class="flabel"><span>支払サイト</span><span class="req-chip must">必須</span></div>
+                <div class="fbody">
+                  <select style="width:40%;"><option>口座引き落とし／15日締め翌月10日払い</option><option>都度払い</option></select>
+                </div>
+              </div>
+              <div class="frow">
+                <div class="flabel"><span>サプライヤ選択理由</span></div>
+                <div class="fbody"><div class="readonly-val">過去実績があり、短納期対応が可能なため。</div></div>
+              </div>
+              <div class="frow">
+                <div class="flabel"><span>サプライヤ見積番号</span></div>
+                <div class="fbody"><input type="text" maxlength="20" style="width:40%;"></div>
+              </div>
+              <div class="frow">
+                <div class="flabel"><span>サプライヤ向け連絡事項</span></div>
+                <div class="fbody">
+                  <div style="display:flex; align-items:flex-start;">
+                    <textarea maxlength="1000" placeholder="サプライヤに連絡したい内容ご記入ください。">校了後の納期を明記のうえご回答ください。</textarea>
+                    <span class="maxlen-note">1000文字以内</span>
+                  </div>
+                  <button type="button" class="btn btn-light btn-sm" style="margin-top:.5rem;" data-nav="購買部向け添付ファイルをコピー（selectAttachmentFileList）">購買部向け添付ファイルをコピー</button>
+                </div>
+              </div>
+              <div class="frow">
+                <div class="flabel"><span>関連案件</span></div>
+                <div class="fbody">
+                  <div><a class="link-anken" data-nav="関連案件詳細を別タブで開く">QDEMO2606000097</a></div>
+                  <a class="link-anken" data-nav="関連案件選択ダイアログ（RelatedEstimate）">＋ 関連案件を追加</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Supplier 2 -->
+            <div class="supplier-card" data-supplier data-code="SUP0002">
+              <div class="sc-head">
+                <div>
+                  <span class="biz-open">Open</span>
+                  <span class="sc-title">[SUP0002] デコルデザイン株式会社　営業部</span>
+                </div>
+                <button type="button" class="btn btn-light btn-sm sup-del"><span class="link-danger">🗑 サプライヤ削除</span></button>
+              </div>
+              <div class="frow" style="margin-top:.8rem;">
+                <div class="flabel"><span>支払サイト</span><span class="req-chip must">必須</span></div>
+                <div class="fbody">
+                  <select style="width:40%;"><option>口座引き落とし／15日締め翌月10日払い</option><option>都度払い</option></select>
+                </div>
+              </div>
+              <div class="frow">
+                <div class="flabel"><span>サプライヤ見積番号</span></div>
+                <div class="fbody"><input type="text" maxlength="20" style="width:40%;"></div>
+              </div>
+              <div class="frow">
+                <div class="flabel"><span>サプライヤ向け連絡事項</span></div>
+                <div class="fbody">
+                  <div style="display:flex; align-items:flex-start;">
+                    <textarea maxlength="1000" placeholder="サプライヤに連絡したい内容ご記入ください。"></textarea>
+                    <span class="maxlen-note">1000文字以内</span>
+                  </div>
+                </div>
+              </div>
+              <div class="frow">
+                <div class="flabel"><span>関連案件</span></div>
+                <div class="fbody"><a class="link-anken" data-nav="関連案件選択ダイアログ（RelatedEstimate）">＋ 関連案件を追加</a></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="supplierEmpty" style="display:none; padding:1rem; background:#fff; border:1px solid #e3e3e6; color:#d9534f;">サプライヤーを選定してください。</div>
+
+          <h6 id="removedHeading" style="display:none; margin-top:1rem;">希望サプライヤ(削除済)</h6>
+          <div id="removedList"></div>
+        </div>
+      </div>
+
+      <!-- ===== Bottom actions ===== -->
+      <div class="bottom-actions">
+        <a href="eProcurement_Purchaser_EstimateRequestDetail.html" class="btn btn-gray"><span class="ico">‹</span>&nbsp;戻る</a>
+        <button type="button" class="btn btn-success huge" id="btnSubmit">承認先入力</button>
+        <button type="button" class="btn btn-light" id="btnSaveDraft">一時保存</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== Modal: カテゴリ検索（該当品目カテゴリ） ===== -->
+<div class="modal-overlay" id="modalCat">
+  <div class="modal-box">
+    <div class="modal-header"><h4>該当品目カテゴリ</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <ul class="pick-list" id="catPickList">
+        <li data-l="印刷、写真、オーディオおよびビジュアル機器と供給品" data-m="印刷物" data-s="パンフレット・カタログ">印刷、写真、オーディオおよびビジュアル機器と供給品 ＞ 印刷物 ＞ パンフレット・カタログ</li>
+        <li data-l="印刷、写真、オーディオおよびビジュアル機器と供給品" data-m="印刷物" data-s="チラシ・フライヤー">印刷、写真、オーディオおよびビジュアル機器と供給品 ＞ 印刷物 ＞ チラシ・フライヤー</li>
+        <li data-l="事務用品および備品類" data-m="製本サービス" data-s="冊子製本">事務用品および備品類 ＞ 製本サービス ＞ 冊子製本</li>
+      </ul>
+      <div style="text-align:center;"><a class="link-anken" data-nav="カテゴリをもっと見る（getCategory showMore）">∨ もっと見る</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: 納品先選択 ===== -->
+<div class="modal-overlay" id="modalDelivery">
+  <div class="modal-box">
+    <div class="modal-header"><h4>納品先</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <ul class="pick-list" id="deliveryPickList">
+        <li data-dest="ジーニーソリューションズ株式会社 本社 総務部 依頼裕三">ジーニーソリューションズ株式会社 本社 総務部 依頼裕三（〒160-0023 東京都新宿区西新宿6-8-1）</li>
+        <li data-dest="ジーニーソリューションズ株式会社 大阪支社 総務課">ジーニーソリューションズ株式会社 大阪支社 総務課（〒530-0001 大阪市北区梅田1-1-1）</li>
+        <li data-dest="ジーニーソリューションズ株式会社 商品企画部 倉庫">ジーニーソリューションズ株式会社 商品企画部 倉庫（〒140-0002 東京都品川区東品川2-2-2）</li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary-blue" id="deliverySubmit">この納品先を各明細へ反映</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: サプライヤ追加 ===== -->
+<div class="modal-overlay" id="modalSupplier">
+  <div class="modal-box">
+    <div class="modal-header"><h4>サプライヤを追加</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <ul class="pick-list" id="supplierPickList">
+        <li data-code="SUP0003" data-name="[SUP0003] 東京印刷工業株式会社　営業1課">[SUP0003] 東京印刷工業株式会社　営業1課</li>
+        <li data-code="SUP0004" data-name="[SUP0004] 株式会社グラフィックス関西　制作部">[SUP0004] 株式会社グラフィックス関西　制作部</li>
+        <li data-code="SUP0005" data-name="[SUP0005] みらいプリント株式会社　営業部">[SUP0005] みらいプリント株式会社　営業部</li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary-blue" id="supplierSubmit">選択</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/datepicker.js"></script>
+<script>
+JienieLayout.init();
+JienieDatepicker.init('#negotiationDeadline, #batchDeliveryDate, .d-delivery');
+
+(function () {
+  function openModal(id){ document.getElementById(id).classList.add('show'); }
+  function closeModal(el){ el.classList.remove('show'); }
+  document.querySelectorAll('.modal-overlay').forEach(function(ov){
+    ov.addEventListener('click', function(e){ if (e.target === ov || e.target.hasAttribute('data-close')) closeModal(ov); });
+  });
+
+  // ---- 案件名 required ----
+  var ankenName = document.getElementById('ankenName');
+  ankenName.addEventListener('input', function(){
+    if (ankenName.value.trim()) { ankenName.classList.remove('has-error'); document.getElementById('ankenNameErr').classList.remove('show'); }
+  });
+
+  // ---- 品名クリア ----
+  document.getElementById('productClear').addEventListener('click', function(){ document.getElementById('productName').value=''; });
+
+  // ---- 品名検索 → modal カテゴリ ----
+  document.getElementById('btnSearchCat').addEventListener('click', function(){ openModal('modalCat'); });
+  var catPick = document.getElementById('catPickList');
+  catPick.addEventListener('click', function(e){
+    var li = e.target.closest('li'); if(!li) return;
+    setSelectByValue('catLarge', li.getAttribute('data-l'));
+    buildMedium(); setSelectByValue('catMedium', li.getAttribute('data-m'));
+    buildSmall(); setSelectByValue('catSmall', li.getAttribute('data-s'));
+    clearCatErrors();
+    closeModal(document.getElementById('modalCat'));
+    JienieLayout.toast('カテゴリを反映しました。');
+  });
+  function setSelectByValue(id, val){
+    var sel = document.getElementById(id);
+    var found = Array.prototype.some.call(sel.options, function(o){ return o.value === val; });
+    if(!found && val){ var op=document.createElement('option'); op.value=val; op.textContent=val; sel.appendChild(op); }
+    sel.value = val || '';
+  }
+
+  // ---- カテゴリ cascade (đơn giản hoá: đổi 大 reset 中/小) ----
+  var catLarge=document.getElementById('catLarge'), catMedium=document.getElementById('catMedium'), catSmall=document.getElementById('catSmall');
+  function buildMedium(){ catMedium.disabled = !catLarge.value; if(!catLarge.value){ catMedium.value=''; catSmall.value=''; catSmall.disabled=true; } }
+  function buildSmall(){ catSmall.disabled = !catMedium.value; if(!catMedium.value){ catSmall.value=''; } }
+  catLarge.addEventListener('change', function(){ catMedium.value=''; catSmall.value=''; buildMedium(); buildSmall(); });
+  catMedium.addEventListener('change', function(){ catSmall.value=''; buildSmall(); });
+  function clearCatErrors(){ ['catLarge','catMedium','catSmall'].forEach(function(id){ document.getElementById(id).classList.remove('has-error'); document.getElementById(id+'Err').classList.remove('show'); }); }
+
+  // ---- 交渉期限 clear ----
+  document.getElementById('clearDeadline').addEventListener('click', function(){ document.getElementById('negotiationDeadline').value=''; });
+  document.getElementById('negotiationDeadline').addEventListener('input', function(){
+    if(this.value.trim()){ this.classList.remove('has-error'); document.getElementById('deadlineErr').classList.remove('show'); }
+  });
+
+  // ---- 希望納品日一括設定 ----
+  document.getElementById('applyBatchDate').addEventListener('click', function(){
+    var v = document.getElementById('batchDeliveryDate').value.trim();
+    if(!v){ JienieLayout.toast('反映する納品日を入力してください'); return; }
+    document.querySelectorAll('#detailList .detail-block:not(.deleted) .d-delivery').forEach(function(inp){ inp.value = v; });
+    JienieLayout.toast('各明細の希望納品日に反映しました。');
+  });
+  document.getElementById('clearBatchDate').addEventListener('click', function(){ document.getElementById('batchDeliveryDate').value=''; });
+
+  // ---- 納品先 modal ----
+  document.getElementById('btnDelivery').addEventListener('click', function(){ openModal('modalDelivery'); });
+  var delPick = document.getElementById('deliveryPickList');
+  delPick.addEventListener('click', function(e){ var li=e.target.closest('li'); if(!li) return; delPick.querySelectorAll('li').forEach(function(x){x.classList.remove('selected');}); li.classList.add('selected'); });
+  document.getElementById('deliverySubmit').addEventListener('click', function(){
+    var sel = delPick.querySelector('li.selected'); if(!sel){ JienieLayout.toast('納品先を選択してください'); return; }
+    var dest = sel.getAttribute('data-dest');
+    document.querySelectorAll('#detailList .detail-block:not(.deleted) .d-dest').forEach(function(td){ td.textContent = dest; });
+    closeModal(document.getElementById('modalDelivery'));
+    JienieLayout.toast('納品先を各明細へ反映しました。');
+  });
+
+  // ---- 明細 削除 / 削除取消 ----
+  var detailList = document.getElementById('detailList');
+  function bindDetailDelete(scope){
+    scope.querySelectorAll('.det-del').forEach(function(btn){
+      if(btn.dataset.bound) return; btn.dataset.bound='1';
+      btn.addEventListener('click', function(){
+        var block = btn.closest('.detail-block');
+        var visible = detailList.querySelectorAll('.detail-block:not(.deleted)').length;
+        var isDeleted = block.classList.contains('deleted');
+        if(!isDeleted && visible <= 1){ JienieLayout.toast('明細は最低1件必要です。'); return; }
+        block.classList.toggle('deleted');
+        btn.textContent = block.classList.contains('deleted') ? '削除取消' : '削除';
+      });
+    });
+  }
+  bindDetailDelete(detailList);
+
+  // ---- 明細追加 (nhân bản 明細01) ----
+  var detailSeq = 1;
+  document.getElementById('addDetail').addEventListener('click', function(){
+    detailSeq++;
+    var base = detailList.querySelector('.detail-block');
+    var clone = base.cloneNode(true);
+    clone.classList.remove('deleted');
+    clone.querySelector('.sec').textContent = '明細' + String(detailSeq).padStart(2,'0');
+    clone.querySelectorAll('input').forEach(function(i){ if(!i.classList.contains('d-delivery')) i.value=''; });
+    clone.querySelector('.d-name').value='';
+    var delBtn = clone.querySelector('.det-del'); delBtn.textContent='削除'; delBtn.removeAttribute('data-bound');
+    detailList.appendChild(clone);
+    bindDetailDelete(clone);
+    JienieDatepicker.init('.d-delivery');
+    JienieLayout.toast('明細を追加しました。');
+  });
+
+  // ---- サプライヤ 追加 / 削除 / 復元 ----
+  var supplierList = document.getElementById('supplierList');
+  var removedList = document.getElementById('removedList');
+  var removedHeading = document.getElementById('removedHeading');
+  var supplierEmpty = document.getElementById('supplierEmpty');
+
+  function refreshSupplierState(){
+    supplierEmpty.style.display = supplierList.querySelectorAll('.supplier-card').length === 0 ? 'block' : 'none';
+    var hasRemoved = removedList.querySelectorAll('.supplier-card').length > 0;
+    removedHeading.style.display = hasRemoved ? 'block' : 'none';
+  }
+  function bindSupDelete(scope){
+    scope.querySelectorAll('.sup-del').forEach(function(btn){
+      if(btn.dataset.bound) return; btn.dataset.bound='1';
+      btn.addEventListener('click', function(){
+        var card = btn.closest('.supplier-card');
+        card.classList.add('removed');
+        // giữ lại tên + nút 追加
+        var name = card.querySelector('.sc-title').textContent;
+        var mini = document.createElement('div');
+        mini.className='supplier-card removed';
+        mini.innerHTML = '<div class="sc-head"><div><span class="sc-title">'+name+'</span> <span class="prefer-tag">削除済</span></div>'+
+          '<button type="button" class="btn btn-primary-blue btn-sm sup-readd">追加</button></div>';
+        removedList.appendChild(mini);
+        card.remove();
+        bindSupReadd(mini);
+        refreshSupplierState();
+        JienieLayout.toast('サプライヤを削除しました。');
+      });
+    });
+  }
+  function bindSupReadd(scope){
+    scope.querySelectorAll('.sup-readd').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var mini = btn.closest('.supplier-card');
+        var name = mini.querySelector('.sc-title').textContent;
+        addSupplierCard(name.replace(/\[.*?\]\s*/, function(m){return m;}), name);
+        mini.remove();
+        refreshSupplierState();
+        JienieLayout.toast('サプライヤを再追加しました。');
+      });
+    });
+  }
+  function addSupplierCard(code, fullName){
+    var card = document.createElement('div');
+    card.className='supplier-card'; card.setAttribute('data-supplier','');
+    card.innerHTML =
+      '<div class="sc-head"><div><span class="biz-open">Open</span> <span class="sc-title">'+fullName+'</span></div>'+
+      '<button type="button" class="btn btn-light btn-sm sup-del"><span class="link-danger">🗑 サプライヤ削除</span></button></div>'+
+      '<div class="frow" style="margin-top:.8rem;"><div class="flabel"><span>支払サイト</span><span class="req-chip must">必須</span></div>'+
+      '<div class="fbody"><select style="width:40%;"><option>口座引き落とし／15日締め翌月10日払い</option><option>都度払い</option></select></div></div>'+
+      '<div class="frow"><div class="flabel"><span>サプライヤ見積番号</span></div><div class="fbody"><input type="text" maxlength="20" style="width:40%;"></div></div>'+
+      '<div class="frow"><div class="flabel"><span>サプライヤ向け連絡事項</span></div><div class="fbody"><div style="display:flex;align-items:flex-start;"><textarea maxlength="1000" placeholder="サプライヤに連絡したい内容ご記入ください。"></textarea><span class="maxlen-note">1000文字以内</span></div></div></div>';
+    supplierList.appendChild(card);
+    bindSupDelete(card);
+  }
+  document.getElementById('btnAddSupplier').addEventListener('click', function(){ openModal('modalSupplier'); });
+  var supPick = document.getElementById('supplierPickList');
+  supPick.addEventListener('click', function(e){ var li=e.target.closest('li'); if(!li) return; supPick.querySelectorAll('li').forEach(function(x){x.classList.remove('selected');}); li.classList.add('selected'); });
+  document.getElementById('supplierSubmit').addEventListener('click', function(){
+    var sel = supPick.querySelector('li.selected'); if(!sel){ JienieLayout.toast('サプライヤを選択してください'); return; }
+    addSupplierCard(sel.getAttribute('data-code'), sel.getAttribute('data-name'));
+    sel.remove();
+    refreshSupplierState();
+    closeModal(document.getElementById('modalSupplier'));
+    JienieLayout.toast('サプライヤを追加しました。');
+  });
+  bindSupDelete(supplierList);
+
+  // ---- 一時保存 ----
+  document.getElementById('btnSaveDraft').addEventListener('click', function(){ JienieLayout.toast('一時保存しました。'); });
+
+  // ---- 承認先入力 (submit) validate ----
+  document.getElementById('btnSubmit').addEventListener('click', function(){
+    var ok = true, firstErr = null;
+    if(!ankenName.value.trim()){ ankenName.classList.add('has-error'); document.getElementById('ankenNameErr').classList.add('show'); ok=false; firstErr=firstErr||ankenName; }
+    [['catLarge',catLarge],['catMedium',catMedium],['catSmall',catSmall]].forEach(function(p){
+      var el=p[1]; var err=document.getElementById(p[0]+'Err');
+      if(!el.value){ el.classList.add('has-error'); err.classList.add('show'); ok=false; firstErr=firstErr||el; }
+    });
+    var dl = document.getElementById('negotiationDeadline');
+    if(!dl.value.trim()){ dl.classList.add('has-error'); document.getElementById('deadlineErr').classList.add('show'); ok=false; firstErr=firstErr||dl; }
+    if(supplierList.querySelectorAll('.supplier-card').length === 0){ supplierEmpty.style.display='block'; ok=false; firstErr=firstErr||supplierEmpty; }
+    if(!ok){ if(firstErr) firstErr.scrollIntoView({behavior:'smooth', block:'center'}); JienieLayout.toast('入力内容にエラーがあります。ご確認ください。'); return; }
+    location.href = 'eProcurement_Purchaser_ApproverSelection.html';
+  });
+})();
+</script>
+
+</body>
+</html>

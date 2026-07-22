@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: eProcurement_Purchaser_Confirmation  (入力内容確認)
+  Module: Buyer Portal / 購買担当（Purchaser） — xác nhận toàn bộ nội dung見積依頼申請 (read-only) trước khi 依頼実行
+  Route thật: /eProcurement/Purchaser/Confirmation
+              ?estimateCode=...&estimateRequestCode=...&isReview=false
+              &from=eProcurement_Purchaser_AllProject
+  Dùng chung header/sidebar/back-to-top qua assets/layout.css + assets/layout.js.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU / SOURCE CODE (mô phỏng đúng — màn hình ĐÃ TỒN TẠI):
+    - View chính: src-vbizhw/src/modules/Buyer/views/Purchaser/Confirmation.vue
+        → 4 card read-only: 基本情報 / 承認フロー / 依頼内容(明細) / サプライヤ情報.
+          Nút header: 依頼情報入力に戻る (goBack) + 見積依頼申請を確認する (mở EstimateRequestDetail review).
+          Nút cuối (trong card サプライヤ情報): 依頼情報入力に戻る + 依頼実行 (submit → applyPurchaserInput → 見積依頼を実行しました。 → về 全案件).
+        Breadcrumb (customBreadcrumb, isWarning=true) nhánh mặc định:
+          HOME › from(全案件) › 見積依頼詳細 › 依頼情報入力 › 承認先入力 › 入力内容確認.
+        ■ Lưu ý source (mô phỏng nguyên trạng): nhãn nút戻る = "依頼情報入力に戻る" nhưng goBack() thực tế
+          điều hướng về eProcurement_Purchaser_Approver_Selection (承認先入力). Mockup giữ nhãn nguyên văn +
+          link về ApproverSelection theo đúng hành vi source.
+    - Nhãn i18n (nguyên văn) src-vbizhw/src/locales/prod/ja.json:
+        PURCHASER_CONFIRMATION.TITLE=入力内容確認, BTN_001=依頼情報入力に戻る, BTN_004=依頼実行, LB_021=サプライヤ情報, MSG_008=見積依頼を実行しました。;
+        APPLICANT_NEW_SUPPLIER.BTN_002=見積依頼申請を確認する, LB_004=購入品目, LB_010=申請者(※best-match, cần confirm);
+        OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_065=基本情報, _071=通常, _076=依頼者情報, _078=本人申請, _081=依頼内容, _084=明細情報, _089=希望サプライヤ, _093=サプライヤ見積番号, _095=関連案件, _107=サプライヤ向け連絡事項;
+        MASTER_SETTING.CATEGORY=品目カテゴリ, LB_PAYMENT=支払サイト, SUBCONTRACT_ACT=取適法;
+        ESTIMATE_APPROVAL.COMP_EST_D_LB_014/015/016=大カテゴリ/中カテゴリ/小カテゴリ;
+        OPPORTUNITY_LIST_ALL.COMP_AF_LB_001=承認フロー; APPROVAL_COMPLETION.COMP_AF_LB_001=依頼者, COMP_AF_LB_002=最終承認者, COMP_AF_LB_003=承認者;
+        ACCEPTANCE_APPROVAL.COMP_IS_LB_019=承認者への連絡事項;
+        ESTIMATE_CONFIRMATION.LB_REASON_SELECT_SUPPLIER=サプライヤ選択理由;
+        PAYMENT_PLAN_CONFIRM.B3_SECTION=明細.
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN (đối chiếu):
+    - eProcurement_Purchaser_Input.html / _ApproverSelection.html / _EstimateRequestDetail.html (cùng bộ).
+    - assets/layout.css + layout.js: KHÔNG viết lại.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - 依頼実行 (submit): toast「見積依頼を実行しました。」+ disable nút + hiển thị trạng thái hoàn tất
+      (thực tế applyPurchaserInput rồi về 全案件 - chưa có mockup).
+    - 戻る (依頼情報入力に戻る) → href sang eProcurement_Purchaser_ApproverSelection.html (theo goBack source).
+    - 見積依頼申請を確認する → href sang eProcurement_Purchaser_EstimateRequestDetail.html.
+    - breadcrumb 見積依頼詳細/依頼情報入力/承認先入力 → href thật; 関連案件 → data-nav toast.
+  --------------------------------------------------------------------------------
+  LINK 2 CHIỀU:
+    - Đã sửa nút「入力内容確認」(submit) ở ApproverSelection để điều hướng thật sang trang này.
+    - Trang này → ApproverSelection / Input / EstimateRequestDetail bằng href.
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定 (cần confirm khi 詳細設計):
+    (1) 全案件 CHƯA có mockup → sau 依頼実行 chỉ toast, không điều hướng (thực tế về 全案件).
+    (2) 承認者 (経理花子 / 部長一郎), 承認ルート, nội dung明細 là demo nhất quán các màn trước.
+    (3) APPLICANT_NEW_SUPPLIER.LB_010「申請者」là best-match, cần confirm.
+  --------------------------------------------------------------------------------
+  DEMO DATA (NHẤT QUÁN với Input / ApproverSelection / EstimateRequestDetail):
+    案件 QDEMO2607000021「2026年度製品パンフレット印刷」通常;
+    依頼者(申請者) 依頼裕三; 購買担当 購買一郎; 承認者1 経理花子 / 最終承認者 部長一郎;
+    希望サプライヤ 株式会社プリントパック(取適法・希望) / デコルデザイン株式会社.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>入力内容確認</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; flex-wrap: wrap; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; margin: 1.25rem 0 .3rem; flex-wrap: wrap; gap: .6rem; }
+  .title-row h3 { margin: 0; font-size: 1.7rem; }
+  .title-actions { display: flex; gap: .6rem; }
+  .warn-note { background: #fff8e1; border: 1px solid #ffd24d; color: #7a5b00; padding: .5rem .9rem; border-radius: 4px; font-size: .9rem; margin-bottom: 1rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: .4rem 0 1.2rem; }
+
+  .btn { font-size: .95rem; padding: .55rem 1.2rem; border-radius: 4px; cursor: pointer; border: 1px solid #cccccc; background: #fff; color: #111; }
+  .btn-gray { background: #6c757d; border-color: #6c757d; color: #fff; }
+  .btn-success { background: linear-gradient(to bottom,#5cb85c,#419641); border-color:#3d8b3d; color:#fff; font-weight:bold; }
+  .btn-success.huge { padding: .8rem 3rem; font-size: 1.1rem; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  .card { border: 1px solid #ededed; margin-bottom: 1.3rem; background: #fff; }
+  .card-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; }
+  .card-body { padding: 1.1rem 1.3rem; }
+
+  .frow { display: flex; margin-bottom: .9rem; align-items: flex-start; gap: 1rem; }
+  .frow > .flabel { width: 200px; flex-shrink: 0; font-weight: bold; }
+  .frow > .fbody { flex: 1; min-width: 0; }
+  .tag-label { font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 2px; color: #fff; margin-left:.5rem; }
+  .tag-green { background: #92d050; }
+  .cat-grid { display:flex; gap:2.5rem; flex-wrap:wrap; }
+  .cat-grid .cat-col span { display:block; font-size:.82rem; color:#555; }
+  .cat-grid .cat-col b { font-size:.95rem; }
+
+  .sub-heading { font-weight: bold; margin: .6rem 0; }
+  hr.sec-sep { border: none; border-top: 1px solid #e3e3e6; margin: .4rem 0 1rem; }
+  table.detail { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  table.detail th { background:#eef1f7; border:1px solid #e3e3e6; padding:.5rem; width:110px; text-align:center; vertical-align: middle; }
+  table.detail td { border:1px solid #e3e3e6; padding:.5rem .6rem; background:#fff; vertical-align: middle; }
+  .sec-tag { font-weight:bold; padding:.3rem 0 .6rem; }
+
+  /* Stepper 承認フロー (read-only) */
+  .flow-box { border: 1px solid #ededed; border-radius: 6px; padding: 1.4rem 1rem 1rem; background: #fff; }
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; text-align: center; position: relative; padding: 0 .3rem; }
+  .step::after { content: ""; position: absolute; top: 58px; left: 50%; width: 100%; height: 3px; background: #d9d9d9; z-index: 0; }
+  .step:last-child::after { display: none; }
+  .step-title { font-weight: bold; margin-bottom: .6rem; min-height: 1.3em; }
+  .step-icon { width: 54px; height: 54px; border-radius: 50%; background: #5cb85c; margin: 0 auto .8rem; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; }
+  .step-icon.approver { background: #4169e1; }
+  .step-icon svg { width: 28px; height: 28px; fill: #fff; }
+  .step-body { font-size: .9rem; line-height: 1.6; }
+  .comment-row { margin-top: 1.4rem; }
+  .comment-row .lbl { font-weight: bold; }
+  .comment-text { white-space: pre-line; margin-top:.4rem; }
+
+  /* supplier */
+  .supplier-card { border:1px solid #e3e3e6; border-radius:5px; padding:1rem; margin-bottom:1rem; }
+  .biz-open { border:1px solid #84ae55; color:#84ae55; font-weight:bold; background:#fff; font-size:11px; padding:1px 5px; margin-right:.4rem; }
+  .has-subcontract { border:1px solid #d9534f; color:#d9534f; font-weight:bold; background:#fff; font-size:11px; padding:1px 5px; margin-left:.4rem; }
+  .prefer-tag { background:#d9534f; color:#fff; font-size:11px; font-weight:bold; padding:2px 7px; border-radius:2px; margin-left:.4rem; }
+  .link-anken { color:#045eb4; text-decoration:underline; cursor:pointer; }
+
+  .final-actions { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-top:.6rem; }
+  .done-banner { display:none; background:#e8f5e9; border:1px solid #66bb6a; color:#1b5e20; padding:.7rem 1rem; border-radius:4px; margin-bottom:1rem; font-weight:bold; }
+  .done-banner.show { display:block; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="全案件一覧（eProcurement_Purchaser_AllProject）">全案件</a></li>
+      <li><a href="eProcurement_Purchaser_EstimateRequestDetail.html">見積依頼詳細</a></li>
+      <li><a href="eProcurement_Purchaser_Input.html">依頼情報入力</a></li>
+      <li><a href="eProcurement_Purchaser_ApproverSelection.html">承認先入力</a></li>
+      <li class="active">入力内容確認</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="title-row">
+        <h3>入力内容確認</h3>
+        <div class="title-actions">
+          <a href="eProcurement_Purchaser_ApproverSelection.html" class="btn btn-gray"><span>‹</span>&nbsp;依頼情報入力に戻る</a>
+          <a href="eProcurement_Purchaser_EstimateRequestDetail.html" class="btn btn-gray">見積依頼申請を確認する&nbsp;›</a>
+        </div>
+      </div>
+      <hr class="title-sep">
+      <div class="warn-note">入力内容をご確認ください。よろしければ「依頼実行」ボタンを押してサプライヤへ見積依頼を展開します。</div>
+
+      <div class="done-banner" id="doneBanner">見積依頼を実行しました。（実際の画面では全案件一覧へ戻ります）</div>
+
+      <!-- ===== 基本情報 ===== -->
+      <div class="card">
+        <div class="card-header">基本情報</div>
+        <div class="card-body">
+          <div class="frow"><div class="flabel">案件番号</div><div class="fbody">QDEMO2607000021</div></div>
+          <div class="frow"><div class="flabel">案件名</div><div class="fbody">2026年度製品パンフレット印刷<span class="tag-label tag-green">通常</span></div></div>
+          <div class="frow"><div class="flabel">購入品目</div><div class="fbody">製品パンフレット（2026年度版）</div></div>
+          <div class="frow">
+            <div class="flabel">品目カテゴリ</div>
+            <div class="fbody">
+              <div class="cat-grid">
+                <div class="cat-col"><span>大カテゴリ</span><b>印刷、写真、オーディオおよびビジュアル機器と供給品</b></div>
+                <div class="cat-col"><span>中カテゴリ</span><b>印刷物</b></div>
+                <div class="cat-col"><span>小カテゴリ</span><b>パンフレット・カタログ</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="frow"><div class="flabel">依頼者情報</div><div class="fbody">本人申請<br>申請者：ジーニーソリューションズ株式会社 本社 総務部 依頼裕三</div></div>
+        </div>
+      </div>
+
+      <!-- ===== 承認フロー ===== -->
+      <div class="card">
+        <div class="card-header">承認フロー</div>
+        <div class="card-body">
+          <div class="flow-box">
+            <div class="stepper">
+              <div class="step">
+                <div class="step-title">依頼者</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z"/></svg></div>
+                <div class="step-body">購買部 調達1課<br>課長<br>購買一郎</div>
+              </div>
+              <div class="step">
+                <div class="step-title">承認者1</div>
+                <div class="step-icon approver"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z"/></svg></div>
+                <div class="step-body">経理部 経理課<br>課長<br>経理花子</div>
+              </div>
+              <div class="step">
+                <div class="step-title">最終承認者</div>
+                <div class="step-icon approver"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z"/></svg></div>
+                <div class="step-body">購買部<br>部長<br>部長一郎</div>
+              </div>
+            </div>
+          </div>
+          <div class="comment-row">
+            <span class="lbl">承認者への連絡事項</span>
+            <div class="comment-text">印刷・販促物の定例案件です。納期が短いため優先でご承認をお願いします。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 依頼内容 ===== -->
+      <div class="card">
+        <div class="card-header">依頼内容</div>
+        <div class="card-body">
+          <div class="sub-heading">明細情報</div>
+          <hr class="sec-sep">
+          <div class="sec-tag">明細01</div>
+          <table class="detail">
+            <tr>
+              <th>品名</th><td colspan="3">製品パンフレット（2026年度版）</td>
+              <th>規格・仕様</th><td colspan="3">A4／8ページ／フルカラー／両面／中綴じ</td>
+            </tr>
+            <tr>
+              <th>数量</th><td>3,000</td>
+              <th>単位</th><td>部</td>
+              <th>希望単価</th><td>¥0</td>
+              <th>希望納品日</th><td>2026-08-10</td>
+            </tr>
+            <tr>
+              <th>納品先</th><td colspan="5">ジーニーソリューションズ株式会社 本社 総務部 依頼裕三</td>
+              <th>代替品可</th><td>いいえ</td>
+            </tr>
+            <tr>
+              <th>原価センタ</th><td colspan="2">[DM1CC007] 商品企画部</td>
+              <th>勘定科目</th><td colspan="4">[jn-solKJ002] 事務用品費</td>
+            </tr>
+            <tr>
+              <th>備考</th><td colspan="7">表紙は特色1色希望。校正2回込みで見積願います。</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== サプライヤ情報 ===== -->
+      <div class="card">
+        <div class="card-header">サプライヤ情報</div>
+        <div class="card-body">
+
+          <div class="supplier-card">
+            <div class="frow"><div class="flabel">希望サプライヤ</div><div class="fbody"><span class="biz-open">Open</span>[SUP0001] 株式会社プリントパック　営業部<span class="has-subcontract">取適法</span><span class="prefer-tag">希望</span></div></div>
+            <div class="frow"><div class="flabel">支払サイト</div><div class="fbody">口座引き落とし／15日締め翌月10日払い</div></div>
+            <div class="frow"><div class="flabel">サプライヤ選択理由</div><div class="fbody">過去実績があり、短納期対応が可能なため。</div></div>
+            <div class="frow"><div class="flabel">サプライヤ見積番号</div><div class="fbody">-</div></div>
+            <div class="frow"><div class="flabel">サプライヤ向け連絡事項</div><div class="fbody">校了後の納期を明記のうえご回答ください。</div></div>
+            <div class="frow"><div class="flabel">関連案件</div><div class="fbody"><a class="link-anken" data-nav="関連案件詳細を別タブで開く">QDEMO2606000097</a></div></div>
+          </div>
+
+          <div class="supplier-card">
+            <div class="frow"><div class="flabel">希望サプライヤ</div><div class="fbody"><span class="biz-open">Open</span>[SUP0002] デコルデザイン株式会社　営業部</div></div>
+            <div class="frow"><div class="flabel">支払サイト</div><div class="fbody">口座引き落とし／15日締め翌月10日払い</div></div>
+            <div class="frow"><div class="flabel">サプライヤ見積番号</div><div class="fbody">-</div></div>
+            <div class="frow"><div class="flabel">サプライヤ向け連絡事項</div><div class="fbody">-</div></div>
+            <div class="frow"><div class="flabel">関連案件</div><div class="fbody">-</div></div>
+          </div>
+
+          <div class="final-actions">
+            <a href="eProcurement_Purchaser_ApproverSelection.html" class="btn btn-gray"><span>‹</span>&nbsp;依頼情報入力に戻る</a>
+            <button type="button" class="btn btn-success huge" id="btnExecute">依頼実行&nbsp;›</button>
+            <span style="min-width:120px;"></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var btn = document.getElementById('btnExecute');
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    document.getElementById('doneBanner').classList.add('show');
+    document.getElementById('doneBanner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    JienieLayout.toast('見積依頼を実行しました。');
+  });
+})();
+</script>
+
+</body>
+</html>

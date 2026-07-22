@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-006 Buyer Switch設定画面（補正処理Buyer承認機能）
+  Portal: Provider Portal（src-vbizhw-common）— Buyer Switch設定（パス要確認・§4.1）
+  ■ Provider Portal 画面（buyer sidebar 不使用）。Provider 用簡易ヘッダを自己完結で実装。
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 §4.1 SCR-COR-006 改修内容 — bám sát):
+    「①補正承認機能のON/OFF設定項目を追加。②タイムアウト期間（日数）の入力欄を追加（デフォルト7日間）」
+    Liên quan: RD-COR-010 Buyer Switch制御(デフォルトOFF・OFFなら補正ボタン非表示);
+      RD-COR-012 タイムアウト自動否認; BR-COR-006 デフォルト7日・Provider Portalで変更可; §8.3 設定値はDB管理.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    ① toggle 補正承認機能 ON/OFF (default demo=ON để thấy timeout).
+    ② タイムアウト期間(日) input — chỉ enable khi ON; validate >=1; default 7.
+    - OFF → timeout mờ + note「補正ボタン非表示・従来通り即時確定」(RD-COR-010).
+    - 保存する → validate → toast「保存しました」.
+  TỰ ĐỀ XUẤT / ■未確定: đường dẫn màn Buyer Switch設定 (§4.1「パス要確認」); nhãn項目 mới; Provider shell mô phỏng.
+  DEMO DATA: 会社グループ「中外製薬（CHUGAI）」; 補正承認機能 ON; タイムアウト 7日.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyer Switch設定（SCR-COR-006・Provider）</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Meiryo,"Helvetica Neue",Helvetica,Arial,sans-serif; color:#111; line-height:1.43; font-size:14px; background:#fff; }
+  .s-header { height:60px; background:#03041f; border-bottom:4px solid #ffb300; display:flex; align-items:center; padding:0 1.4rem; color:#fff; }
+  .s-logo { font-weight:bold; font-size:1.1rem; } .s-portal { margin-left:.8rem; font-size:.78rem; background:#6a3fb5; padding:2px 8px; border-radius:3px; } .s-user { margin-left:auto; font-size:.85rem; }
+  .page-content { padding:1.2rem 1.5rem 3rem; max-width:900px; }
+  .breadcrumb { font-size:.8rem; color:#555; margin-bottom:.8rem; }
+  h3.title { font-size:1.6rem; margin:.3rem 0 1rem; }
+  .note-box { background:#f3eefc; border:1px solid #d3c2ef; border-radius:6px; padding:.8rem 1.1rem; font-size:.9rem; margin-bottom:1.1rem; }
+  .note-box b { color:#5a2ea6; }
+
+  .card { border:1px solid #ededed; margin-bottom:1.2rem; }
+  .card-header { background:#4169e1; color:#fff; font-weight:bold; padding:.7rem 1.3rem; }
+  .card-body { padding:1.1rem 1.3rem; }
+  .frow { display:flex; align-items:center; gap:1rem; padding:.8rem 0; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; }
+  .frow:last-child { border-bottom:none; }
+  .frow > .flabel { width:230px; flex-shrink:0; font-weight:bold; }
+  .frow .desc { font-size:.8rem; color:#777; width:100%; margin-left:230px; }
+  select { padding:.5rem .7rem; border:1px solid #ccc; border-radius:4px; min-width:300px; }
+  input[type=number] { padding:.5rem .6rem; border:1px solid #ccc; border-radius:4px; width:90px; text-align:right; }
+  input[type=number]:disabled { background:#f0f0f0; color:#999; }
+  .toggle { display:inline-flex; align-items:center; gap:.6rem; cursor:pointer; }
+  .toggle .track { width:48px; height:24px; border-radius:12px; background:#bbb; position:relative; transition:.2s; }
+  .toggle .track::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s; }
+  .toggle.on .track { background:#4169e1; } .toggle.on .track::after { left:26px; }
+  .toggle .state { font-weight:bold; min-width:44px; }
+  .off-note { color:#c0392b; font-size:.82rem; margin-top:.4rem; display:none; } .off-note.show{ display:block; }
+  .err { color:#dc3545; font-size:.82rem; margin-top:.3rem; display:none; } .err.show{ display:block; }
+
+  .btn { font-size:.95rem; padding:.6rem 1.6rem; border-radius:4px; cursor:pointer; border:1px solid #ccc; background:#fff; color:#111; }
+  .btn-save { background:linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; font-weight:bold; min-width:200px; }
+  .actions { text-align:center; margin-top:.6rem; }
+</style>
+</head>
+<body>
+<div class="s-header"><span class="s-logo">Bizhiway</span><span class="s-portal">Provider Portal</span><span class="s-user">運用管理者　管理 太郎</span></div>
+<div class="page-content">
+  <div class="breadcrumb">Buyer Switch設定 › 補正承認機能</div>
+  <h3 class="title">Buyer Switch設定（補正承認機能）</h3>
+
+  <div class="note-box">
+    クライアント（会社グループ）ごとに<b>補正処理Buyer承認機能</b>の有効/無効と<b>タイムアウト期間</b>を設定します。
+    既存クライアントへの影響を避けるため<b>デフォルトはOFF</b>（RD-COR-010）。設定値はDBで管理します（§8.3）。
+  </div>
+
+  <div class="card">
+    <div class="card-header">補正承認機能</div>
+    <div class="card-body">
+      <div class="frow">
+        <div class="flabel">会社グループ</div>
+        <select id="companyGroup">
+          <option>中外製薬 会社グループ（CHUGAI）</option>
+          <option>ジーニーソリューションズ 会社グループ（GENIEE）</option>
+          <option>ライオン 会社グループ（LION）</option>
+        </select>
+      </div>
+
+      <!-- ① ON/OFF -->
+      <div class="frow">
+        <div class="flabel">補正承認機能</div>
+        <label class="toggle on" id="corToggle"><span class="track"></span><span class="state" id="corState">ON</span></label>
+        <div class="off-note" id="offNote">OFFの場合、Supplier側の補正ボタンは非表示となり、従来通り即時確定します（RD-COR-010）。</div>
+        <div class="desc">Supplierの補正申請 → Buyer承認フローを有効化します。</div>
+      </div>
+
+      <!-- ② タイムアウト期間 -->
+      <div class="frow">
+        <div class="flabel">タイムアウト期間</div>
+        <input type="number" id="timeout" min="1" max="60" value="7"> <span>日</span>
+        <div class="err" id="timeoutErr">1日以上の日数を入力してください。</div>
+        <div class="desc">Buyerが承認/否認しないまま経過した場合に自動否認します（BR-COR-006・デフォルト7日）。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions"><button type="button" class="btn btn-save" id="btnSave">保存する</button></div>
+</div>
+
+<div id="mockToast" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);background:#333;color:#fff;padding:.7rem 1.2rem;border-radius:6px;font-size:.9rem;opacity:0;transition:.3s;pointer-events:none;z-index:3000;"></div>
+<script>
+(function(){
+  function toast(m){ var t=document.getElementById('mockToast'); t.textContent=m; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(function(){t.style.opacity='0';},2600); }
+  var tgl=document.getElementById('corToggle'), st=document.getElementById('corState'),
+      ti=document.getElementById('timeout'), off=document.getElementById('offNote');
+  function applyState(){
+    var on=tgl.classList.contains('on');
+    st.textContent=on?'ON':'OFF';
+    ti.disabled=!on;
+    off.classList.toggle('show', !on);
+  }
+  tgl.addEventListener('click', function(){ tgl.classList.toggle('on'); applyState(); });
+  document.getElementById('companyGroup').addEventListener('change', function(){ toast('実際の画面では選択した会社グループの設定を読み込みます'); });
+  document.getElementById('btnSave').addEventListener('click', function(){
+    var on=tgl.classList.contains('on');
+    if(on){ var v=parseInt(ti.value,10); if(!v||v<1){ document.getElementById('timeoutErr').classList.add('show'); return; } document.getElementById('timeoutErr').classList.remove('show'); }
+    toast(on ? ('補正承認機能を有効（タイムアウト'+ti.value+'日）で保存しました。') : '補正承認機能を無効で保存しました（従来通り即時確定）。');
+  });
+  applyState();
+})();
+</script>
+</body>
+</html>

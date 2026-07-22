@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-004b 検収待ち詳細（補正処理Buyer承認機能）
+  Module: Buyer Portal / Requester — src/modules/Buyer/components/Requester/WaitingAcceptanceDetail.vue
+          （検収待ち一覧 SCR-COR-004c 配下で案件ごとに展開される詳細コンポーネント）
+  内包: 案件明細コンポーネント SCR-COR-004a（project-detail）+ 補正承認モーダル SCR-COR-002（親でマウント）
+  Thư mục chức năng: 補正処理Buyer承認機能/ ; assets dùng chung qua ../assets/.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 §4.1 SCR-COR-004b 改修内容 — bám sát):
+    「補正承認モーダル（SCR-COR-002）のマウント処理を追加。@openCorrectionApproval イベントを受け取り管理する」
+    → 004b (cha) chịu trách nhiệm: (a) MOUNT modal SCR-COR-002 ở cấp màn detail,
+       (b) nhận event @openCorrectionApproval do 案件明細(004a) phát khi bấm「補正内容を承認／否認」,
+       (c) truyền dữ liệu dòng補正 (補正前/後 数量・単価・金額 + 申請理由) vào modal rồi mở,
+       (d) sau 承認/否認 cập nhật dòng tương ứng + refresh (getAnkenList).
+    Liên quan: §3.3 ステータス COR-10/20/30; §2.2 BR-COR-004 (否認理由必須), BR-COR-007/RD-COR-010 (điều kiện hiển thị).
+  --------------------------------------------------------------------------------
+  Source hiện tại: WaitingAcceptanceDetail.vue
+    · <project-detail ... @openCorrectionQuantityUnitPrice=... /> (L74-119) — mount 案件明細 con.
+      → 改修: thêm @openCorrectionApproval="openCorrectionApproval($event)".
+    · <Correction-Quantity-Unit-Price v-if=isOpenCorrectionQuantityUnitPrice :data=correctionDetail .../> (L296) — mẫu mount modal.
+      → 改修: thêm <Correction-Approval v-if=isOpenCorrectionApproval :data=correctionApprovalDetail @approve @reject @hide/>.
+    · Nhãn nguyên văn ja.json: OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_084=明細情報; OPPORTUNITY_LIST_ACCEPTANCE.BTN_003=検収申請;
+      COMMON_MULTI_LANG.DECLINE_ORDER_BUTTON=受注取消, LB_HAS_AMOUNT_ADJUSTMENT=金額調整;
+      COMMON_MULTI_LANG.LB_CORRECT_QUANTITY=補正数量, LB_CORRECT_UNIT_PRICE=補正単価; COMP_AC_LB_002=必須.
+      Badge 補正承認待ち/補正承認済み/補正否認 lấy từ backlog §3.3 (COR-10/20/30・Buyer側名称).
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - Điểm nhấn 004b: modal SCR-COR-002 MOUNT Ở CẤP MÀN (cuối body). Mỗi dòng 案件明細 phát
+      "@openCorrectionApproval(detail)" → hàm openCorrectionApproval(payload) đọc data-* của dòng,
+      nạp vào modal (発注/明細/サプライヤ/補正前・後/申請理由) rồi mở → chứng minh cha nhận event + quản lý modal.
+    - 承認する: cập nhật 数量/単価/金額 của ĐÚNG dòng đã phát event = 補正後, badge→補正承認済み, mở lại nút 補正, toast (COR002).
+    - 否認する: hiện 否認理由(必須)→validate→ badge→補正否認, giữ nguyên 補正前, toast (COR003).
+    - Toggle Buyer Switch＋承認ルート (điều kiện ①): OFF → ẩn nút補正/補正承認 mọi dòng.
+    - 補正数量/補正単価 (dòng thường, đang hoạt động): toast (Buyer補正 即時・対象外 §1.4).
+    - 検収申請 / 受注取消 / 金額調整 / すべて選択 checkbox: toast/thao tác demo.
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定:
+    (1) Nhãn i18n SCR-COR-002 (補正承認/補正前/補正後/申請理由/否認理由) là màn MỚI → key 未確定 (chữ Nhật theo 要件定義).
+    (2) Bố cục hàng 検収申請/受注取消, cột bảng明細 rút gọn — minh hoạ; chốt ở 基本設計.
+    (3) Toggle Buyer Switch chỉ demo điều kiện ①; thực tế Provider Portal/BuyerMaster cấu hình.
+  --------------------------------------------------------------------------------
+  DEMO DATA (nhất quán SCR-COR-004a): 発注番号 PDEMO2607000031「2026年度製品パンフレット印刷」検収待ち;
+    サプライヤ 株式会社プリントパック; 明細01 コピー用紙A4 (通常) ; 明細02 製品パンフレット (COR-10:
+    補正前 3,000部×¥45=¥135,000 → 補正後 2,800部×¥48=¥134,400・申請理由あり).
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>検収待ち詳細（補正処理Buyer承認）</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; flex-wrap: wrap; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 .4rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: .4rem 0 1rem; }
+
+  .sw-banner { display:flex; align-items:center; gap:1rem; background:#eef4ff; border:1px solid #b9c9f5; border-radius:6px; padding:.7rem 1rem; margin-bottom:1.1rem; font-size:.9rem; flex-wrap:wrap; }
+  .sw-banner .sw-title { font-weight:bold; }
+  .toggle { display:inline-flex; align-items:center; gap:.5rem; cursor:pointer; }
+  .toggle .track { width:44px; height:22px; border-radius:11px; background:#bbb; position:relative; transition:.2s; }
+  .toggle .track::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:.2s; }
+  .toggle.on .track { background:#4169e1; }
+  .toggle.on .track::after { left:24px; }
+  .sw-state { font-weight:bold; }
+
+  .card { border: 1px solid #ededed; margin-bottom: 1.3rem; background: #fff; }
+  .card-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .7rem 1.3rem; }
+  .card-body { padding: 1.1rem 1.3rem; }
+  .anken-head { display:flex; align-items:center; flex-wrap:wrap; gap:.6rem; }
+  .badge-order-type { min-width:90px; text-align:center; padding:4px 12px; font-size:.9rem; border:1px solid #4169e1; color:#4169e1; background:#fff; }
+  .status-badge { min-width:120px; text-align:center; border:1px solid #ff9933; color:#ff9933; padding:4px 10px; font-size:.9rem; background:#fff; }
+  .kv { display:flex; margin-bottom:.35rem; font-size:.95rem; }
+  .kv > .lb { width:120px; flex-shrink:0; font-weight:bold; }
+
+  .detail-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem; margin-bottom:.8rem; }
+  .chk-all { display:inline-flex; align-items:center; gap:.5rem; }
+  .sup-head { font-weight:bold; font-size:1.05rem; margin:.6rem 0; display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+  .has-subcontract { border:1px solid #d9534f; color:#d9534f; font-weight:bold; background:#fff; font-size:11px; padding:1px 5px; }
+
+  table.detail { width:100%; border-collapse:collapse; font-size:.9rem; }
+  table.detail th { background:#eef1f7; border:1px solid #e3e3e6; padding:.55rem .5rem; text-align:center; vertical-align:middle; }
+  table.detail td { border:1px solid #e3e3e6; padding:.55rem .6rem; background:#fff; vertical-align:top; }
+  table.detail td.center { text-align:center; }
+  table.detail td.right { text-align:right; }
+  .item-maker { font-size:.82rem; color:#555; }
+  .item-name { font-weight:bold; }
+
+  .btn { font-size:.9rem; padding:.4rem .9rem; border-radius:4px; cursor:pointer; border:1px solid #cccccc; background:#fff; color:#111; }
+  .btn-sm { padding:.32rem .7rem; font-size:.82rem; }
+  .btn-gray { background:#6c757d; border-color:#6c757d; color:#fff; }
+  .btn-primary-blue { background: linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+  .btn-approve { background: linear-gradient(to bottom,#5cb85c,#419641); border-color:#3d8b3d; color:#fff; font-weight:bold; }
+  .btn-reject { background:#fff; border-color:#d9534f; color:#d9534f; font-weight:bold; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .cor-actions { display:flex; flex-direction:column; gap:.35rem; }
+
+  .cor-badge { display:inline-block; min-width:110px; text-align:center; font-size:.8rem; font-weight:bold; padding:3px 8px; border-radius:3px; border:1px solid; }
+  .cor-wait { color:#ff6699; border-color:#ff6699; background:#fff; }
+  .cor-done { color:#008000; border-color:#008000; background:#fff; }
+  .cor-rej  { color:#808080; border-color:#808080; background:#fff; }
+  .cor-note { font-size:.78rem; color:#888; margin-top:.2rem; }
+  body.sw-off .hide-when-off { display:none !important; }
+
+  /* Modal SCR-COR-002 (mounted ở cấp 004b) */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#fff; border-radius:8px; width:640px; max-width:100%; max-height:90vh; overflow:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.3rem; border-bottom:1px solid #ededed; }
+  .modal-header h4 { margin:0; font-size:1.1rem; font-weight:bold; }
+  .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; line-height:1; color:#666; }
+  .modal-body { padding:1.1rem 1.3rem; }
+  .modal-footer { display:flex; justify-content:center; gap:1rem; padding:1rem 1.3rem 1.4rem; }
+  .cmp-table { width:100%; border-collapse:collapse; margin:.6rem 0 1rem; }
+  .cmp-table th, .cmp-table td { border:1px solid #e3e3e6; padding:.55rem .7rem; text-align:center; }
+  .cmp-table th { background:#eef1f7; }
+  .cmp-table td.after { font-weight:bold; color:#4169e1; }
+  .req { color:#fff; background:#d9534f; font-size:.7rem; border-radius:3px; padding:1px 7px; margin-left:.4rem; }
+  .reason-box { background:#f7f7f7; border:1px solid #e3e3e6; border-radius:4px; padding:.6rem .8rem; font-size:.92rem; }
+  #rejectWrap { display:none; margin-top:1rem; }
+  #rejectWrap textarea { width:100%; min-height:80px; padding:.6rem; border:1px solid #ccc; border-radius:4px; font-family:inherit; }
+  #rejectWrap textarea.has-error { border-color:#dc3545; }
+  .modal-err { color:#dc3545; font-size:.85rem; margin-top:.3rem; display:none; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="検収一覧（eProcurement_Requester_WaitingAcceptance）">検収</a></li>
+      <li class="active">検収待ち詳細（補正処理Buyer承認）</li>
+    </ul>
+
+    <div class="page-content">
+      <div class="page-title"><h3>検収待ち詳細（補正処理Buyer承認）</h3></div>
+      <hr class="title-sep">
+
+      <div class="sw-banner">
+        <span class="sw-title">補正承認機能：</span>
+        <span>Buyer Switch ON かつ 補正承認ルート設定済み の場合のみ補正ボタン・補正承認を表示（BR-COR-007 / RD-COR-010）</span>
+        <label class="toggle on" id="swToggle" style="margin-left:auto;">
+          <span class="track"></span>
+          <span class="sw-state" id="swState">有効（ON・ルート設定済み）</span>
+        </label>
+      </div>
+
+      <!-- 案件ヘッダ -->
+      <div class="card">
+        <div class="card-body">
+          <div class="anken-head">
+            <span class="badge-order-type">発注</span>
+            <span>発注番号：PDEMO2607000031</span>
+            <span style="margin-left:auto;">ステータス：</span>
+            <span class="status-badge">検収待ち</span>
+          </div>
+          <hr>
+          <div class="kv"><span class="lb">案件名</span><span>2026年度製品パンフレット印刷</span></div>
+          <div class="kv"><span class="lb">依頼者</span><span>ジーニーソリューションズ株式会社　本社 総務部　依頼裕三</span></div>
+          <div class="kv"><span class="lb">購買承認者</span><span>購買部　部長　部長一郎</span></div>
+        </div>
+      </div>
+
+      <!-- 明細情報 (検収待ち詳細本体・SCR-COR-004b) -->
+      <div class="card">
+        <div class="card-header">明細情報</div>
+        <div class="card-body">
+          <div class="detail-toolbar">
+            <label class="chk-all"><input type="checkbox" id="chkAll">すべての明細情報を選択</label>
+            <div>
+              <button type="button" class="btn btn-gray" data-nav="受注取消（countDeclineRequest）">受注取消</button>
+              <button type="button" class="btn btn-gray" data-nav="検収申請（toApproveRequest）">✓ 検収申請</button>
+            </div>
+          </div>
+
+          <div class="sup-head">
+            株式会社プリントパック
+            <span class="has-subcontract">取適法</span>
+            <button type="button" class="btn btn-light btn-sm hide-when-off" data-nav="金額調整（addAmountAdjustment）">金額調整</button>
+          </div>
+
+          <!-- 案件明細コンポーネント (project-detail / SCR-COR-004a) -->
+          <table class="detail">
+            <thead>
+              <tr>
+                <th style="width:4%;"></th>
+                <th style="width:4%;">明細番号</th>
+                <th style="width:28%;">品名</th>
+                <th style="width:9%;">数量</th>
+                <th style="width:10%;">単価</th>
+                <th style="width:12%;">金額</th>
+                <th style="width:11%;">納品日</th>
+                <th style="width:22%;">補正操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 明細01: 通常 -->
+              <tr>
+                <td class="center"><input type="checkbox" class="row-chk"></td>
+                <td class="center">1</td>
+                <td>
+                  <div class="item-maker">コクヨ ／ KB-39N</div>
+                  <div class="item-name">コピー用紙 A4 (500枚×5冊)</div>
+                </td>
+                <td class="center">50 箱</td>
+                <td class="right">¥2,400</td>
+                <td class="right">¥120,000</td>
+                <td class="center">2026-08-05</td>
+                <td>
+                  <div class="cor-actions hide-when-off">
+                    <button type="button" class="btn btn-light btn-sm" data-nav="Buyer補正（即時確定・本機能対象外）：補正数量入力">補正数量</button>
+                    <button type="button" class="btn btn-light btn-sm" data-nav="Buyer補正（即時確定・本機能対象外）：補正単価入力">補正単価</button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 明細02: Supplier補正申請中 (COR-10) — data-* で補正内容を親に渡す -->
+              <tr id="line2"
+                  data-item="製品パンフレット（2026年度版）"
+                  data-before-qty="3,000 部" data-after-qty="2,800 部" data-diff-qty="−200"
+                  data-before-unit="¥45" data-after-unit="¥48" data-diff-unit="+¥3"
+                  data-before-amt="¥135,000" data-after-amt="¥134,400" data-diff-amt="−¥600"
+                  data-reason="用紙をマットコート90kgへ変更したため単価を改定。あわせて予備分を見直し数量を調整しました。">
+                <td class="center"><input type="checkbox" class="row-chk"></td>
+                <td class="center">2</td>
+                <td>
+                  <div class="item-maker">－ ／ PP-2026</div>
+                  <div class="item-name">製品パンフレット（2026年度版）</div>
+                </td>
+                <td class="center" id="l2-qty">3,000 部</td>
+                <td class="right" id="l2-unit">¥45</td>
+                <td class="right" id="l2-amt">¥135,000</td>
+                <td class="center">2026-08-10</td>
+                <td>
+                  <div class="cor-actions hide-when-off" id="l2-actions">
+                    <span class="cor-badge cor-wait" id="l2-badge">補正承認待ち</span>
+                    <button type="button" class="btn btn-light btn-sm" disabled title="補正承認待ちのため操作できません">補正数量</button>
+                    <button type="button" class="btn btn-light btn-sm" disabled title="補正承認待ちのため操作できません">補正単価</button>
+                    <!-- ③ 案件明細(004a) が @openCorrectionApproval を emit → 親(004b)が受け取る -->
+                    <button type="button" class="btn btn-primary-blue btn-sm open-approval" data-line="line2">補正内容を承認／否認</button>
+                    <div class="cor-note">サプライヤより補正申請あり（COR-10）</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== SCR-COR-002 補正承認モーダル（親コンポーネント 004b でマウント） ===== -->
+<div class="modal-overlay" id="modalApproval">
+  <div class="modal-box">
+    <div class="modal-header"><h4>補正承認</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="kv"><span class="lb" style="width:96px;">発注番号</span><span>PDEMO2607000031</span></div>
+      <div class="kv"><span class="lb" style="width:96px;">明細</span><span id="m-item">－</span></div>
+      <div class="kv"><span class="lb" style="width:96px;">サプライヤ</span><span>株式会社プリントパック</span></div>
+
+      <div style="font-weight:bold; margin:.9rem 0 .3rem;">補正前 / 補正後</div>
+      <table class="cmp-table">
+        <thead><tr><th style="width:34%;">項目</th><th style="width:33%;">補正前</th><th style="width:33%;">補正後</th></tr></thead>
+        <tbody>
+          <tr><th>数量</th><td id="m-bq">－</td><td class="after"><span id="m-aq">－</span> <span class="cmp-diff" id="m-dq" style="color:#d9534f;font-size:.8rem;"></span></td></tr>
+          <tr><th>単価</th><td id="m-bu">－</td><td class="after"><span id="m-au">－</span> <span class="cmp-diff" id="m-du" style="color:#d9534f;font-size:.8rem;"></span></td></tr>
+          <tr><th>金額</th><td id="m-ba">－</td><td class="after"><span id="m-aa">－</span> <span class="cmp-diff" id="m-da" style="color:#d9534f;font-size:.8rem;"></span></td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-weight:bold; margin:.3rem 0;">申請理由（サプライヤ）</div>
+      <div class="reason-box" id="m-reason">－</div>
+
+      <div id="rejectWrap">
+        <div style="font-weight:bold;">否認理由<span class="req">必須</span></div>
+        <textarea id="rejectReason" maxlength="1000" placeholder="否認理由を入力してください"></textarea>
+        <div class="modal-err" id="rejectErr">否認理由を入力してください。</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-approve" id="btnApprove">承認する</button>
+      <button type="button" class="btn btn-reject" id="btnReject">否認する</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  // --- ① Buyer Switch + 承認ルート toggle ---
+  var swToggle = document.getElementById('swToggle');
+  var swState = document.getElementById('swState');
+  swToggle.addEventListener('click', function(){
+    var on = swToggle.classList.toggle('on');
+    document.body.classList.toggle('sw-off', !on);
+    swState.textContent = on ? '有効（ON・ルート設定済み）' : '無効（OFF または承認ルート未設定）';
+    JienieLayout.toast(on ? '補正ボタン・補正承認を表示します' : 'Buyer Switch OFF／承認ルート未設定のため補正操作を非表示（BR-COR-007）');
+  });
+
+  // --- すべて選択 ---
+  document.getElementById('chkAll').addEventListener('change', function(e){
+    document.querySelectorAll('.row-chk').forEach(function(c){ c.checked = e.target.checked; });
+  });
+
+  // --- 補正数量/補正単価 (dòng thường) ---
+  // (đã gắn data-nav → layout.js tự toast)
+
+  // ===== 004b: nhận @openCorrectionApproval từ dòng con → mount/mở modal =====
+  var currentLine = null;   // dòng đã phát event (payload)
+  function openCorrectionApproval(line){
+    currentLine = line;
+    document.getElementById('m-item').textContent = '明細' + line.querySelector('td.center:nth-child(2)').textContent.trim().padStart(2,'0') + '　' + line.getAttribute('data-item');
+    document.getElementById('m-bq').textContent = line.getAttribute('data-before-qty');
+    document.getElementById('m-aq').textContent = line.getAttribute('data-after-qty');
+    document.getElementById('m-dq').textContent = '(' + line.getAttribute('data-diff-qty') + ')';
+    document.getElementById('m-bu').textContent = line.getAttribute('data-before-unit');
+    document.getElementById('m-au').textContent = line.getAttribute('data-after-unit');
+    document.getElementById('m-du').textContent = '(' + line.getAttribute('data-diff-unit') + ')';
+    document.getElementById('m-ba').textContent = line.getAttribute('data-before-amt');
+    document.getElementById('m-aa').textContent = line.getAttribute('data-after-amt');
+    document.getElementById('m-da').textContent = '(' + line.getAttribute('data-diff-amt') + ')';
+    document.getElementById('m-reason').textContent = line.getAttribute('data-reason');
+    resetReject();
+    document.getElementById('modalApproval').classList.add('show');
+  }
+  // Trigger phát từ 案件明細(004a) → cha bắt sự kiện
+  document.querySelectorAll('.open-approval').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var line = document.getElementById(btn.getAttribute('data-line'));
+      openCorrectionApproval(line);
+    });
+  });
+
+  function closeM(){ document.getElementById('modalApproval').classList.remove('show'); resetReject(); }
+  document.getElementById('modalApproval').addEventListener('click', function(e){
+    if (e.target === this || e.target.hasAttribute('data-close')) closeM();
+  });
+  var rejectMode = false;
+  function resetReject(){
+    rejectMode = false;
+    document.getElementById('rejectWrap').style.display='none';
+    var ta=document.getElementById('rejectReason'); ta.value=''; ta.classList.remove('has-error');
+    document.getElementById('rejectErr').style.display='none';
+  }
+
+  document.getElementById('btnApprove').addEventListener('click', function(){
+    if (!currentLine) return;
+    document.getElementById('l2-qty').textContent = currentLine.getAttribute('data-after-qty');
+    document.getElementById('l2-unit').textContent = currentLine.getAttribute('data-after-unit');
+    document.getElementById('l2-amt').textContent = currentLine.getAttribute('data-after-amt');
+    var badge = document.getElementById('l2-badge');
+    badge.textContent = '補正承認済み'; badge.className = 'cor-badge cor-done';
+    var actions = document.getElementById('l2-actions');
+    actions.querySelectorAll('button.btn-light').forEach(function(b){ b.disabled=false; b.removeAttribute('title'); });
+    var t = actions.querySelector('.open-approval'); if(t) t.remove();
+    var note = actions.querySelector('.cor-note'); if(note) note.textContent='補正を承認しました（COR-20・DB反映済み）';
+    closeM();
+    JienieLayout.toast('補正を承認しました。数量・単価を確定し、サプライヤへ通知します（COR002）');
+  });
+
+  document.getElementById('btnReject').addEventListener('click', function(){
+    if (!currentLine) return;
+    var wrap = document.getElementById('rejectWrap');
+    if (!rejectMode) { rejectMode = true; wrap.style.display='block'; document.getElementById('rejectReason').focus(); return; }
+    var ta = document.getElementById('rejectReason');
+    if (!ta.value.trim()) { ta.classList.add('has-error'); document.getElementById('rejectErr').style.display='block'; return; }
+    var badge = document.getElementById('l2-badge');
+    badge.textContent = '補正否認'; badge.className = 'cor-badge cor-rej';
+    var actions = document.getElementById('l2-actions');
+    actions.querySelectorAll('button.btn-light').forEach(function(b){ b.disabled=false; b.removeAttribute('title'); });
+    var t = actions.querySelector('.open-approval'); if(t) t.remove();
+    var note = actions.querySelector('.cor-note'); if(note) note.textContent='補正を否認しました（COR-30・元の値を保持）';
+    closeM();
+    JienieLayout.toast('補正を否認しました。元の数量・単価を保持し、サプライヤへ否認理由を通知します（COR003）');
+  });
+})();
+</script>
+
+</body>
+</html>

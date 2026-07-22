@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-005 補正承認ルート設定（補正処理Buyer承認機能・新規作成画面）
+  Portal: Buyer Portal / BuyerMaster — src/modules/BuyerMaster/views/ApprovalSetting/CorrectionApprovalRouteSetting.vue（新規）
+  配置: BuyerMaster ＞ 承認設定 配下に新設（案①・暫定）。
+  Thư mục chức năng: 補正処理Buyer承認機能/ ; assets dùng chung qua ../assets/.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 — bám sát):
+    §4.2 新規作成画面 SCR-COR-005:
+      「BuyerMaster ＞ 承認設定 配下に新設。購買承認者を設定する管理画面。
+        未設定の場合はSupplier側の補正ボタンが非表示になる（案①・暫定）」
+    §2.3 承認ルートの設定方針（案①・暫定）:
+      ・新たに「補正承認ルート設定」マスタを新設。クライアント（会社グループ）ごとに承認者ロールを設定。
+      ・承認者：購買承認者（確定）。
+      ・中外（Chugai）想定設定例: 依頼者（発注担当者）＝承認なし / 購買承認者＝承認あり。
+      ・注記: 設定可能なロールの種類・組み合わせの詳細は③基本設計で定義（＝本mockupでは暫定表現）。
+    §3.2 RD-COR-011: 承認者ロールをクライアントごとに設定。未設定の場合はSupplier補正ボタン非表示。
+    §2.2 BR-COR-007: 承認ルート設定がない場合、Supplierへの補正ボタンは非表示。
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN: bộ mockup 補正処理Buyer承認機能/ (SCR-COR-002/004a/004b) + assets/layout.css・layout.js (KHÔNG viết lại).
+    Nhãn dùng chung xác nhận trong ja.json: 会社グループ(COMPANY_GROUP), 承認設定(TITLE).
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - 会社グループ (client) select → đổi → toast (thực tế nạp lại thiết lập của client đó).
+    - Bảng 承認者ロール × 補正承認(承認あり/承認なし) radio; đổi → cập nhật 設定状況 badge realtime:
+        có ít nhất 1 ロール「承認あり」→「設定済み」(xanh); toàn bộ「承認なし」→「未設定」(xám) + cảnh báo BR-COR-007 (補正ボタン非表示).
+    - 保存する: nếu 未設定 → xác nhận-cảnh báo (補正機能が使えない) vẫn cho lưu; toast「保存しました」.
+    - クリア: về mặc định (依頼者=承認なし / 購買承認者=承認あり ・ Chugai例).
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定 (màn MỚI・案①暫定, cần confirm khi 基本設計):
+    (1) Toàn bộ nhãn/i18n key của SCR-COR-005 未確定 (chữ Nhật theo 要件定義). 会社グループ/承認設定 dùng nhãn J2 sẵn.
+    (2) Danh sách ロール (依頼者（発注担当者）/購買承認者) và cách thể hiện (承認あり/なし radio) là 案①暫定;
+        các loại/tổ hợp ロール chi tiết + 承認段階 → chốt ở ③基本設計 (§2.3 注記).
+    (3) Việc gắn với Buyer Switch (SCR-COR-006・Provider Portal) chỉ hiển thị read-only tham chiếu.
+  --------------------------------------------------------------------------------
+  DEMO DATA: 会社グループ「中外製薬 会社グループ（CHUGAI）」; 承認者ロール 依頼者=承認なし / 購買承認者=承認あり.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>補正承認ルート設定（SCR-COR-005）</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; flex-wrap: wrap; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 .4rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: .4rem 0 1rem; }
+
+  .note-box { background:#eef4ff; border:1px solid #b9c9f5; border-radius:6px; padding:.8rem 1.1rem; font-size:.9rem; margin-bottom:1.1rem; }
+  .note-box b { color:#26408f; }
+  .prov-note { font-size:.82rem; color:#666; margin-top:.4rem; }
+
+  .card { border: 1px solid #ededed; margin-bottom: 1.3rem; background: #fff; }
+  .card-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .7rem 1.3rem; display:flex; justify-content:space-between; align-items:center; }
+  .card-body { padding: 1.1rem 1.3rem; }
+
+  .frow { display:flex; align-items:center; gap:1rem; margin-bottom:1.1rem; flex-wrap:wrap; }
+  .frow > .flabel { width:180px; flex-shrink:0; font-weight:bold; }
+  select { font-family:inherit; font-size:.92rem; padding:.5rem .7rem; border:1px solid #ccc; border-radius:4px; background:#fff; min-width:320px; }
+
+  .status-badge { display:inline-block; min-width:100px; text-align:center; font-weight:bold; font-size:.85rem; padding:4px 12px; border-radius:3px; border:1px solid; }
+  .st-set { color:#008000; border-color:#008000; background:#fff; }
+  .st-unset { color:#808080; border-color:#808080; background:#fff; }
+  .warn-line { color:#c0392b; font-size:.85rem; margin-top:.5rem; display:none; }
+  .warn-line.show { display:block; }
+
+  table.route { width:100%; border-collapse:collapse; font-size:.93rem; }
+  table.route th { background:#eef1f7; border:1px solid #e3e3e6; padding:.6rem .7rem; text-align:left; }
+  table.route th.center, table.route td.center { text-align:center; }
+  table.route td { border:1px solid #e3e3e6; padding:.6rem .8rem; background:#fff; vertical-align:middle; }
+  .role-name { font-weight:bold; }
+  .role-desc { font-size:.8rem; color:#777; }
+  .radio-group { display:inline-flex; gap:1.6rem; }
+  .radio-group label { display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; }
+  .radio-group input { accent-color:#4169e1; }
+  .fixed-tag { font-size:.72rem; color:#fff; background:#437643; border-radius:3px; padding:1px 7px; margin-left:.5rem; }
+
+  .btn { font-size:.95rem; padding:.6rem 1.6rem; border-radius:4px; cursor:pointer; border:1px solid #cccccc; background:#fff; color:#111; }
+  .btn-save { background: linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; font-weight:bold; min-width:200px; }
+  .btn-clear .ico { color:#4169e1; }
+  .actions { display:flex; justify-content:center; gap:1.5rem; margin-top:.5rem; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="承認設定一覧（eProcurement_Settings_ApprovalSetting_ApprovalSettingList）">承認設定</a></li>
+      <li class="active">補正承認ルート設定</li>
+    </ul>
+
+    <div class="page-content">
+      <div class="page-title"><h3>補正承認ルート設定</h3></div>
+      <hr class="title-sep">
+
+      <div class="note-box">
+        補正処理（数量・単価変更）に対する<b>承認者ロール</b>を会社グループごとに設定します（<b>案①・暫定</b>）。
+        承認者は<b>購買承認者</b>を基本とします。<br>
+        <b>この設定が未設定（承認者ロールが1つも「承認あり」でない）場合、Supplier側の補正ボタンは非表示になります（BR-COR-007）。</b>
+        <div class="prov-note">※ 補正承認機能のON/OFF・タイムアウト期間は Provider Portal（Buyer Switch設定・SCR-COR-006）で管理します。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span>補正承認ルート</span>
+          <span>設定状況：<span class="status-badge st-set" id="statusBadge">設定済み</span></span>
+        </div>
+        <div class="card-body">
+          <div class="frow">
+            <div class="flabel">会社グループ</div>
+            <select id="companyGroup">
+              <option>中外製薬 会社グループ（CHUGAI）</option>
+              <option>ジーニーソリューションズ 会社グループ（GENIEE）</option>
+              <option>ライオン 会社グループ（LION）</option>
+            </select>
+          </div>
+
+          <table class="route">
+            <thead>
+              <tr>
+                <th style="width:55%;">承認者ロール</th>
+                <th class="center" style="width:45%;">補正承認</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="role-name">依頼者（発注担当者）</div>
+                  <div class="role-desc">発注を起票した依頼部門の担当者</div>
+                </td>
+                <td class="center">
+                  <div class="radio-group">
+                    <label><input type="radio" name="roleRequester" value="on">承認あり</label>
+                    <label><input type="radio" name="roleRequester" value="off" checked>承認なし</label>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="role-name">購買承認者<span class="fixed-tag">承認者（確定）</span></div>
+                  <div class="role-desc">購買部門の承認者。補正処理の標準承認者</div>
+                </td>
+                <td class="center">
+                  <div class="radio-group">
+                    <label><input type="radio" name="rolePurchaser" value="on" checked>承認あり</label>
+                    <label><input type="radio" name="rolePurchaser" value="off">承認なし</label>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="warn-line" id="warnLine">
+            現在この会社グループには承認者が設定されていません。この状態で保存するとSupplier側の補正ボタンが非表示になります（BR-COR-007）。
+          </div>
+          <div class="prov-note" style="margin-top:.7rem;">※ 設定可能なロールの種類・組み合わせ・承認段階の詳細は ③基本設計 で確定します（本画面は案①・暫定）。</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn-save" id="btnSave">保存する</button>
+        <button type="button" class="btn btn-clear" id="btnClear"><span class="ico">↺</span>&nbsp;初期設定に戻す</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  var badge = document.getElementById('statusBadge');
+  var warn = document.getElementById('warnLine');
+
+  function anyApprover(){
+    return document.querySelector('input[name="roleRequester"]:checked').value === 'on'
+        || document.querySelector('input[name="rolePurchaser"]:checked').value === 'on';
+  }
+  function refreshStatus(){
+    if (anyApprover()) {
+      badge.textContent = '設定済み'; badge.className = 'status-badge st-set';
+      warn.classList.remove('show');
+    } else {
+      badge.textContent = '未設定'; badge.className = 'status-badge st-unset';
+      warn.classList.add('show');
+    }
+  }
+  document.querySelectorAll('input[name="roleRequester"], input[name="rolePurchaser"]').forEach(function(r){
+    r.addEventListener('change', refreshStatus);
+  });
+
+  document.getElementById('companyGroup').addEventListener('change', function(){
+    JienieLayout.toast('実際の画面では選択した会社グループの設定を読み込みます');
+  });
+
+  document.getElementById('btnSave').addEventListener('click', function(){
+    refreshStatus();
+    if (!anyApprover()) {
+      JienieLayout.toast('承認者未設定のまま保存しました。Supplier側の補正ボタンは非表示になります（BR-COR-007）');
+    } else {
+      JienieLayout.toast('補正承認ルートを保存しました。');
+    }
+  });
+
+  document.getElementById('btnClear').addEventListener('click', function(){
+    document.querySelector('input[name="roleRequester"][value="off"]').checked = true;
+    document.querySelector('input[name="rolePurchaser"][value="on"]').checked = true;
+    refreshStatus();
+    JienieLayout.toast('初期設定（購買承認者＝承認あり）に戻しました。');
+  });
+
+  refreshStatus();
+})();
+</script>
+
+</body>
+</html>

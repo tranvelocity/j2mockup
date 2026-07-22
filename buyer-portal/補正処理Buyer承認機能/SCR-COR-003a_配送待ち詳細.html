@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-003a 配送待ち詳細（補正処理Buyer承認機能）
+  Portal: Supplier Portal（src-vbizhw-common）— src/modules/Supplier/views/Transaction/WaitingDeliveryDetail.vue（既存改修）
+  ■ Supplier Portal 画面（buyer sidebar 不使用）。Supplier 用簡易ヘッダを自己完結で実装。デザイントークンは既存 mockup 踏襲。
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 §4.1 SCR-COR-003a 改修内容 — bám sát):
+    「補正申請のステータス（申請中 / 承認済み / 否認）を明細行に表示。否認の場合は否認理由を表示。
+      承認待ち中は再申請ボタンを無効化」
+    Liên quan: §3.3 Supplier側名称 補正申請中(COR-10)/補正承認済み(COR-20)/補正否認(COR-30);
+      RD-COR-002/BR-COR-003 承認待ち中は再申請不可; RD-COR-006 否認時は元の値保持.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - Mỗi明細行 hiển thị badge trạng thái補正 (申請中/承認済み/否認). 否認行 hiện 否認理由.
+    - 明細「申請中」: nút「補正申請」bị vô hiệu (承認待ち中は再申請不可).
+    - 明細「否認」: nút「補正申請」active (có thể申請 lại — §9 COR-06). Bấm → toast (mở SCR-COR-001).
+    - 明細「承認済み」: giá trị đã cập nhật 補正後; nút補正 vô hiệu (đã xác定).
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定: nhãn/trạng thái補正 mới (未確定). Supplier shell mô phỏng (portal khác buyer).
+  DEMO DATA: 受注番号 RDEMO2607000031「製品パンフレット印刷」;
+    明細01 申請中(3,000→2,800/¥45→¥48) ; 明細02 承認済み(¥120,000) ; 明細03 否認(否認理由あり).
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配送待ち詳細（SCR-COR-003a・Supplier）</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Meiryo,"Helvetica Neue",Helvetica,Arial,sans-serif; color:#111; line-height:1.43; font-size:14px; background:#fff; }
+  .s-header { height:60px; background:#03041f; border-bottom:4px solid #ffb300; display:flex; align-items:center; padding:0 1.4rem; color:#fff; }
+  .s-logo { font-weight:bold; font-size:1.1rem; } .s-portal { margin-left:.8rem; font-size:.78rem; background:#437643; padding:2px 8px; border-radius:3px; } .s-user { margin-left:auto; font-size:.85rem; }
+  .page-content { padding:1.2rem 1.5rem 3rem; max-width:1100px; }
+  .breadcrumb { font-size:.8rem; color:#555; margin-bottom:.8rem; } .breadcrumb a{ color:#111; text-decoration:underline; }
+  h3.title { font-size:1.6rem; margin:.3rem 0 1rem; }
+  .card { border:1px solid #ededed; margin-bottom:1.2rem; }
+  .card-header { background:#4169e1; color:#fff; font-weight:bold; padding:.7rem 1.3rem; }
+  .card-body { padding:1.1rem 1.3rem; }
+  .kv { display:flex; margin-bottom:.35rem; font-size:.93rem; } .kv .lb{ width:110px; font-weight:bold; }
+  table.detail { width:100%; border-collapse:collapse; font-size:.9rem; }
+  table.detail th { background:#eef1f7; border:1px solid #e3e3e6; padding:.55rem; text-align:center; }
+  table.detail td { border:1px solid #e3e3e6; padding:.55rem .6rem; vertical-align:top; }
+  table.detail td.center{text-align:center;} table.detail td.right{text-align:right;}
+  .cor-badge { display:inline-block; min-width:96px; text-align:center; font-size:.78rem; font-weight:bold; padding:3px 8px; border-radius:3px; border:1px solid; }
+  .cor-wait { color:#ff6699; border-color:#ff6699; } .cor-done { color:#008000; border-color:#008000; } .cor-rej { color:#808080; border-color:#808080; }
+  .reject-reason { font-size:.8rem; color:#c0392b; margin-top:.35rem; }
+  .cor-before { font-size:.78rem; color:#999; text-decoration:line-through; }
+  .btn { font-size:.82rem; padding:.32rem .7rem; border-radius:4px; cursor:pointer; border:1px solid #ccc; background:#fff; color:#111; } .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-primary-blue { background:linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+</style>
+</head>
+<body>
+<div class="s-header"><span class="s-logo">Bizhiway</span><span class="s-portal">Supplier Portal</span><span class="s-user">株式会社プリントパック　佐藤 健</span></div>
+<div class="page-content">
+  <div class="breadcrumb"><a href="SCR-COR-003b_配送待ち一覧.html">配送待ち一覧</a> › 配送待ち詳細</div>
+  <h3 class="title">配送待ち詳細（補正申請ステータス）</h3>
+
+  <div class="card">
+    <div class="card-header">受注情報</div>
+    <div class="card-body">
+      <div class="kv"><span class="lb">受注番号</span><span>RDEMO2607000031</span></div>
+      <div class="kv"><span class="lb">案件名</span><span>2026年度製品パンフレット印刷</span></div>
+      <div class="kv"><span class="lb">発注元</span><span>ジーニーソリューションズ株式会社　本社 総務部</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">明細情報（補正申請ステータス）</div>
+    <div class="card-body">
+      <table class="detail">
+        <thead><tr><th style="width:5%;">No.</th><th>品名</th><th style="width:12%;">数量</th><th style="width:11%;">単価</th><th style="width:13%;">金額</th><th style="width:15%;">補正ステータス</th><th style="width:14%;">操作</th></tr></thead>
+        <tbody>
+          <!-- 申請中 -->
+          <tr>
+            <td class="center">1</td>
+            <td>製品パンフレット（2026年度版）</td>
+            <td class="center"><span class="cor-before">3,000</span> → <b>2,800 部</b></td>
+            <td class="right"><span class="cor-before">¥45</span> → <b>¥48</b></td>
+            <td class="right">¥134,400</td>
+            <td class="center"><span class="cor-badge cor-wait">補正申請中</span></td>
+            <td class="center"><button type="button" class="btn btn-primary-blue" disabled title="承認待ち中は再申請できません">補正申請</button></td>
+          </tr>
+          <!-- 承認済み -->
+          <tr>
+            <td class="center">2</td>
+            <td>コート紙 光沢 A2（予備）</td>
+            <td class="center">200 枚</td>
+            <td class="right">¥600</td>
+            <td class="right">¥120,000</td>
+            <td class="center"><span class="cor-badge cor-done">補正承認済み</span></td>
+            <td class="center"><button type="button" class="btn" disabled title="確定済み">補正申請</button></td>
+          </tr>
+          <!-- 否認 -->
+          <tr>
+            <td class="center">3</td>
+            <td>デザイン制作費（表紙）</td>
+            <td class="center">1 式</td>
+            <td class="right">¥50,000</td>
+            <td class="right">¥50,000</td>
+            <td class="center">
+              <span class="cor-badge cor-rej">補正否認</span>
+              <div class="reject-reason">否認理由：単価改定の根拠資料が不足しているため。再度見積根拠を添えて申請してください。</div>
+            </td>
+            <td class="center"><button type="button" class="btn btn-primary-blue" id="reApply">補正申請</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:.82rem;color:#666;margin-top:.6rem;">※ 補正は Buyer 承認後に確定します。否認された明細は理由を確認し再申請できます（COR-06）。</p>
+    </div>
+  </div>
+</div>
+
+<div id="mockToast" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);background:#333;color:#fff;padding:.7rem 1.2rem;border-radius:6px;font-size:.9rem;opacity:0;transition:.3s;pointer-events:none;z-index:3000;"></div>
+<script>
+(function(){
+  function toast(m){ var t=document.getElementById('mockToast'); t.textContent=m; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(function(){t.style.opacity='0';},2600); }
+  document.getElementById('reApply').addEventListener('click', function(){ toast('実際の画面では補正申請モーダル（SCR-COR-001）を開きます'); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-004c 検収待ち一覧（補正処理Buyer承認機能）
+  Module: Buyer Portal / Requester — src/modules/Buyer/views/Requester/WaitingAcceptance.vue
+  内包: 補正承認モーダル SCR-COR-002 へのリンク（承認導線）
+  Thư mục chức năng: 補正処理Buyer承認機能/ ; assets dùng chung qua ../assets/.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 §4.1 SCR-COR-004c 改修内容 — bám sát):
+    「補正承認待ちの案件に『要承認』バッジを表示。承認モーダルへのリンクを追加」
+    → Trên danh sách 検収待ち: case có Supplier補正申請中(COR-10) hiện badge「要承認」+ link mở 補正承認モーダル(SCR-COR-002).
+    Liên quan: §3.3 COR-10 補正承認待ち; BR-COR-004 否認理由必須; §7 COR002/COR003.
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN: eProcurement_Requester_* (list card, status-badge) + assets/layout.css・layout.js (KHÔNG viết lại).
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - Case có補正申請中: badge「要承認」(hồng) + nút「補正を承認／否認」→ mở modal SCR-COR-002 (nạp dữ liệu case đó).
+    - 承認 → badge case đổi「補正承認済み」+ toast(COR002); 否認 → 否認理由必須 → badge「補正否認」+ toast(COR003).
+    - Card click / 明細を開く → link sang SCR-COR-004b_検収待ち詳細.html.
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定: nhãn「要承認」+ SCR-COR-002 là màn/nhãn mới (未確定, theo 要件定義). Pagination/検索 rút gọn.
+  DEMO DATA: PDEMO2607000031 (要承認・補正申請中) / PDEMO2607000028 (通常) — nhất quán bộ 補正 mockup.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>検収待ち一覧（補正処理Buyer承認）</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #fff; }
+  a { text-decoration: none; color: inherit; }
+  .page-content { padding: 0 1.5rem 3rem; }
+  .breadcrumb { background:#f7f7f7; padding:.35rem 1.3rem; font-size:.8rem; margin:0 -1.5rem; list-style:none; display:flex; flex-wrap:wrap; }
+  .breadcrumb li { display:flex; align-items:center; }
+  .breadcrumb li + li::before { content:"\203A"; font-weight:bold; margin:0 .5rem; }
+  .breadcrumb a { color:#111; text-decoration:underline; }
+  .page-title { margin:1.25rem 0 1rem; } .page-title h3 { margin:0; font-size:1.7rem; }
+
+  .wrapper-pagination { display:flex; align-items:center; gap:1rem; margin:.6rem 0 1rem; flex-wrap:wrap; font-size:.9rem; }
+  .wrapper-pagination select { padding:.4rem .6rem; border:1px solid #ccc; border-radius:4px; }
+
+  .anken-card { background:#f5f5f5; border:1px solid #ededed; border-radius:0 0 5px 5px; padding:1rem 1.4rem; margin-bottom:1.2rem; }
+  .anken-header-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+  .anken-header-left { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+  .badge-order-type { min-width:82px; text-align:center; padding:4px 12px; font-size:.9rem; border:1px solid #4169e1; color:#4169e1; background:#fff; }
+  .anken-no { padding-left:.8rem; border-left:1px solid #ccc; font-size:.95rem; }
+  .req-approve { border:1px solid #ff6699; color:#ff6699; background:#fff; font-weight:bold; font-size:.8rem; padding:3px 10px; border-radius:3px; }
+  .anken-header-right { display:flex; align-items:center; gap:.6rem; }
+  .status-badge { min-width:120px; text-align:center; border:1px solid #ff9933; color:#ff9933; padding:4px 10px; font-size:.92rem; background:#fff; }
+  .anken-hr { border:none; border-top:1px solid #ddd; margin:.8rem 0; }
+  .anken-body { display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+  .anken-title { font-size:1.3rem; font-weight:bold; margin:0 0 .4rem; }
+  .info-line { font-size:.93rem; margin-bottom:.15rem; } .info-line .lb { display:inline-block; min-width:92px; color:#555; }
+  .amount { font-weight:bold; font-size:1.15rem; }
+  .card-actions { margin-top:.9rem; display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end; }
+
+  .btn { font-size:.9rem; padding:.45rem 1rem; border-radius:4px; cursor:pointer; border:1px solid #ccc; background:#fff; color:#111; }
+  .btn-primary-blue { background:linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+  .btn-approve { background:linear-gradient(to bottom,#5cb85c,#419641); border-color:#3d8b3d; color:#fff; font-weight:bold; }
+  .btn-reject { background:#fff; border-color:#d9534f; color:#d9534f; font-weight:bold; }
+  .cor-done { color:#008000; border-color:#008000; } .cor-rej { color:#808080; border-color:#808080; }
+
+  /* Modal SCR-COR-002 (compact) */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#fff; border-radius:8px; width:600px; max-width:100%; max-height:90vh; overflow:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.3rem; border-bottom:1px solid #ededed; }
+  .modal-header h4 { margin:0; font-size:1.1rem; font-weight:bold; }
+  .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666; }
+  .modal-body { padding:1.1rem 1.3rem; }
+  .modal-footer { display:flex; justify-content:center; gap:1rem; padding:1rem 1.3rem 1.4rem; }
+  .cmp-table { width:100%; border-collapse:collapse; margin:.5rem 0 1rem; }
+  .cmp-table th,.cmp-table td { border:1px solid #e3e3e6; padding:.55rem .7rem; text-align:center; }
+  .cmp-table th { background:#eef1f7; } .cmp-table td.after { font-weight:bold; color:#4169e1; }
+  .reason-box { background:#f7f7f7; border:1px solid #e3e3e6; border-radius:4px; padding:.6rem .8rem; font-size:.9rem; }
+  .req { color:#fff; background:#d9534f; font-size:.7rem; border-radius:3px; padding:1px 7px; margin-left:.4rem; }
+  #rejectWrap { display:none; margin-top:1rem; } #rejectWrap textarea { width:100%; min-height:80px; padding:.6rem; border:1px solid #ccc; border-radius:4px; font-family:inherit; }
+  #rejectWrap textarea.has-error { border-color:#dc3545; } .modal-err { color:#dc3545; font-size:.85rem; margin-top:.3rem; display:none; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+<div id="layout-header"></div>
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li class="active">検収</li>
+    </ul>
+    <div class="page-content">
+      <div class="page-title"><h3>検収待ち一覧</h3></div>
+
+      <div class="wrapper-pagination">
+        <div>1 - 3 / 全3件</div>
+        <select><option>20件表示</option><option>50件表示</option></select>
+        <select><option>受注日時</option><option>案件番号</option></select>
+      </div>
+
+      <!-- Case 1: 補正承認待ち → 要承認 badge + 承認導線 -->
+      <div class="anken-card" id="card1">
+        <div class="anken-header-row">
+          <div class="anken-header-left">
+            <span class="badge-order-type">発注</span>
+            <span class="anken-no">発注番号：PDEMO2607000031</span>
+            <span class="req-approve" id="c1-req">要承認</span>
+          </div>
+          <div class="anken-header-right">
+            <span>ステータス：</span><span class="status-badge">検収待ち</span>
+          </div>
+        </div>
+        <hr class="anken-hr">
+        <div class="anken-body">
+          <div>
+            <div class="anken-title">2026年度製品パンフレット印刷</div>
+            <div class="info-line"><span class="lb">サプライヤ</span>株式会社プリントパック</div>
+            <div class="info-line"><span class="lb">依頼者</span>本社 総務部　依頼裕三</div>
+            <div class="info-line" id="c1-cor" style="color:#ff6699;font-weight:bold;">補正申請あり（COR-10・明細02）：Buyer承認が必要です</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="info-line"><span class="lb">発注金額</span></div>
+            <div class="amount">¥255,000</div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button type="button" class="btn btn-primary-blue" id="openApproval">補正を承認／否認</button>
+          <a class="btn" href="SCR-COR-004b_検収待ち詳細.html">明細を開く</a>
+        </div>
+      </div>
+
+      <!-- Case 2: 通常 -->
+      <div class="anken-card">
+        <div class="anken-header-row">
+          <div class="anken-header-left">
+            <span class="badge-order-type">発注</span>
+            <span class="anken-no">発注番号：PDEMO2607000028</span>
+          </div>
+          <div class="anken-header-right">
+            <span>ステータス：</span><span class="status-badge">検収待ち</span>
+          </div>
+        </div>
+        <hr class="anken-hr">
+        <div class="anken-body">
+          <div>
+            <div class="anken-title">コピー用紙 定期購入（7月分）</div>
+            <div class="info-line"><span class="lb">サプライヤ</span>コクヨ商事株式会社</div>
+            <div class="info-line"><span class="lb">依頼者</span>本社 総務部　依頼裕三</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="info-line"><span class="lb">発注金額</span></div>
+            <div class="amount">¥120,000</div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <a class="btn" href="SCR-COR-004b_検収待ち詳細.html">明細を開く</a>
+        </div>
+      </div>
+
+      <!-- Case 3: 補正承認済み (参考) -->
+      <div class="anken-card">
+        <div class="anken-header-row">
+          <div class="anken-header-left">
+            <span class="badge-order-type">発注</span>
+            <span class="anken-no">発注番号：PDEMO2606000097</span>
+          </div>
+          <div class="anken-header-right">
+            <span>ステータス：</span><span class="status-badge">検収待ち</span>
+          </div>
+        </div>
+        <hr class="anken-hr">
+        <div class="anken-body">
+          <div>
+            <div class="anken-title">名刺印刷（営業部 下期分）</div>
+            <div class="info-line"><span class="lb">サプライヤ</span>株式会社プリントパック</div>
+            <div class="info-line" style="color:#008000;font-weight:bold;">補正承認済み（COR-20）</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="info-line"><span class="lb">発注金額</span></div>
+            <div class="amount">¥30,000</div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <a class="btn" href="SCR-COR-004b_検収待ち詳細.html">明細を開く</a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- SCR-COR-002 補正承認モーダル (承認導線) -->
+<div class="modal-overlay" id="modalApproval">
+  <div class="modal-box">
+    <div class="modal-header"><h4>補正承認</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:.5rem;"><b>発注番号：</b>PDEMO2607000031　<b>明細：</b>明細02 製品パンフレット</div>
+      <table class="cmp-table">
+        <thead><tr><th>項目</th><th>補正前</th><th>補正後</th></tr></thead>
+        <tbody>
+          <tr><th>数量</th><td>3,000 部</td><td class="after">2,800 部</td></tr>
+          <tr><th>単価</th><td>¥45</td><td class="after">¥48</td></tr>
+          <tr><th>金額</th><td>¥135,000</td><td class="after">¥134,400</td></tr>
+        </tbody>
+      </table>
+      <div style="font-weight:bold;margin:.3rem 0;">申請理由（サプライヤ）</div>
+      <div class="reason-box">用紙をマットコート90kgへ変更したため単価を改定。あわせて予備分を見直し数量を調整しました。</div>
+      <div id="rejectWrap">
+        <div style="font-weight:bold;">否認理由<span class="req">必須</span></div>
+        <textarea id="rejectReason" maxlength="1000" placeholder="否認理由を入力してください"></textarea>
+        <div class="modal-err" id="rejectErr">否認理由を入力してください。</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-approve" id="btnApprove">承認する</button>
+      <button type="button" class="btn btn-reject" id="btnReject">否認する</button>
+      <button type="button" class="btn" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+<script src="../assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function(){
+  var overlay = document.getElementById('modalApproval');
+  var rejectMode = false;
+  function openM(){ resetR(); overlay.classList.add('show'); }
+  function closeM(){ overlay.classList.remove('show'); resetR(); }
+  function resetR(){ rejectMode=false; document.getElementById('rejectWrap').style.display='none'; var t=document.getElementById('rejectReason'); t.value=''; t.classList.remove('has-error'); document.getElementById('rejectErr').style.display='none'; }
+  overlay.addEventListener('click', function(e){ if(e.target===overlay||e.target.hasAttribute('data-close')) closeM(); });
+  document.getElementById('openApproval').addEventListener('click', openM);
+
+  function settleCard(text, cls){
+    document.getElementById('c1-req').remove();
+    document.getElementById('openApproval').remove();
+    var cor = document.getElementById('c1-cor'); cor.textContent = text; cor.style.color = (cls==='done'?'#008000':'#808080');
+    closeM();
+  }
+  document.getElementById('btnApprove').addEventListener('click', function(){
+    settleCard('補正承認済み（COR-20・DB反映済み）','done');
+    JienieLayout.toast('補正を承認しました。サプライヤへ承認済みメール（COR002）を送信します');
+  });
+  document.getElementById('btnReject').addEventListener('click', function(){
+    var wrap=document.getElementById('rejectWrap');
+    if(!rejectMode){ rejectMode=true; wrap.style.display='block'; document.getElementById('rejectReason').focus(); return; }
+    var t=document.getElementById('rejectReason');
+    if(!t.value.trim()){ t.classList.add('has-error'); document.getElementById('rejectErr').style.display='block'; return; }
+    settleCard('補正否認（COR-30・元の値を保持）','rej');
+    JienieLayout.toast('補正を否認しました。サプライヤへ否認理由付きメール（COR003）を送信します');
+  });
+})();
+</script>
+</body>
+</html>

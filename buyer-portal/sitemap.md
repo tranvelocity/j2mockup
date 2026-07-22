@@ -5,8 +5,16 @@
 - **抽出元**: `src/router.js` + `src/modules/*/router.js`（Vue Router定義）
 - **総ルート数**: 約250件
 
-> 各ページのHTMLモックアップは本フォルダ（`projects/standard/documents/design/buyer/`）に
-> ルート名（Name列）をファイル名として配置する想定。配置後、下表の「HTML」列がリンクとして機能する。
+> HTMLモックアップは本フォルダ（`projects/standard/mockup/buyer-portal/`）に配置。
+> **機能別フォルダ構成**（各機能＝1フォルダ、`assets/` は共通・`../assets/` で参照）：
+> - `共通/` … Login / Home
+> - `購買取引案件照会/` … Requester（All / Ordered / WaitingAcceptance / EstimateApplicationApplicantList）
+> - `見積依頼/` … Purchaser 見積依頼フロー（EstimateRequestDetail → Input → ApproverSelection → Confirmation）
+> - `見積回答/` … 購買担当による見積回答代理入力（EstimatePurchaser AnswerInput ほか）
+> - `RFX機能/` … 調達ソーシング（自己完結・独自 assets）
+>
+> 下表の「HTML」列リンクは、実装済みモックアップのみ機能別フォルダのパスに更新済み。未実装ページは
+> ルート名を仮ファイル名としたプレースホルダ（配置後にリンクが機能する想定）。
 
 ---
 
@@ -55,7 +63,7 @@ graph TD
 
 | Path | Name | 補足 | HTML |
 |---|---|---|---|
-| /eProcurement/Login | eProcurement_Login | ログイン（未認証） | [eProcurement_Login.html](./eProcurement_Login.html) |
+| /eProcurement/Login | eProcurement_Login | ログイン（未認証） | [共通/eProcurement_Login.html](./共通/eProcurement_Login.html) |
 | /eProcurement/authorized | eProcurement_Authorized | 認可コールバック（未認証） | [eProcurement_Authorized.html](./eProcurement_Authorized.html) |
 | /eProcurement/Logout | eProcurement_Logout | ログアウト（未認証） | [eProcurement_Logout.html](./eProcurement_Logout.html) |
 | /eProcurement/PasswordChange | eProcurement_PasswordChange | パスワード変更 | [eProcurement_PasswordChange.html](./eProcurement_PasswordChange.html) |
@@ -67,7 +75,7 @@ graph TD
 
 | Path | Name | 補足 | HTML |
 |---|---|---|---|
-| /eProcurement/Home | eProcurement_Home | ホーム | [eProcurement_Home.html](./eProcurement_Home.html) |
+| /eProcurement/Home | eProcurement_Home | ホーム | [共通/eProcurement_Home.html](./共通/eProcurement_Home.html) |
 | /eProcurement/HomeAriba | eProcurement_Home_Ariba | Aribaホーム | [eProcurement_Home_Ariba.html](./eProcurement_Home_Ariba.html) |
 | /eProcurement/Punchout | eProcurement_Punchout | Punchout | [eProcurement_Punchout.html](./eProcurement_Punchout.html) |
 | /eProcurement/qlik | eProcurement_qlik | データアナライザ | [eProcurement_qlik.html](./eProcurement_qlik.html) |
@@ -147,7 +155,7 @@ graph TD
 
 | Path | Name | HTML |
 |---|---|---|
-| /eProcurement/EstimatePurchaser/AnswerInput | eProcurement_EstimatePurchaser_EstimateAnswerInput | [link](./eProcurement_EstimatePurchaser_EstimateAnswerInput.html) |
+| /eProcurement/EstimatePurchaser/AnswerInput | eProcurement_EstimatePurchaser_EstimateAnswerInput | [link](./見積回答/eProcurement_EstimatePurchaser_EstimateAnswerInput.html) |
 | /eProcurement/EstimatePurchaser/AnswerInputCompletion | eProcurement_EstimatePurchaser_EstimateAnswerInputCompletion | [link](./eProcurement_EstimatePurchaser_EstimateAnswerInputCompletion.html) |
 | /eProcurement/EstimatePurchaser/AnswerRefuse | eProcurement_Purchaser_EstimateAnswerRefuse | [link](./eProcurement_Purchaser_EstimateAnswerRefuse.html) |
 | /eProcurement/EstimatePurchaser/AnswerShow | eProcurement_EstimatePurchaser_EstimateAnswerShow | [link](./eProcurement_EstimatePurchaser_EstimateAnswerShow.html) |
@@ -157,14 +165,14 @@ graph TD
 | /eProcurement/Purchaser/Answered | eProcurement_Purchaser_Answered | [link](./eProcurement_Purchaser_Answered.html) |
 | /eProcurement/Purchaser/ProjectInCharge | eProcurement_Purchaser_ProjectInCharge | [link](./eProcurement_Purchaser_ProjectInCharge.html) |
 | /eProcurement/Purchaser/AllProject | eProcurement_Purchaser_AllProject | [link](./eProcurement_Purchaser_AllProject.html) |
-| /eProcurement/Purchaser/EstimateRequestDetail | eProcurement_Purchaser_EstimateRequestDetail | [link](./eProcurement_Purchaser_EstimateRequestDetail.html) |
+| /eProcurement/Purchaser/EstimateRequestDetail | eProcurement_Purchaser_EstimateRequestDetail | [link](./見積依頼/eProcurement_Purchaser_EstimateRequestDetail.html) |
 | /eProcurement/Purchaser/ComparisonToEstimate | eProcurement_Purchaser_ComparisonToEstimate | [link](./eProcurement_Purchaser_ComparisonToEstimate.html) |
 | /eProcurement/Purchaser/SelectionNotificationInput | eProcurement_Purchaser_SelectionNotificationInput | [link](./eProcurement_Purchaser_SelectionNotificationInput.html) |
 | /eProcurement/Purchaser/ApproveDestinationInput | eProcurement_Purchaser_ApproveDestinationInput | [link](./eProcurement_Purchaser_ApproveDestinationInput.html) |
 | /eProcurement/Purchaser/ConfirmContentsInput | eProcurement_Purchaser_ConfirmContentsInput | [link](./eProcurement_Purchaser_ConfirmContentsInput.html) |
-| /eProcurement/Purchaser/Input | eProcurement_Purchaser_Input | [link](./eProcurement_Purchaser_Input.html) |
-| /eProcurement/Purchaser/ApproverSelection | eProcurement_Purchaser_Approver_Selection | [link](./eProcurement_Purchaser_Approver_Selection.html) |
-| /eProcurement/Purchaser/Confirmation | eProcurement_Purchaser_Confirmation | [link](./eProcurement_Purchaser_Confirmation.html) |
+| /eProcurement/Purchaser/Input | eProcurement_Purchaser_Input | [link](./見積依頼/eProcurement_Purchaser_Input.html) |
+| /eProcurement/Purchaser/ApproverSelection | eProcurement_Purchaser_Approver_Selection | [link](./見積依頼/eProcurement_Purchaser_ApproverSelection.html) |
+| /eProcurement/Purchaser/Confirmation | eProcurement_Purchaser_Confirmation | [link](./見積依頼/eProcurement_Purchaser_Confirmation.html) |
 | /eProcurement/Purchaser/ReApplicantOldSupplier | eProcurement_Purchaser_ReApplicantOldSupplier | [link](./eProcurement_Purchaser_ReApplicantOldSupplier.html) |
 | /eProcurement/Purchaser/ApplicantNewSupplier | eProcurement_Purchaser_ApplicantNewSupplier | [link](./eProcurement_Purchaser_ApplicantNewSupplier.html) |
 | /eProcurement/PurchaserApprover/EstimateResults | eProcurement_PurchaserApprover_EstimateResults | [link](./eProcurement_PurchaserApprover_EstimateResults.html) |
@@ -177,10 +185,10 @@ graph TD
 
 | Path | Name | HTML |
 |---|---|---|
-| /eProcurement/Requester/EstimateApplicationApplicantList | eProcurement_Requester_EstimateApplicationApplicantList | [link](./eProcurement_Requester_EstimateApplicationApplicantList.html) |
-| /eProcurement/Requester/All | eProcurement_Requester_All | [eProcurement_Requester_All.html](./eProcurement_Requester_All.html) |
-| /eProcurement/Requester/Ordered | eProcurement_Requester_Ordered | [link](./eProcurement_Requester_Ordered.html) |
-| /eProcurement/Requester/WaitingAcceptance | eProcurement_Requester_WaitingAcceptance | [link](./eProcurement_Requester_WaitingAcceptance.html) |
+| /eProcurement/Requester/EstimateApplicationApplicantList | eProcurement_Requester_EstimateApplicationApplicantList | [link](./購買取引案件照会/eProcurement_Requester_EstimateApplicationApplicantList.html) |
+| /eProcurement/Requester/All | eProcurement_Requester_All | [購買取引案件照会/eProcurement_Requester_All.html](./購買取引案件照会/eProcurement_Requester_All.html) |
+| /eProcurement/Requester/Ordered | eProcurement_Requester_Ordered | [link](./購買取引案件照会/eProcurement_Requester_Ordered.html) |
+| /eProcurement/Requester/WaitingAcceptance | eProcurement_Requester_WaitingAcceptance | [link](./購買取引案件照会/eProcurement_Requester_WaitingAcceptance.html) |
 | /eProcurement/Requester/FinishedAcceptance | eProcurement_Requester_FinishedAcceptance | [link](./eProcurement_Requester_FinishedAcceptance.html) |
 | /eProcurement/Requester/OpportunityDraft | eProcurement_Requester_OpportunityDraft | [link](./eProcurement_Requester_OpportunityDraft.html) |
 | /eProcurement/Requester/HistorySentFax | eProcurement_Requester_HistorySentFax | [link](./eProcurement_Requester_HistorySentFax.html) |
@@ -406,5 +414,6 @@ graph TD
 
 ## 3. HTML配置ルール
 
-- 本フォルダ（`projects/standard/documents/design/buyer/`）に、上表の **Name** をファイル名としたHTML（例: `eProcurement_Order_Input.html`）を直接配置する。
-- 配置後、本サイトマップの該当行リンクがそのままモックアップへの導線になる。
+- 実装済みモックアップは機能別フォルダ（`共通/` `購買取引案件照会/` `見積依頼/` `RFX機能/`）に配置。`assets/` は buyer-portal 直下で共通利用し、各HTMLから `../assets/` で参照する（全ページがフォルダ直下＝1階層のため `../` が一律に成立）。
+- 未実装ページは上表の **Name** を仮ファイル名としたプレースホルダ。実装時は該当機能フォルダへ配置し、本サイトマップのリンクを対応パスへ更新する。
+- フォルダ間リンク（Home・サイドバー・他機能タブ）は `../<機能フォルダ>/…` の相対パスで接続する。

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-001 補正申請モーダル（補正処理Buyer承認機能）
+  Portal: Supplier Portal（src-vbizhw-common）— src/components/eProcurement/Dialogs/CorrectionQuantityUnitPrice.vue（既存改修）
+  ■ 本ファイルは Supplier Portal 画面。Buyer Portal のヘッダ/サイドバー(assets/layout.js)とは別シェルのため、
+    Supplier Portal 用の簡易ヘッダを自己完結で実装（buyer sidebar は使用しない）。デザイントークン
+    (Meiryo 14px, #4169e1, #03041f ヘッダ+ #ffb300 下線, カードヘッダ) は既存 mockup を踏襲。
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 §4.1 SCR-COR-001 改修内容 — bám sát):
+    「①申請後に『承認待ち』状態を表示（即時完了UI → 承認待ちUI に変更）。
+      ②申請理由入力欄（任意）を追加。
+      ③Buyer SwitchがOFFまたは承認ルート未設定の場合は補正ボタン自体を非表示」
+    Liên quan: RD-COR-001 補正申請(COR-10 承認待ち・即時確定しない); RD-COR-013 申請理由(任意);
+      RD-COR-002/BR-COR-003 重複申請防止(承認待ち中は再申請不可); §3.3 Supplier側名称=補正申請中.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    ③ toggle Buyer Switch＋承認ルート: OFF → ẩn nút「補正数量/補正単価」(補正申請自体不可).
+    - Mở modal 補正申請 → nhập 補正後数量/補正後単価 + 申請理由(任意) → 申請する:
+        validate (phải đổi ít nhất 1 giá trị) → ① chuyển modal sang trạng thái「承認待ち」+ host hiện badge「補正申請中」
+        + nút補正 disable (②③ RD-COR-002 重複申請不可) + toast (Buyerへ COR001 承認依頼).
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定: nhãn màn/tính năng補正申請 mới (未確定・theo 要件定義). Supplier shell là bản mô phỏng (portal khác buyer).
+  DEMO DATA: 受注番号 RDEMO2607000031「製品パンフレット」明細02; 現在 3,000部×¥45; サプライヤ プリントパック 佐藤.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>補正申請モーダル（SCR-COR-001・Supplier）</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Meiryo,"Helvetica Neue",Helvetica,Arial,sans-serif; color:#111; line-height:1.43; font-size:14px; background:#fff; }
+  /* Supplier Portal 簡易ヘッダ */
+  .s-header { height:60px; background:#03041f; border-bottom:4px solid #ffb300; display:flex; align-items:center; padding:0 1.4rem; color:#fff; }
+  .s-logo { font-weight:bold; font-size:1.1rem; letter-spacing:.5px; }
+  .s-portal { margin-left:.8rem; font-size:.78rem; background:#437643; padding:2px 8px; border-radius:3px; }
+  .s-user { margin-left:auto; font-size:.85rem; }
+  .page-content { padding:1.2rem 1.5rem 3rem; max-width:1100px; }
+  .breadcrumb { font-size:.8rem; color:#555; margin-bottom:.8rem; } .breadcrumb a{ color:#111; text-decoration:underline; }
+  h3.title { font-size:1.6rem; margin:.3rem 0 1rem; }
+  .sw-banner { display:flex; align-items:center; gap:1rem; background:#eef4ff; border:1px solid #b9c9f5; border-radius:6px; padding:.7rem 1rem; margin-bottom:1rem; font-size:.9rem; flex-wrap:wrap; }
+  .toggle { display:inline-flex; align-items:center; gap:.5rem; cursor:pointer; margin-left:auto; }
+  .toggle .track { width:44px; height:22px; border-radius:11px; background:#bbb; position:relative; transition:.2s; }
+  .toggle .track::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:.2s; }
+  .toggle.on .track { background:#4169e1; } .toggle.on .track::after { left:24px; }
+
+  .card { border:1px solid #ededed; margin-bottom:1.2rem; }
+  .card-header { background:#4169e1; color:#fff; font-weight:bold; padding:.7rem 1.3rem; }
+  .card-body { padding:1.1rem 1.3rem; }
+  table.detail { width:100%; border-collapse:collapse; font-size:.9rem; }
+  table.detail th { background:#eef1f7; border:1px solid #e3e3e6; padding:.55rem; text-align:center; }
+  table.detail td { border:1px solid #e3e3e6; padding:.55rem .6rem; vertical-align:top; }
+  table.detail td.center{text-align:center;} table.detail td.right{text-align:right;}
+  .badge-apply { display:none; border:1px solid #ff6699; color:#ff6699; background:#fff; font-weight:bold; font-size:.8rem; padding:3px 9px; border-radius:3px; }
+  .badge-apply.show{ display:inline-block; }
+  body.sw-off .hide-when-off { display:none !important; }
+
+  .btn { font-size:.9rem; padding:.4rem .9rem; border-radius:4px; cursor:pointer; border:1px solid #ccc; background:#fff; color:#111; }
+  .btn-sm{ padding:.32rem .7rem; font-size:.82rem; } .btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-primary-blue { background:linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#fff; border-radius:8px; width:560px; max-width:100%; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.3rem; border-bottom:1px solid #ededed; }
+  .modal-header h4 { margin:0; font-size:1.1rem; font-weight:bold; }
+  .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666; }
+  .modal-body { padding:1.1rem 1.3rem; }
+  .modal-footer { display:flex; justify-content:center; gap:1rem; padding:1rem 1.3rem 1.4rem; }
+  .frow { display:flex; align-items:center; gap:1rem; margin-bottom:.9rem; }
+  .frow > .flabel { width:130px; font-weight:bold; }
+  .frow input[type=text] { padding:.5rem .7rem; border:1px solid #ccc; border-radius:4px; width:160px; text-align:right; }
+  .frow .before { color:#777; font-size:.85rem; }
+  textarea { width:100%; min-height:70px; padding:.6rem; border:1px solid #ccc; border-radius:4px; font-family:inherit; }
+  .opt { font-size:.72rem; color:#fff; background:#999; border-radius:3px; padding:1px 7px; margin-left:.4rem; }
+  .modal-err { color:#dc3545; font-size:.85rem; margin-top:.3rem; display:none; }
+  .wait-state { display:none; text-align:center; padding:1rem .5rem; }
+  .wait-state .wicon { font-size:2.2rem; } .wait-state .wtitle { font-weight:bold; font-size:1.1rem; color:#ff6699; margin:.4rem 0; }
+</style>
+</head>
+<body>
+<div class="s-header">
+  <span class="s-logo">Bizhiway</span><span class="s-portal">Supplier Portal</span>
+  <span class="s-user">株式会社プリントパック　佐藤 健</span>
+</div>
+
+<div class="page-content">
+  <div class="breadcrumb"><a href="SCR-COR-003b_配送待ち一覧.html">配送待ち一覧</a> › <a href="SCR-COR-003a_配送待ち詳細.html">配送待ち詳細</a> › 補正申請</div>
+  <h3 class="title">補正申請モーダル（SCR-COR-001）</h3>
+
+  <div class="sw-banner">
+    <span><b>補正申請機能：</b>Buyer Switch ON かつ 補正承認ルート設定済み の場合のみ補正ボタンを表示（③・BR-COR-007）</span>
+    <label class="toggle on" id="swToggle"><span class="track"></span><span id="swState">有効（ON）</span></label>
+  </div>
+
+  <div class="card">
+    <div class="card-header">受注明細（配送待ち詳細より）</div>
+    <div class="card-body">
+      <div style="margin-bottom:.6rem;"><b>受注番号：</b>RDEMO2607000031　<b>案件名：</b>2026年度製品パンフレット印刷</div>
+      <table class="detail">
+        <thead><tr><th style="width:6%;">No.</th><th>品名</th><th style="width:12%;">数量</th><th style="width:12%;">単価</th><th style="width:14%;">金額</th><th style="width:26%;">補正</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="center">2</td>
+            <td>製品パンフレット（2026年度版）</td>
+            <td class="center" id="curQty">3,000 部</td>
+            <td class="right" id="curUnit">¥45</td>
+            <td class="right" id="curAmt">¥135,000</td>
+            <td class="center">
+              <span class="badge-apply" id="applyBadge">補正申請中</span>
+              <div class="hide-when-off" id="applyBtns">
+                <button type="button" class="btn btn-sm btn-primary-blue" id="openApply">補正申請</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:.82rem;color:#666;margin-top:.6rem;">※ 補正申請後はBuyer承認が完了するまで数量・単価は確定しません（即時確定しない）。承認待ち中は再申請できません（BR-COR-003）。</p>
+    </div>
+  </div>
+</div>
+
+<!-- SCR-COR-001 補正申請モーダル -->
+<div class="modal-overlay" id="modalApply">
+  <div class="modal-box">
+    <div class="modal-header"><h4>補正申請</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div id="applyForm">
+        <div class="frow"><span class="flabel">補正後数量</span><input type="text" id="inQty" value="2,800"><span class="before">現在：3,000 部</span></div>
+        <div class="frow"><span class="flabel">補正後単価</span><input type="text" id="inUnit" value="48"><span class="before">現在：¥45</span></div>
+        <div class="frow" style="align-items:flex-start;"><span class="flabel">申請理由<span class="opt">任意</span></span>
+          <textarea id="inReason" maxlength="1000" placeholder="補正の理由を入力（任意）">用紙をマットコート90kgへ変更したため単価を改定。予備分を見直し数量を調整。</textarea></div>
+        <div class="modal-err" id="applyErr">数量または単価のいずれかを変更してください。</div>
+      </div>
+      <div class="wait-state" id="waitState">
+        <div class="wicon">⏳</div>
+        <div class="wtitle">補正申請中（承認待ち）</div>
+        <div>Buyerの承認をお待ちください。承認され次第、数量・単価が確定します。</div>
+      </div>
+    </div>
+    <div class="modal-footer" id="applyFooter">
+      <button type="button" class="btn btn-primary-blue" id="btnApply">申請する</button>
+      <button type="button" class="btn" data-close>キャンセル</button>
+    </div>
+    <div class="modal-footer" id="waitFooter" style="display:none;">
+      <button type="button" class="btn" data-close>閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="mockToast" style="position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);background:#333;color:#fff;padding:.7rem 1.2rem;border-radius:6px;font-size:.9rem;opacity:0;transition:.3s;pointer-events:none;z-index:3000;"></div>
+
+<script>
+(function(){
+  function toast(m){ var t=document.getElementById('mockToast'); t.textContent=m; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(function(){t.style.opacity='0';},2600); }
+  var overlay = document.getElementById('modalApply');
+  document.getElementById('openApply').addEventListener('click', function(){ overlay.classList.add('show'); });
+  overlay.addEventListener('click', function(e){ if(e.target===overlay||e.target.hasAttribute('data-close')) overlay.classList.remove('show'); });
+
+  // ③ Buyer Switch toggle
+  document.getElementById('swToggle').addEventListener('click', function(){
+    var on=this.classList.toggle('on'); document.body.classList.toggle('sw-off', !on);
+    document.getElementById('swState').textContent = on?'有効（ON）':'無効（OFF／未設定）';
+    toast(on?'補正申請ボタンを表示します':'Buyer Switch OFF／承認ルート未設定のため補正申請ボタンを非表示');
+  });
+
+  document.getElementById('btnApply').addEventListener('click', function(){
+    var q=document.getElementById('inQty').value.trim(), u=document.getElementById('inUnit').value.trim();
+    var changed = (q && q!=='3,000') || (u && u!=='45');
+    if(!changed){ document.getElementById('applyErr').style.display='block'; return; }
+    // ① 承認待ちUIへ切替
+    document.getElementById('applyForm').style.display='none';
+    document.getElementById('waitState').style.display='block';
+    document.getElementById('applyFooter').style.display='none';
+    document.getElementById('waitFooter').style.display='flex';
+    // host: 補正申請中 badge + 補正ボタン非活性
+    document.getElementById('applyBadge').classList.add('show');
+    document.getElementById('applyBtns').style.display='none';
+    toast('補正を申請しました。Buyerへ承認依頼（COR001）を送信しました');
+  });
+})();
+</script>
+</body>
+</html>

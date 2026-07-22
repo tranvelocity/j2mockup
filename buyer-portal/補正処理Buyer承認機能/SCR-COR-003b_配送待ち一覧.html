@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: SCR-COR-003b 配送待ち一覧（補正処理Buyer承認機能）
+  Portal: Supplier Portal（src-vbizhw-common）— src/modules/Supplier/views/Transaction/WaitingDelivery.vue（既存改修）
+  ■ Supplier Portal 画面（buyer sidebar 不使用）。Supplier 用簡易ヘッダを自己完結で実装。
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU (02_要件定義書 §4.1 SCR-COR-003b 改修内容 — bám sát):
+    「補正承認待ちがある案件に『補正申請中』バッジを表示
+      （CorrectionQuantityUnitPrice モーダルをマウントしている親コンポーネント）」
+    Liên quan: §3.3 Supplier側 COR-10=補正申請中.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - Case có補正承認待ち → badge「補正申請中」(hồng) trên card. Link「明細を見る」→ SCR-COR-003a_配送待ち詳細.html.
+    - Ghi chú: đây là親コンポーネント mount modal 補正申請 SCR-COR-001 (mở từ màn詳細).
+  TỰ ĐỀ XUẤT / ■未確定: nhãn補正申請中 mới; Supplier shell mô phỏng; pagination/検索 rút gọn.
+  DEMO DATA: RDEMO2607000031 (補正申請中) / RDEMO2607000029 (通常) — nhất quán bộ 補正 mockup.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配送待ち一覧（SCR-COR-003b・Supplier）</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Meiryo,"Helvetica Neue",Helvetica,Arial,sans-serif; color:#111; line-height:1.43; font-size:14px; background:#fff; }
+  .s-header { height:60px; background:#03041f; border-bottom:4px solid #ffb300; display:flex; align-items:center; padding:0 1.4rem; color:#fff; }
+  .s-logo { font-weight:bold; font-size:1.1rem; } .s-portal { margin-left:.8rem; font-size:.78rem; background:#437643; padding:2px 8px; border-radius:3px; } .s-user { margin-left:auto; font-size:.85rem; }
+  .page-content { padding:1.2rem 1.5rem 3rem; max-width:1100px; }
+  .breadcrumb { font-size:.8rem; color:#555; margin-bottom:.8rem; } .breadcrumb a{ color:#111; text-decoration:underline; }
+  h3.title { font-size:1.6rem; margin:.3rem 0 1rem; }
+  .pg { font-size:.9rem; margin-bottom:1rem; color:#555; }
+
+  .anken-card { background:#f5f5f5; border:1px solid #ededed; border-radius:5px; padding:1rem 1.4rem; margin-bottom:1.2rem; }
+  .hrow { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+  .hleft { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+  .badge-order { min-width:82px; text-align:center; padding:4px 12px; font-size:.9rem; border:1px solid #4169e1; color:#4169e1; background:#fff; }
+  .anken-no { padding-left:.8rem; border-left:1px solid #ccc; font-size:.95rem; }
+  .badge-apply { border:1px solid #ff6699; color:#ff6699; background:#fff; font-weight:bold; font-size:.8rem; padding:3px 10px; border-radius:3px; }
+  .status-badge { min-width:120px; text-align:center; border:1px solid #0074c1; color:#0074c1; padding:4px 10px; font-size:.92rem; background:#fff; }
+  hr.h { border:none; border-top:1px solid #ddd; margin:.8rem 0; }
+  .body { display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+  .title2 { font-size:1.3rem; font-weight:bold; margin:0 0 .4rem; }
+  .il { font-size:.93rem; margin-bottom:.15rem; } .il .lb { display:inline-block; min-width:90px; color:#555; }
+  .amount { font-weight:bold; font-size:1.15rem; }
+  .acts { margin-top:.9rem; text-align:right; }
+  .btn { font-size:.88rem; padding:.45rem 1rem; border-radius:4px; cursor:pointer; border:1px solid #ccc; background:#fff; color:#111; }
+</style>
+</head>
+<body>
+<div class="s-header"><span class="s-logo">Bizhiway</span><span class="s-portal">Supplier Portal</span><span class="s-user">株式会社プリントパック　佐藤 健</span></div>
+<div class="page-content">
+  <div class="breadcrumb">取引一覧 › 配送待ち一覧</div>
+  <h3 class="title">配送待ち一覧</h3>
+  <div class="pg">1 - 2 / 全2件</div>
+
+  <!-- 補正申請中あり -->
+  <div class="anken-card">
+    <div class="hrow">
+      <div class="hleft">
+        <span class="badge-order">受注</span>
+        <span class="anken-no">受注番号：RDEMO2607000031</span>
+        <span class="badge-apply">補正申請中</span>
+      </div>
+      <div><span>ステータス：</span><span class="status-badge">配送待ち</span></div>
+    </div>
+    <hr class="h">
+    <div class="body">
+      <div>
+        <div class="title2">2026年度製品パンフレット印刷</div>
+        <div class="il"><span class="lb">発注元</span>ジーニーソリューションズ株式会社 本社 総務部</div>
+        <div class="il"><span class="lb">納品予定日</span>2026-08-10</div>
+        <div class="il" style="color:#ff6699;font-weight:bold;">補正申請中（Buyer承認待ち・明細1件）</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="il"><span class="lb">受注金額</span></div>
+        <div class="amount">¥304,400</div>
+      </div>
+    </div>
+    <div class="acts"><a class="btn" href="SCR-COR-003a_配送待ち詳細.html">明細を見る</a></div>
+  </div>
+
+  <!-- 通常 -->
+  <div class="anken-card">
+    <div class="hrow">
+      <div class="hleft">
+        <span class="badge-order">受注</span>
+        <span class="anken-no">受注番号：RDEMO2607000029</span>
+      </div>
+      <div><span>ステータス：</span><span class="status-badge">配送待ち</span></div>
+    </div>
+    <hr class="h">
+    <div class="body">
+      <div>
+        <div class="title2">封筒・レターセット印刷</div>
+        <div class="il"><span class="lb">発注元</span>ジーニーソリューションズ株式会社 本社 総務部</div>
+        <div class="il"><span class="lb">納品予定日</span>2026-08-03</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="il"><span class="lb">受注金額</span></div>
+        <div class="amount">¥86,000</div>
+      </div>
+    </div>
+    <div class="acts"><a class="btn" href="SCR-COR-003a_配送待ち詳細.html">明細を見る</a></div>
+  </div>
+
+  <p style="font-size:.82rem;color:#666;">※ 本一覧の親コンポーネントが補正申請モーダル（SCR-COR-001 CorrectionQuantityUnitPrice）をマウントします。</p>
+</div>
+</body>
+</html>

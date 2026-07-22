@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: eProcurement_Purchaser_ApproverSelection  (承認先入力)
+  Module: Buyer Portal / 購買担当（Purchaser） — chọn承認ルート & 承認者 cho見積依頼申請
+  Route thật: /eProcurement/Purchaser/ApproverSelection
+              ?estimateCode=...&estimateRequestCode=...&isReview=false
+              &from=eProcurement_Purchaser_AllProject
+  Dùng chung header/sidebar/back-to-top qua assets/layout.css + assets/layout.js.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU / SOURCE CODE (mô phỏng đúng — màn hình ĐÃ TỒN TẠI):
+    - View chính: src-vbizhw/src/modules/Buyer/views/Purchaser/ApproverSelection.vue
+        → 1 card「承認フロー」: (承認ルート select) + stepper ngang [依頼者 → 承認者N → 最終承認者],
+          mỗi承認者 chọn qua select hoặc link「変更」(approver-selection dialog); ô「未設定」đỏ khi chưa chọn;
+          承認者への連絡事項 (textarea 1000文字以内 + đính kèm).
+          Card cuối: nút 戻る + 入力内容確認 (submit → sang Confirmation).
+        Breadcrumb (customBreadcrumb, isWarning=true):
+          HOME › from(全案件) › 見積依頼詳細 › 依頼情報入力 › 承認先入力.
+        Validate submit (methods.submit):
+          - Mỗi段階 chưa chọn approver → DIRECT_ORDER_APPROVER_SELECTION.LB_035「承認者を選択してください。」
+          - Trùng承認者 giữa các段階 → LB_037「各承認段階で別々の承認者を選択してください。」
+    - Nhãn i18n (nguyên văn) src-vbizhw/src/locales/prod/ja.json:
+        PURCHASER_APPROVER_SELECTION.TITLE=承認先入力;
+        OPPORTUNITY_LIST_ALL.COMP_AF_LB_001=承認フロー;
+        APPROVAL_COMPLETION.COMP_AF_LB_001=依頼者, COMP_AF_LB_002=最終承認者, COMP_AF_LB_003=承認者, COMP_AF_LB_005=承認ルート設定はありません。;
+        ACCEPTANCE_REQUEST.LB_HEADER_TITLE=承認ルート;
+        CONTRACT_REGIST_GOTO_APPROVAL.LB_007=未設定;
+        DIRECT_ORDER_APPROVER_SELECTION.LB_008=変更, LB_035=承認者を選択してください。, LB_037=各承認段階で別々の承認者を選択してください。;
+        ACCEPTANCE_APPROVAL.COMP_IS_LB_019=承認者への連絡事項, COMP_IS_LB_026=1000文字以内;
+        ESTIMATE_CONFIRMATION.BTN_001=依頼申請に戻る (nút戻る → sang依頼情報入力);
+        DIRECT_ORDER_CONFIRMATION.TITLE=入力内容確認 (nút submit → sang確認画面).
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN (đối chiếu):
+    - ApprovalFlow.scss / Steps.scss (stepper 承認フロー): dot user-circle, connector, header 段階.
+    - eProcurement_Purchaser_EstimateRequestDetail.html (approval-node style) + list mockup CSS.
+    - assets/layout.css + layout.js: KHÔNG viết lại.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT:
+    - 承認ルート select đổi → toast (thực tế gọi buyerOrderChangeApprovalRoute lấy lại段階).
+    - 承認者1 select dropdown chọn người → cập nhật hiển thị.
+    - 最終承認者「未設定」(đỏ) + link「変更」→ modal chọn承認者 → điền org/役職/氏名, xoá「未設定」.
+    - 承認者への連絡事項 textarea (1000文字以内).
+    - 入力内容確認 (submit): validate mọi段階 đã chọn + không trùng người → nếu OK href sang
+      eProcurement_Purchaser_Confirmation.html (link 2 chiều); lỗi → message + focus.
+    - 戻る (依頼申請に戻る) → href sang eProcurement_Purchaser_Input.html.
+  --------------------------------------------------------------------------------
+  LINK 2 CHIỀU:
+    - Trang này ⇄ eProcurement_Purchaser_Input.html: nút戻る + breadcrumb「依頼情報入力」→ href sang Input.
+      Đã sửa nút「承認先入力」(submit) ở Input để điều hướng thật sang trang này.
+    - breadcrumb「見積依頼詳細」→ href sang eProcurement_Purchaser_EstimateRequestDetail.html.
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定 (cần confirm khi 詳細設計):
+    (1) 全案件 & 確認画面 (eProcurement_Purchaser_Confirmation) CHƯA có mockup → data-nav toast.
+    (2) Số段階承認 (2), danh sách候補承認者, danh sách承認ルート là demo (thực tế theo WF rule của khách).
+    (3) 依頼者 node = 購買担当者 đã được割振り ở màn trước (購買部 調達1課 購買一郎) — nhất quán demo.
+  --------------------------------------------------------------------------------
+  DEMO DATA (NHẤT QUÁN với Input / EstimateRequestDetail):
+    案件 QDEMO2607000021「2026年度製品パンフレット印刷」;
+    依頼者(申請者) node = 購買部 調達1課 課長 購買一郎;
+    承認者1 = 経理部 経理課 経理花子 / 最終承認者 = 購買部 部長 部長一郎.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>承認先入力</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; flex-wrap: wrap; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; margin: 1.25rem 0 .3rem; flex-wrap: wrap; gap: .6rem; }
+  .title-row h3 { margin: 0; font-size: 1.7rem; }
+  .warn-note { background: #fff8e1; border: 1px solid #ffd24d; color: #7a5b00; padding: .5rem .9rem; border-radius: 4px; font-size: .9rem; margin-bottom: 1rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: .4rem 0 1.2rem; }
+
+  .btn { font-size: .95rem; padding: .55rem 1.2rem; border-radius: 4px; cursor: pointer; border: 1px solid #cccccc; background: #fff; color: #111; }
+  .btn-gray { background: #6c757d; border-color: #6c757d; color: #fff; }
+  .btn-success { background: linear-gradient(to bottom,#5cb85c,#419641); border-color:#3d8b3d; color:#fff; font-weight:bold; }
+  .btn-success.huge { padding: .8rem 3rem; font-size: 1.1rem; }
+  .btn-primary-blue { background: linear-gradient(to bottom,#638aff,#4169e1); border-color:#4169e1; color:#fff; }
+  .btn-sm { padding: .4rem .9rem; font-size: .85rem; }
+
+  .card { border: 1px solid #ededed; margin-bottom: 1.3rem; background: #fff; }
+  .card-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; }
+  .card-body { padding: 1.1rem 1.3rem; }
+
+  /* 承認ルート */
+  .route-row { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.4rem; }
+  .route-row select { padding: .5rem .7rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; min-width: 280px; }
+
+  /* Stepper 承認フロー */
+  .flow-box { border: 1px solid #ededed; border-radius: 6px; padding: 1.4rem 1rem 1rem; background: #fff; }
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; text-align: center; position: relative; padding: 0 .3rem; }
+  .step::after { content: ""; position: absolute; top: 58px; left: 50%; width: 100%; height: 3px; background: #d9d9d9; z-index: 0; }
+  .step:last-child::after { display: none; }
+  .step-title { font-weight: bold; margin-bottom: .6rem; min-height: 1.3em; }
+  .step-icon { width: 54px; height: 54px; border-radius: 50%; background: #5cb85c; margin: 0 auto .8rem; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; }
+  .step-icon.approver { background: #4169e1; }
+  .step-icon svg { width: 28px; height: 28px; fill: #fff; }
+  .step-body { font-size: .9rem; line-height: 1.6; }
+  .step-body select { width: 90%; padding: .4rem .5rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; margin-top: .4rem; }
+  .step-body select.has-error { border-color: #dc3545; }
+  .unset { color: #dc3545; font-weight: bold; }
+  .change-link { color: #045eb4; text-decoration: underline; cursor: pointer; display: inline-block; margin-top: .3rem; }
+
+  .comment-row { margin-top: 1.6rem; }
+  .comment-row .lbl { font-weight: bold; }
+  .comment-row .maxlen-note { color:#888; font-size:.8rem; margin-left:.5rem; }
+  .comment-row textarea { width: 100%; min-height: 84px; padding: .6rem; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: .92rem; resize: vertical; margin-top: .5rem; }
+  .attach-mock { margin-top: .6rem; }
+  .attach-mock .btn { }
+
+  .bottom-actions { border:1px solid #ededed; padding:1.1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#fff; border-radius:8px; width:560px; max-width:100%; max-height:90vh; overflow:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.3rem; border-bottom:1px solid #ededed; }
+  .modal-header h4 { margin:0; font-size:1.1rem; font-weight:bold; }
+  .modal-close { background:none; border:none; font-size:1.5rem; cursor:pointer; line-height:1; color:#666; }
+  .modal-body { padding:1.1rem 1.3rem; }
+  .modal-footer { display:flex; justify-content:center; gap:1rem; padding:1rem 1.3rem 1.4rem; }
+  .pick-list { list-style:none; margin:0; padding:0; }
+  .pick-list li { border:1px solid #e3e3e6; border-radius:4px; padding:.7rem .9rem; margin-bottom:.5rem; cursor:pointer; }
+  .pick-list li:hover { background:#edf1f6; }
+  .pick-list li.selected { border-color:#4169e1; background:#eaf0ff; }
+  #Notification { display:none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="全案件一覧（eProcurement_Purchaser_AllProject）">全案件</a></li>
+      <li><a href="eProcurement_Purchaser_EstimateRequestDetail.html">見積依頼詳細</a></li>
+      <li><a href="eProcurement_Purchaser_Input.html">依頼情報入力</a></li>
+      <li class="active">承認先入力</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="title-row">
+        <h3>承認先入力</h3>
+        <a href="eProcurement_Purchaser_Input.html" class="btn btn-gray"><span>‹</span>&nbsp;依頼申請に戻る</a>
+      </div>
+      <hr class="title-sep">
+      <div class="warn-note">見積依頼申請の承認ルート・承認者を確認し、承認者への連絡事項を入力してください。</div>
+
+      <!-- ===== 承認フロー ===== -->
+      <div class="card">
+        <div class="card-header">承認フロー</div>
+        <div class="card-body">
+
+          <div class="route-row">
+            <label>承認ルート</label>
+            <select id="routeSelect">
+              <option>標準承認ルート（10万円未満）</option>
+              <option>金額別承認ルート（10万円以上）</option>
+              <option>印刷・販促物 専用ルート</option>
+            </select>
+          </div>
+
+          <div class="flow-box">
+            <div class="stepper">
+              <!-- 依頼者 (= 購買担当者) -->
+              <div class="step">
+                <div class="step-title">依頼者</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z"/></svg></div>
+                <div class="step-body">
+                  購買部 調達1課<br>課長<br>購買一郎
+                </div>
+              </div>
+
+              <!-- 承認者1 (select) -->
+              <div class="step" data-stage>
+                <div class="step-title">承認者1</div>
+                <div class="step-icon approver"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z"/></svg></div>
+                <div class="step-body">
+                  <div class="stage-view" id="stage1View">経理部 経理課<br>課長<br><span class="stage-name">経理花子</span></div>
+                  <select class="stage-select" id="stage1Select">
+                    <option value="">-</option>
+                    <option value="経理部 経理課|課長|経理花子" selected>経理花子</option>
+                    <option value="経理部 経理課|-|監査次郎">監査次郎</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 最終承認者 (未設定 + 変更 link → modal) -->
+              <div class="step" data-stage>
+                <div class="step-title">最終承認者</div>
+                <div class="step-icon approver"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z"/></svg></div>
+                <div class="step-body">
+                  <div id="stage2View">
+                    <span class="unset" id="stage2Unset">未設定</span>
+                  </div>
+                  <a class="change-link" id="stage2Change">変更</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="comment-row">
+            <span class="lbl">承認者への連絡事項</span>
+            <span class="maxlen-note">1000文字以内</span>
+            <textarea maxlength="1000" placeholder="承認者への連絡事項を入力してください"></textarea>
+            <div class="attach-mock">
+              <button type="button" class="btn btn-light btn-sm" data-nav="添付ファイルを追加（InputFile）">＋ 添付ファイルを追加</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===== Bottom actions ===== -->
+      <div class="bottom-actions">
+        <a href="eProcurement_Purchaser_Input.html" class="btn btn-gray"><span>‹</span>&nbsp;依頼申請に戻る</a>
+        <button type="button" class="btn btn-success huge" id="btnConfirm">入力内容確認</button>
+        <span style="min-width:120px;"></span>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== Modal: 承認者選択（最終承認者） ===== -->
+<div class="modal-overlay" id="modalApprover">
+  <div class="modal-box">
+    <div class="modal-header"><h4>承認者選択</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <ul class="pick-list" id="approverPickList">
+        <li data-org="購買部" data-pos="部長" data-name="部長一郎">購買部　部長　部長一郎</li>
+        <li data-org="購買部" data-pos="次長" data-name="次長三郎">購買部　次長　次長三郎</li>
+        <li data-org="経営管理本部" data-pos="本部長" data-name="管理五郎">経営管理本部　本部長　管理五郎</li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary-blue" id="approverSubmit">選択</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  function openModal(id){ document.getElementById(id).classList.add('show'); }
+  function closeModal(el){ el.classList.remove('show'); }
+  document.querySelectorAll('.modal-overlay').forEach(function(ov){
+    ov.addEventListener('click', function(e){ if(e.target===ov || e.target.hasAttribute('data-close')) closeModal(ov); });
+  });
+
+  // ---- 承認ルート đổi ----
+  document.getElementById('routeSelect').addEventListener('change', function(){
+    JienieLayout.toast('実際の画面では選択したルートに応じて承認段階を再取得します');
+  });
+
+  // ---- 承認者1 select → cập nhật hiển thị ----
+  var stage1Select = document.getElementById('stage1Select');
+  var stage1View = document.getElementById('stage1View');
+  stage1Select.addEventListener('change', function(){
+    stage1Select.classList.remove('has-error');
+    if(!stage1Select.value){ stage1View.innerHTML=''; return; }
+    var p = stage1Select.value.split('|');
+    stage1View.innerHTML = p[0]+'<br>'+(p[1]||'-')+'<br><span class="stage-name">'+p[2]+'</span>';
+  });
+
+  // ---- 最終承認者: 変更 → modal ----
+  var stage2Chosen = null;
+  document.getElementById('stage2Change').addEventListener('click', function(){ openModal('modalApprover'); });
+  var approverPick = document.getElementById('approverPickList');
+  approverPick.addEventListener('click', function(e){ var li=e.target.closest('li'); if(!li) return; approverPick.querySelectorAll('li').forEach(function(x){x.classList.remove('selected');}); li.classList.add('selected'); });
+  document.getElementById('approverSubmit').addEventListener('click', function(){
+    var sel = approverPick.querySelector('li.selected'); if(!sel){ JienieLayout.toast('承認者を選択してください'); return; }
+    stage2Chosen = { org: sel.getAttribute('data-org'), pos: sel.getAttribute('data-pos'), name: sel.getAttribute('data-name') };
+    document.getElementById('stage2View').innerHTML = stage2Chosen.org+'<br>'+(stage2Chosen.pos||'-')+'<br><span class="stage-name">'+stage2Chosen.name+'</span>';
+    closeModal(document.getElementById('modalApprover'));
+    JienieLayout.toast('承認者を選択しました。');
+  });
+
+  // ---- 入力内容確認 (submit) validate ----
+  document.getElementById('btnConfirm').addEventListener('click', function(){
+    // 1) mỗi段階 phải có approver
+    var names = [];
+    var stage1 = stage1Select.value ? stage1Select.value.split('|')[2] : '';
+    if(!stage1){ stage1Select.classList.add('has-error'); JienieLayout.toast('承認者を選択してください。'); stage1Select.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+    names.push(stage1);
+    if(!stage2Chosen){ document.getElementById('stage2Unset').style.display='inline'; JienieLayout.toast('承認者を選択してください。'); document.getElementById('stage2View').scrollIntoView({behavior:'smooth',block:'center'}); return; }
+    names.push(stage2Chosen.name);
+    // 2) không trùng承認者
+    if(names[0] === names[1]){ JienieLayout.toast('各承認段階で別々の承認者を選択してください。'); return; }
+    location.href = 'eProcurement_Purchaser_Confirmation.html';
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<!--
+  ================================================================================
+  Mockup: eProcurement_Purchaser_EstimateRequestDetail  (見積依頼詳細)
+  Module: Buyer Portal / 購買担当（Purchaser） — 見積依頼詳細画面
+  Route thật: /eProcurement/Purchaser/EstimateRequestDetail
+              ?estimateCode=...&estimateRequestCode=...&isReview=false
+              &from=eProcurement_Purchaser_AllProject
+  Dùng chung header/sidebar/back-to-top qua assets/layout.css + assets/layout.js.
+  --------------------------------------------------------------------------------
+  NGUỒN YÊU CẦU / SOURCE CODE (mô phỏng đúng vì màn hình ĐÃ TỒN TẠI):
+    - View chính:
+        src-vbizhw/src/modules/Buyer/views/Purchaser/EstimateRequestDetail.vue
+        → cấu trúc section, thứ tự card, nút hành động, điều kiện hiển thị theo estimateStatusId,
+          modal (差戻し / 担当割振り / 購買グループ割振り / 購買メモ / カテゴリ編集), nút 戻る.
+    - Header案件 (wrapper):
+        src-vbizhw/src/modules/Buyer/components/Purchaser/ItemSkeleton.vue
+        → badge 見積購買 (#3333FF), 案件番号, status badge (btn-status, màu theo purchaserStatusColor),
+          案件名 + tag phân loại, 依頼日時 (LB_APPLICATION_DATE_TIME), 依頼者, 購買担当者, 回答希望日.
+    - Flow 進行状況:
+        src-vbizhw/src/modules/Buyer/components/Estimate/EstimateProjectFlow.vue
+        → 本案件の流れ (COMP_E_EPF_LB_002), 7 bước (通常見積, estimateControlType=0).
+    - Nhãn i18n (nguyên văn): src-vbizhw/src/locales/prod/ja.json
+        TITLE=見積依頼詳細; APPROVER_INFO_CHANGE_INPUT.ANKEN_NUMBER_HEADER/ANKEN_NAME_HEADER=案件番号/案件名;
+        MASTER_SETTING.ESTIMATE_PURCHASE=見積購買, CATEGORY=品目カテゴリ, PURCHASE_STATUS_TITLE=購買ステータス,
+        USER_CODE=担当者, PRODUCT_CATEGORY_LB_008=編集, LB_SUPPLIER=サプライヤ, SUBCONTRACT_ACT=取適法,
+        LB_REQUIRED=必須項目です。;
+        OPPORTUNITY_LIST_ESTIMATE.COMP_ED_LB_065=基本情報, _081=依頼内容, _082=回答希望日, _083=交渉期限,
+        _084=明細情報, _088=希望サプライヤ情報, _089=希望サプライヤ, _093=サプライヤ見積番号, _094=サプライヤ向け,
+        _095=関連案件, _071=通常, _076=依頼者情報, _077=代理申請, _078=本人申請, _080=購買部向け, _048=引用元案件番号;
+        APPROVAL_COMPLETION.COMP_AF_LB_001=依頼者, COMP_ED_LB_014=支出抑制額, COMP_ED_LB_024=連絡事項,
+        COMP_E_EPF_LB_002=本案件の流れ;
+        ESTIMATE_CONFIRMATION.LB_REASON_SELECT_SUPPLIER=サプライヤ選択理由;
+        PAYMENT_PLAN_CONFIRM.B3_STATUS_PAYMENT=ステータス, B3_SECTION=明細;
+        PURCHASER_ESTIMATE_REQUEST_DETAIL.LB_043=購買入力情報, BTN_001=見積依頼へ進む, BTN_002=差戻し,
+        BTN_003=購買グループ割振り, BTN_008=再見積依頼, BTN_REFLECT=反映する, BTN_IT_WAS_REFLECTED=反映しました。,
+        MSG_001=差戻ししました。, MSG_005=購買グループを割振りしました。;
+        PURCHASER_COMPARISON_TO_ESTIMATE.BTN_001=担当割振り, BTN_005=見積一覧に戻る, LB_009=希望, MSG_007=担当者を割り振りました。;
+        POPUP_PURCHASE_MEMO.LB_001=購買メモ, LB_002=購買メモ入力, BTN_001=更新;
+        PURCHASER_BEFORE_NEGOTIATION.COMP_AC_LB_001=差戻し理由, BTN_REMAND_SUBMIT=差戻しを実行;
+        ACCEPTANCE_APPROVAL.COMP_IS_LB_031=差戻し理由を入力してください。, BTN_011=¥;
+        COMMON_MULTI_LANG.LB_CATALOG_PUBLICATION=カタログ掲載, LB_WITH_OR_WITHOUT=希望有無;
+        SUPPLIER_WAITING_DELIVERY.LB_UNNECESSARY=不要;
+        SUPPLIER_SEARCH_ESTIMATE.LB_003=購買担当者;
+        ESTIMATE_APPROVAL.COMP_EST_D_LB_014/015/016=大カテゴリ/中カテゴリ/小カテゴリ, _017/018/019=大/中/小;
+        MASTER_SETTING.BTN_CANCEL=キャンセル.
+    - ステータス設計 (§8.2 tương đương) lấy từ DB seed:
+        src-jbizhw/bizhighway-database/j2_buyer_group/script_data/opportunity_status.sql
+        → estimateStatusId=40 (Status1_4): purchaserStatusName=回答待ち (Green=#008000),
+          sub-label 担当者未定 (#FF6699). Đây là case điển hình khi案件 vừa tới購買部, 展開待ち, chưa có担当者.
+          Màu khác: 20 見積承認待ち(Green/#FF6699), 30 差戻し(Green→Red), 140 選定相談中(#FF6699), 130 取下げ(Gray).
+  --------------------------------------------------------------------------------
+  NGUỒN DESIGN (đối chiếu pixel):
+    - eProcurement_Requester_EstimateApplicationApplicantList.html (đã verify staging 2026-07-05):
+      copy CSS component detail-section / kv-row / bảng明細 / flow-steps / status-badge / modal base.
+    - assets/layout.css + layout.js + datepicker.js: KHÔNG viết lại.
+  --------------------------------------------------------------------------------
+  SUB-FEATURE HOẠT ĐỘNG THẬT (cập nhật DOM tại chỗ):
+    - 差戻し modal (anken-comment): validate textarea 必須 → đổi status badge sang「差戻し」(xám),
+      thêm khối 差戻し情報 màu đỏ, disable các nút hành động, toast MSG_001.
+    - 担当割振り modal (user-in-charge-selection): chọn 1 担当者 → cập nhật 購買担当者 & xoá「担当者未定」,
+      toast MSG_007.
+    - 購買グループ割振り modal (purchase-group-selection): chọn 1 nhóm → cập nhật hiển thị, toast MSG_005.
+    - 購買メモ modal (purchase-memo): sửa textarea → 更新 → cập nhật văn bản購買メモ ngoài trang.
+    - 購買ステータス inline edit: icon ✎ → select + 更新/キャンセル → cập nhật text.
+    - 品目カテゴリ inline edit: 編集 → 大/中/小 select + 反映する/キャンセル → cập nhật hiển thị + toast.
+    - カタログ掲載 希望有無: radio disabled (chỉ hiển thị theo dữ liệu, khớp source).
+    - 見積依頼へ進む: href thật → eProcurement_Purchaser_Input.html (依頼情報入力 - link 2 chiều).
+    - 戻る (見積一覧に戻る): data-nav → toast (điều hướng về 全案件 - chưa có mockup).
+  --------------------------------------------------------------------------------
+  TỰ ĐỀ XUẤT / ■未確定 (KHÔNG có trong spec, cần confirm khi 詳細設計):
+    (1) File name / display-code「eProcurement_Purchaser_EstimateRequestDetail」lấy theo sitemap.md.
+        Các màn Purchaser (全案件 v.v.) CHƯA có mockup → link 全案件 / 戻る hiện là data-nav toast.
+    (2) Sidebar dùng chung là bộ menu persona Requester (theo layout.js hiện có). Persona 購買担当 thực tế
+        có bộ menu riêng → giữ nguyên layout dùng chung, cần xác nhận menu Purchaser ở giai đoạn sau.
+    (3) Options của「購買ステータス」(PURCHASE_STATUS master data type=PURCHASE_STATUS) là master do buyer
+        tự cấu hình → demo dùng: 未対応/対応中/対応完了/保留 (giả định, cần confirm master thật của khách).
+    (4) Danh sách候補担当者 / 購買グループ trong modal là demo (thực tế lấy từ API UserInChargeSelection /
+        PurchaseGroupSelection).
+    (5) 承認フロー section chỉ hiển thị khi estimateStatusId===490 (theo source) → case demo (status 40)
+        KHÔNG hiển thị. Đúng theo spec.
+  --------------------------------------------------------------------------------
+  DEMO DATA (NHẤT QUÁN với eProcurement_Requester_EstimateApplicationApplicantList.html):
+    案件番号 QDEMO2607000021「2026年度製品パンフレット印刷」通常見積・回答待ち,
+    依頼日時 2026-07-02 19:38:17, 回答希望日 2026-07-25, 交渉期限 2026-08-25,
+    依頼者 ジーニーソリューションズ株式会社 本社 総務部 依頼裕三,
+    希望サプライヤ 株式会社プリントパック / デコルデザイン株式会社.
+  ================================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>見積依頼詳細</title>
+<link rel="stylesheet" href="../assets/layout.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Meiryo, "Helvetica Neue", "Helvetica", "Arial", sans-serif; color: #111111; line-height: 1.43; font-size: 14px; background: #ffffff; }
+  a { text-decoration: none; color: inherit; }
+
+  .page-content { padding: 0 1.5rem 3rem; }
+
+  /* ===== Breadcrumb + Page title (PageTitle.vue) ===== */
+  .breadcrumb { background: #f7f7f7; padding: .35rem 1.3rem; font-size: .8rem; margin: 0 -1.5rem; list-style: none; display: flex; }
+  .breadcrumb li { display: flex; align-items: center; }
+  .breadcrumb li + li::before { content: "\203A"; font-weight: bold; margin: 0 .5rem; }
+  .breadcrumb a { color: #111111; text-decoration: underline; }
+  .breadcrumb .active { color: #111111; }
+  .page-title { margin: 1.25rem 0 1rem; }
+  .page-title h3 { margin: 0; font-size: 1.7rem; }
+  hr.title-sep { border: none; border-top: 1px solid #dddddd; margin: 0 0 1.4rem; }
+
+  /* ===== Nút hành động (btn-warning / btn-light) ===== */
+  .action-bar { display: flex; justify-content: center; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+  .btn { font-size: 1rem; padding: .6rem 1.4rem; border-radius: 4px; cursor: pointer; min-width: 170px; text-align: center; }
+  .btn-warning { background: linear-gradient(to bottom, #ffcf5c 0%, #ff9f1c 100%); border: 1px solid #ef8f00; color: #3a2c00; font-weight: bold; }
+  .btn-light { background: #fff; border: 1px solid #cccccc; color: #111; }
+  .btn-light .ico { color: #4169e1; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-back { min-width: auto; padding: .55rem 1.2rem; }
+
+  /* ===== Card案件 header (ItemSkeleton.vue) ===== */
+  .anken-card { background: #fff; border: 1px solid #ededed; border-radius: 5px; padding: 0 1.4rem 1rem; margin-bottom: 1.4rem; }
+  .anken-header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; padding-top: 1rem; }
+  .anken-header-left { display: flex; align-items: center; }
+  .badge-order-type { min-width: 90px; text-align: center; padding: 4px 12px; font-size: .9rem; display: inline-block; background: #fff; border: 1px solid #3333ff; color: #3333ff; }
+  .anken-no { margin-left: .8rem; font-size: .95rem; }
+  .anken-header-right { display: flex; align-items: center; gap: .6rem; }
+  .status-badge { min-width: 140px; text-align: center; border: 1px solid; display: inline-block; padding: 4px 10px; font-size: .95rem; background: #fff; }
+  .st-green { color: #008000; border-color: #008000; }
+  .st-pink  { color: #ff6699; border-color: #ff6699; }
+  .st-orange{ color: #ff9933; border-color: #ff9933; }
+  .st-gray  { color: #808080; border-color: #808080; }
+  .sub-note { color: #ff6699; font-size: .85rem; }
+  .anken-hr { border: none; border-top: 1px solid #dddddd; margin: .8rem 0; }
+  .anken-body-row { display: flex; }
+  .anken-body-left { flex: 2; min-width: 0; }
+  .anken-body-right { flex: 1; border-left: 1px solid #dddddd; padding-left: 1.2rem; }
+  .anken-title { font-size: 1.4rem; font-weight: bold; word-break: break-all; margin: 0 0 .6rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+  .tag-label { font-size: 12px; font-weight: bold; padding: 3px 6px; border-radius: 2px; color: #fff; }
+  .tag-green { background: #92d050; }
+  .info-line { font-size: .95rem; margin-bottom: .25rem; }
+  .info-line > .lb { display: inline-block; min-width: 96px; }
+  .info-line a.person { color: #045eb4; text-decoration: underline; cursor: help; }
+  .answer-line { display: flex; align-items: center; }
+  .answer-line > label { width: 96px; font-weight: bold; border-right: 1px solid #cccccc; margin-right: 1rem; }
+  .answer-line .val { font-weight: bold; color: #ff4500; font-size: 1rem; }
+
+  /* ===== Section (card-header bar #4169e1) ===== */
+  .detail-section { background: #fff; border: 1px solid #ededed; margin-bottom: 1.2rem; }
+  .detail-section-header { background: #4169e1; color: #fff; font-weight: bold; font-size: 1.05rem; padding: .8rem 1.3rem; }
+  .detail-section-body { padding: 1.1rem 1.3rem; }
+  .kv-row { display: flex; margin-bottom: .8rem; font-size: .95rem; align-items: flex-start; }
+  .kv-row > label { width: 210px; flex-shrink: 0; font-weight: bold; }
+  .kv-row .kv-val { flex: 1; min-width: 0; }
+  .kv-row a.edit-link { color: #045eb4; text-decoration: underline; margin-left: .6rem; }
+  .req-chip { font-size: .7rem; color: #fff; border-radius: 3px; padding: 1px 7px; margin-left: .4rem; }
+  .req-chip.must { background: #d9534f; }
+  .req-chip.any  { background: #999; }
+  .sub-heading { font-weight: bold; margin: .4rem 0 .8rem; }
+  hr.sec-sep { border: none; border-top: 1px solid #e3e3e6; margin: .4rem 0 1rem; }
+
+  .detail-section table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .detail-section th { text-align: center; font-weight: bold; color: #111; padding: .6rem .5rem; width: 110px; background: #eef1f7; border: 1px solid #e3e3e6; vertical-align: middle; }
+  .detail-section td { padding: .6rem .8rem; border: 1px solid #e3e3e6; background: #fff; vertical-align: middle; }
+
+  .supplier-kv { display: flex; margin-bottom: .8rem; font-size: .95rem; }
+  .supplier-kv > label { width: 210px; flex-shrink: 0; font-weight: bold; }
+  .sup-line { display: flex; gap: 2rem; margin-bottom: .5rem; flex-wrap: wrap; }
+  .biz-trading { border: 1px solid #84ae55; color: #84ae55; font-weight: bold; background: #fff; font-size: 11px; padding: 1px 5px; margin-right: .4rem; }
+  .has-subcontract { border: 1px solid #d9534f; color: #d9534f; font-weight: bold; background: #fff; font-size: 11px; padding: 1px 5px; }
+  .link-anken { color: #045eb4; text-decoration: underline; }
+
+  /* Purchaser 購買入力情報 */
+  .pv-row { display: flex; align-items: center; margin-bottom: .9rem; font-size: .95rem; flex-wrap: wrap; gap: .5rem; }
+  .pv-row > label { width: 140px; flex-shrink: 0; }
+  .btn-status { min-width: 120px; text-align: center; border: 1px solid; display: inline-block; padding: .25rem .8rem; background: #fff; }
+  .icon-edit { color: #4169e1; cursor: pointer; margin-left: .4rem; font-weight: bold; }
+  .inline-select { padding: .4rem .6rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; background: #fff; }
+  .btn-sm { padding: .35rem .9rem; font-size: .85rem; border-radius: 4px; cursor: pointer; border: 1px solid #cccccc; background: #fff; min-width: auto; }
+  .memo-text { white-space: pre-wrap; word-break: break-word; }
+
+  /* カテゴリ編集 inline */
+  .cat-edit { display: none; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+  .cat-edit.show { display: flex; }
+  .cat-edit .cat-field { display: flex; flex-direction: column; gap: .25rem; }
+  .cat-edit .cat-field span { font-size: .8rem; }
+  .cat-edit select { padding: .4rem .6rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; min-width: 150px; }
+  .cat-edit select.has-error { border-color: #dc3545; }
+  .cat-err { color: #dc3545; font-size: .8rem; margin-top: .2rem; display: none; }
+  .cat-view.hidden { display: none; }
+
+  /* 対応履歴 */
+  .history-log { font-size: .95rem; }
+  .history-log div { padding: .4rem 0; border-bottom: 1px solid #eee; }
+  .history-log div:last-child { border-bottom: none; }
+
+  /* 本案件の流れ (flow) */
+  .flow-steps { display: flex; align-items: flex-start; justify-content: space-between; padding: .6rem 1rem 0; }
+  .flow-step { flex: 1; text-align: center; position: relative; }
+  .flow-step::after { content: ""; position: absolute; top: 44px; left: 50%; width: 100%; height: 3px; background: #d9d9d9; z-index: 0; }
+  .flow-step:last-child::after { display: none; }
+  .flow-step .fs-label { font-size: .9rem; margin-bottom: .5rem; min-height: 1.3em; }
+  .flow-step .fs-icon { width: 44px; height: 44px; border-radius: 50%; margin: 0 auto; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.1rem; }
+  .fs-icon.done { background: #5cb85c; }
+  .fs-icon.current { background: #4169e1; width: 52px; height: 52px; }
+  .fs-icon.future { background: #c9c9c9; }
+  .flow-step .fs-approve { position: absolute; top: 36px; left: calc(50% + 18px); z-index: 2; background: #555; color: #fff; font-size: .72rem; padding: 2px 5px; }
+  .flow-step .fs-owner { display: inline-block; background: #e8e8e8; font-size: .85rem; padding: .3rem .8rem; margin-top: .8rem; }
+
+  /* radio disabled */
+  .radio-line { display: flex; gap: 2.5rem; }
+  .radio-line label { display: inline-flex; align-items: center; gap: 6px; color: #555; }
+  .radio-line input { accent-color: #4169e1; }
+
+  /* ===== Modal ===== */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay.show { display: flex; }
+  .modal-box { background: #fff; border-radius: 8px; width: 560px; max-width: 100%; max-height: 90vh; overflow: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.3rem; border-bottom: 1px solid #ededed; }
+  .modal-header h4 { margin: 0; font-size: 1.1rem; font-weight: bold; }
+  .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; line-height: 1; color: #666; }
+  .modal-body { padding: 1.2rem 1.3rem; }
+  .modal-body textarea { width: 100%; min-height: 120px; padding: .6rem; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: .95rem; resize: vertical; }
+  .modal-body textarea.has-error { border-color: #dc3545; }
+  .modal-err { color: #dc3545; font-size: .85rem; margin-top: .4rem; display: none; }
+  .modal-footer { display: flex; justify-content: center; gap: 1rem; padding: 1rem 1.3rem 1.4rem; }
+  .pick-list { list-style: none; margin: 0; padding: 0; }
+  .pick-list li { border: 1px solid #e3e3e6; border-radius: 4px; padding: .7rem .9rem; margin-bottom: .5rem; cursor: pointer; display: flex; align-items: center; gap: .6rem; }
+  .pick-list li:hover { background: #edf1f6; }
+  .pick-list li.selected { border-color: #4169e1; background: #eaf0ff; }
+  .pick-list .role-note { color: #888; font-size: .85rem; margin-left: auto; }
+  .modal-label-req { font-weight: bold; margin-bottom: .5rem; }
+
+  #Notification { display: none; }
+</style>
+</head>
+<body>
+
+<div id="layout-header"></div>
+
+<div id="wrapper">
+  <div id="layout-sidebar"></div>
+
+  <main id="wrapper-content">
+    <!-- ===== Breadcrumb (customBreadcrumb: HOME › from(全案件) › 見積依頼詳細) ===== -->
+    <ul class="breadcrumb">
+      <li><a href="../共通/eProcurement_Home.html">トップページ</a></li>
+      <li><a href="#" data-nav="全案件一覧（eProcurement_Purchaser_AllProject）">全案件</a></li>
+      <li class="active">見積依頼詳細</li>
+    </ul>
+
+    <div class="page-content">
+
+      <div class="page-title"><h3>見積依頼詳細</h3></div>
+      <hr class="title-sep">
+
+      <!-- ===== Nút hành động (đầu trang) — hiển thị vì isReview=false ===== -->
+      <div class="action-bar" id="actionBarTop">
+        <!-- BTN_001: 見積依頼へ進む (isEstimateRequest && !isReplenishment) -->
+        <button type="button" class="btn btn-warning act-btn" onclick="location.href='eProcurement_Purchaser_Input.html'">見積依頼へ進む</button>
+        <!-- BTN_002: 差戻し (estimateStatusId∈[60,40,500,510] && !parentEstimateCode; disabled nếu セルフ見積/概算) -->
+        <button type="button" class="btn btn-light act-btn" id="btnReject">差戻し</button>
+        <!-- COMPARISON.BTN_001: 担当割振り (∈[60,40,500,510] && 権限=購買グループ) -->
+        <button type="button" class="btn btn-light act-btn" id="btnAssign">担当割振り</button>
+        <!-- BTN_003: 購買グループ割振り (estimateStatusId===40 && 権限=購買グループ) -->
+        <button type="button" class="btn btn-light act-btn" id="btnGroup">購買グループ割振り</button>
+      </div>
+
+      <!-- ===== Header案件 (ItemSkeleton.vue) ===== -->
+      <div class="anken-card">
+        <div class="anken-header-row">
+          <div class="anken-header-left">
+            <span class="badge-order-type">見積購買</span>
+            <span class="anken-no">案件番号：QDEMO2607000021</span>
+          </div>
+          <div class="anken-header-right">
+            <span class="status-badge st-green" id="statusBadge">回答待ち</span>
+            <span class="sub-note" id="statusSub">担当者未定</span>
+          </div>
+        </div>
+        <hr class="anken-hr">
+        <div class="anken-body-row">
+          <div class="anken-body-left">
+            <div class="anken-title">案件名：2026年度製品パンフレット印刷<span class="tag-label tag-green">通常</span></div>
+            <div class="info-line"><span class="lb">依頼日時</span>：2026-07-02 19:38</div>
+            <div class="info-line"><span class="lb">依頼者</span>：ジーニーソリューションズ株式会社　本社 総務部　<a href="#" class="person" data-nav="依頼者の連絡先ツールチップ（TEL/Email）">依頼裕三</a></div>
+            <div class="info-line"><span class="lb">購買担当者</span>：<span id="purchaserNameHeader" style="color:#ff6699;">（担当者未定）</span></div>
+          </div>
+          <div class="anken-body-right">
+            <div class="answer-line"><label>回答希望日</label><span class="val">2026-07-25</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 基本情報 (COMP_ED_LB_065) ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">基本情報</div>
+        <div class="detail-section-body">
+          <div class="kv-row"><label>案件番号</label><span class="kv-val">QDEMO2607000021</span></div>
+          <div class="kv-row"><label>案件名</label><span class="kv-val">2026年度製品パンフレット印刷　<span class="tag-label tag-green">通常</span></span></div>
+          <div class="kv-row">
+            <label>品目カテゴリ</label>
+            <div class="kv-val">
+              <div class="cat-view" id="catView">
+                <span id="catText">(大)印刷、写真、オーディオおよびビジュアル機器と供給品 ― (中)印刷物 ― (小)-</span>
+                <a href="#" class="edit-link" id="catEditLink">編集</a>
+              </div>
+              <div class="cat-edit" id="catEdit">
+                <div class="cat-field">
+                  <span>大カテゴリ</span>
+                  <select id="catLarge">
+                    <option value="">---</option>
+                    <option value="印刷、写真、オーディオおよびビジュアル機器と供給品" selected>印刷、写真、オーディオおよびビジュアル機器と供給品</option>
+                    <option value="事務用品および備品類">事務用品および備品類</option>
+                  </select>
+                  <div class="cat-err" id="catLargeErr">必須項目です。</div>
+                </div>
+                <div class="cat-field">
+                  <span>中カテゴリ</span>
+                  <select id="catMedium">
+                    <option value="">---</option>
+                    <option value="印刷物" selected>印刷物</option>
+                    <option value="製本サービス">製本サービス</option>
+                  </select>
+                  <div class="cat-err" id="catMediumErr">必須項目です。</div>
+                </div>
+                <div class="cat-field">
+                  <span>小カテゴリ</span>
+                  <select id="catSmall">
+                    <option value="">---</option>
+                    <option value="パンフレット・カタログ">パンフレット・カタログ</option>
+                    <option value="チラシ・フライヤー">チラシ・フライヤー</option>
+                  </select>
+                  <div class="cat-err" id="catSmallErr">必須項目です。</div>
+                </div>
+                <div class="cat-field">
+                  <span>&nbsp;</span>
+                  <div style="display:flex; gap:.5rem;">
+                    <button type="button" class="btn-sm" style="background:linear-gradient(to bottom,#ffcf5c,#ff9f1c);border-color:#ef8f00;font-weight:bold;" id="catReflect">反映する</button>
+                    <button type="button" class="btn-sm" id="catCancel">キャンセル</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="kv-row"><label>依頼者情報</label><span class="kv-val">本人申請<br>依頼者：ジーニーソリューションズ株式会社 本社 総務部 依頼裕三</span></div>
+          <div class="kv-row"><label>購買部向け<br>連絡事項</label><span class="kv-val">A4・4ページ・フルカラー希望。納期厳守でお願いします。<br><span style="color:#888;">（添付ファイルなし）</span></span></div>
+          <div class="kv-row">
+            <label>カタログ掲載<br>希望有無</label>
+            <div class="kv-val">
+              <div class="radio-line">
+                <label><input type="radio" name="catalogPub" disabled>希望</label>
+                <label><input type="radio" name="catalogPub" checked disabled>不要</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 依頼内容 (COMP_ED_LB_081) ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">依頼内容</div>
+        <div class="detail-section-body">
+          <div class="kv-row"><label>回答希望日</label><span class="kv-val" style="font-weight:bold;">2026-07-25</span></div>
+          <div class="sub-heading">明細情報</div>
+          <hr class="sec-sep">
+          <div class="sub-heading">明細01</div>
+          <table>
+            <tr>
+              <th>品名</th><td style="width:26%;">製品パンフレット（2026年度版）</td>
+              <th>カテゴリ</th><td colspan="3">(大) 印刷、写真、オーディオおよびビジュアル機器と供給品 – (中) 印刷物</td>
+            </tr>
+            <tr><th>メーカー品番</th><td colspan="5"></td></tr>
+            <tr><th>規格・仕様</th><td colspan="5">A4／8ページ／フルカラー／両面／中綴じ</td></tr>
+            <tr>
+              <th>メーカー</th><td></td>
+              <th>数量</th><td>3,000</td>
+              <th>単位</th><td>部</td>
+            </tr>
+            <tr>
+              <th>希望単価</th><td>¥0</td>
+              <th>合計金額</th><td colspan="3">¥0</td>
+            </tr>
+            <tr>
+              <th>希望納品日</th><td>2026-08-10</td>
+              <th>希望納期（～まで）</th><td></td>
+              <th>代替品での見積可</th><td>いいえ</td>
+            </tr>
+            <tr>
+              <th>納品先</th>
+              <td colspan="5">ジーニーソリューションズ株式会社 本社 総務部 依頼裕三<br>〒160-0023 東京都新宿区西新宿6-8-1 新宿オークタワー 03-1234-5678</td>
+            </tr>
+            <tr>
+              <th>原価センタ</th><td colspan="2">[DM1CC007] 商品企画部</td>
+              <th>勘定科目</th><td colspan="2">[jn-solKJ002] 事務用品費</td>
+            </tr>
+            <tr><th>内部指図</th><td colspan="5"></td></tr>
+            <tr><th>備考</th><td colspan="5">表紙は特色1色希望。校正2回込みで見積願います。</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== 希望サプライヤ情報 (COMP_ED_LB_088) ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">希望サプライヤ情報</div>
+        <div class="detail-section-body">
+          <div class="supplier-kv">
+            <label>希望サプライヤ</label>
+            <div>
+              <div class="sup-line"><span>[SUP0001] 株式会社プリントパック</span><span>営業部</span><span class="has-subcontract">取適法</span></div>
+              <div class="sup-line" style="color:#888;">口座引き落とし／15日締め翌月10日払い</div>
+              <div class="sup-line"><span>[SUP0002] デコルデザイン株式会社</span><span>営業部</span></div>
+              <div class="sup-line" style="color:#888;">口座引き落とし／15日締め翌月10日払い</div>
+            </div>
+          </div>
+          <div class="supplier-kv"><label>サプライヤ選択理由</label><span>過去実績があり、短納期対応が可能なため。</span></div>
+          <div class="supplier-kv"><label>サプライヤ見積番号</label><span>-</span></div>
+          <div class="supplier-kv"><label>サプライヤ向け<br>連絡事項</label><span>校了後の納期を明記のうえご回答ください。</span></div>
+          <div class="supplier-kv"><label>関連案件</label><span><a href="#" class="link-anken" data-nav="関連案件詳細を別タブで開く（EstimateRequestDetail）">QDEMO2606000097</a></span></div>
+        </div>
+      </div>
+
+      <!-- ===== 購買入力情報 (PURCHASER_ESTIMATE_REQUEST_DETAIL.LB_043) ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">購買入力情報</div>
+        <div class="detail-section-body">
+          <div class="pv-row">
+            <label>ステータス</label>
+            <span class="btn-status st-green" id="statusBadge2">回答待ち</span>
+            <span style="margin-left:1.5rem;">担当者</span>
+            <span id="purchaserNameBody" style="color:#ff6699;">（担当者未定）</span>
+            <span class="icon-edit" id="assignEdit2" title="担当割振り">&#9998;</span>
+          </div>
+          <div class="pv-row">
+            <label>購買ステータス</label>
+            <div id="pStatusView">
+              <span id="pStatusText">未対応</span>
+              <span class="icon-edit" id="pStatusEdit" title="編集">&#9998;</span>
+            </div>
+            <div id="pStatusEditWrap" style="display:none; align-items:center; gap:.5rem;">
+              <select class="inline-select" id="pStatusSelect">
+                <option>未対応</option>
+                <option>対応中</option>
+                <option>対応完了</option>
+                <option>保留</option>
+              </select>
+              <button type="button" class="btn-sm" id="pStatusSave">更新</button>
+              <button type="button" class="btn-sm" id="pStatusCancel">キャンセル</button>
+            </div>
+            <span style="margin-left:1.5rem;">支出抑制額</span>
+            <span style="font-weight:bold;">¥0</span>
+          </div>
+          <div class="pv-row" style="align-items:flex-start;">
+            <label>購買メモ</label>
+            <span class="memo-text" id="memoText" style="flex:1;">（未入力）</span>
+            <span class="icon-edit" id="memoEdit" title="購買メモ入力">&#9998;</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 対応履歴 (HistoryList.vue) ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">対応履歴</div>
+        <div class="detail-section-body">
+          <div class="history-log">
+            <div>2026-07-02 19:38:36　ジーニーソリューションズ株式会社　本社 総務部　経理雄之助　見積申請を承認しました。</div>
+            <div>2026-07-02 19:38:17　ジーニーソリューションズ株式会社　本社 総務部　依頼裕三　見積申請しました。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 本案件の流れ (COMP_E_EPF_LB_002) — 通常見積 7ステップ ===== -->
+      <div class="detail-section">
+        <div class="detail-section-header">本案件の流れ</div>
+        <div class="detail-section-body">
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="fs-label">依頼申請</div>
+              <div class="fs-icon done">📝</div><span class="fs-approve">承認</span>
+              <div><span class="fs-owner">依頼部署</span></div>
+            </div>
+            <div class="flow-step">
+              <div class="fs-label">回答</div>
+              <div class="fs-icon current">💬</div>
+              <div><span class="fs-owner">サプライヤ</span></div>
+            </div>
+            <div class="flow-step">
+              <div class="fs-label">結果報告</div>
+              <div class="fs-icon future">📄</div><span class="fs-approve">承認</span>
+              <div><span class="fs-owner">依頼部署</span></div>
+            </div>
+            <div class="flow-step">
+              <div class="fs-label">発注</div>
+              <div class="fs-icon future">🚚</div><span class="fs-approve">承認</span>
+              <div><span class="fs-owner">依頼部署</span></div>
+            </div>
+            <div class="flow-step">
+              <div class="fs-label">受注</div>
+              <div class="fs-icon future">🏪</div>
+              <div><span class="fs-owner">サプライヤ</span></div>
+            </div>
+            <div class="flow-step">
+              <div class="fs-label">納品</div>
+              <div class="fs-icon future">📦</div>
+              <div><span class="fs-owner">サプライヤ</span></div>
+            </div>
+            <div class="flow-step">
+              <div class="fs-label">検収</div>
+              <div class="fs-icon future">✓</div><span class="fs-approve">承認</span>
+              <div><span class="fs-owner">依頼部署</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Nút cuối trang: 戻る + lặp lại nút hành động ===== -->
+      <div style="display:flex; align-items:center; gap:1rem; margin-top:1rem; flex-wrap:wrap;">
+        <button type="button" class="btn btn-light btn-back" data-nav="見積一覧に戻る（全案件 eProcurement_Purchaser_AllProject）"><span class="ico">‹</span>&nbsp;見積一覧に戻る</button>
+        <div class="action-bar" id="actionBarBottom" style="margin:0; flex:1;">
+          <button type="button" class="btn btn-warning act-btn" onclick="location.href='eProcurement_Purchaser_Input.html'">見積依頼へ進む</button>
+          <button type="button" class="btn btn-light act-btn" data-reject>差戻し</button>
+          <button type="button" class="btn btn-light act-btn" data-assign>担当割振り</button>
+          <button type="button" class="btn btn-light act-btn" data-group>購買グループ割振り</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== Modal: 差戻し (anken-comment) ===== -->
+<div class="modal-overlay" id="modalReject">
+  <div class="modal-box">
+    <div class="modal-header"><h4>差戻し</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-label-req">差戻し理由<span class="req-chip must">必須</span></div>
+      <textarea id="rejectReason" maxlength="500" placeholder="差戻し理由を入力してください。"></textarea>
+      <div class="modal-err" id="rejectErr">差戻し理由を入力してください。</div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-warning" id="rejectSubmit">差戻しを実行</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: 担当割振り (user-in-charge-selection) ===== -->
+<div class="modal-overlay" id="modalAssign">
+  <div class="modal-box">
+    <div class="modal-header"><h4>担当割振り</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-label-req">担当者を選択してください</div>
+      <ul class="pick-list" id="assignList">
+        <li data-name="購買一郎" data-org="購買部 調達1課"><input type="radio" name="assignPick">購買部 調達1課　購買一郎<span class="role-note">購買担当</span></li>
+        <li data-name="調達花子" data-org="購買部 調達2課"><input type="radio" name="assignPick">購買部 調達2課　調達花子<span class="role-note">購買担当</span></li>
+        <li data-name="仕入太郎" data-org="購買部 間接材課"><input type="radio" name="assignPick">購買部 間接材課　仕入太郎<span class="role-note">購買担当</span></li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-warning" id="assignSubmit">OK</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: 購買グループ割振り (purchase-group-selection) ===== -->
+<div class="modal-overlay" id="modalGroup">
+  <div class="modal-box">
+    <div class="modal-header"><h4>購買グループ割振り</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-label-req">購買グループを選択してください</div>
+      <ul class="pick-list" id="groupList">
+        <li data-name="調達1課グループ"><input type="radio" name="groupPick">調達1課グループ</li>
+        <li data-name="間接材購買グループ"><input type="radio" name="groupPick">間接材購買グループ</li>
+        <li data-name="印刷・販促物グループ"><input type="radio" name="groupPick">印刷・販促物グループ</li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-warning" id="groupSubmit">OK</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: 購買メモ入力 (purchase-memo) ===== -->
+<div class="modal-overlay" id="modalMemo">
+  <div class="modal-box">
+    <div class="modal-header"><h4>購買メモ入力</h4><button type="button" class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-label-req">購買メモ<span class="req-chip any">任意</span></div>
+      <textarea id="memoInput" maxlength="1000" placeholder="購買担当者向けのメモを入力してください"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-warning" id="memoSubmit">更新</button>
+      <button type="button" class="btn btn-light" data-close>キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="layout-fab"></div>
+<div id="mockToast"></div>
+
+<script src="../assets/layout.js"></script>
+<script>
+JienieLayout.init();
+(function () {
+  function openModal(id) { document.getElementById(id).classList.add('show'); }
+  function closeModal(el) { el.classList.remove('show'); }
+
+  // Đóng modal: nút ×, nút キャンセル, click nền ngoài
+  document.querySelectorAll('.modal-overlay').forEach(function (ov) {
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov || e.target.hasAttribute('data-close')) closeModal(ov);
+    });
+  });
+
+  // ---- Mở modal từ cả 2 hàng nút (trên & dưới) ----
+  function bindOpen(topId, dataAttr, modalId) {
+    var top = document.getElementById(topId);
+    if (top) top.addEventListener('click', function () { openModal(modalId); });
+    document.querySelectorAll('[' + dataAttr + ']').forEach(function (b) {
+      b.addEventListener('click', function () { openModal(modalId); });
+    });
+  }
+  bindOpen('btnReject', 'data-reject', 'modalReject');
+  bindOpen('btnAssign', 'data-assign', 'modalAssign');
+  bindOpen('btnGroup',  'data-group',  'modalGroup');
+  document.getElementById('assignEdit2').addEventListener('click', function () { openModal('modalAssign'); });
+
+  // ---- 差戻し: validate required → cập nhật DOM (status 差戻し, disable nút) ----
+  var rejectDone = false;
+  document.getElementById('rejectSubmit').addEventListener('click', function () {
+    var ta = document.getElementById('rejectReason');
+    var err = document.getElementById('rejectErr');
+    if (!ta.value.trim()) {
+      ta.classList.add('has-error'); err.style.display = 'block'; return;
+    }
+    ta.classList.remove('has-error'); err.style.display = 'none';
+    // Cập nhật status badge → 差戻し (xám), xoá sub-label, disable các nút hành động
+    ['statusBadge', 'statusBadge2'].forEach(function (id) {
+      var b = document.getElementById(id);
+      b.textContent = '差戻し';
+      b.classList.remove('st-green'); b.classList.add('st-gray');
+    });
+    document.getElementById('statusSub').style.display = 'none';
+    document.querySelectorAll('.act-btn').forEach(function (b) { b.disabled = true; });
+    rejectDone = true;
+    closeModal(document.getElementById('modalReject'));
+    JienieLayout.toast('差戻ししました。');
+  });
+
+  // ---- 担当割振り: chọn 1 người → cập nhật 購買担当者 + xoá 担当者未定 ----
+  var assignList = document.getElementById('assignList');
+  assignList.addEventListener('click', function (e) {
+    var li = e.target.closest('li'); if (!li) return;
+    assignList.querySelectorAll('li').forEach(function (x) { x.classList.remove('selected'); });
+    li.classList.add('selected');
+    li.querySelector('input').checked = true;
+  });
+  document.getElementById('assignSubmit').addEventListener('click', function () {
+    var sel = assignList.querySelector('li.selected');
+    if (!sel) { JienieLayout.toast('担当者を選択してください'); return; }
+    var name = sel.getAttribute('data-name');
+    var org = sel.getAttribute('data-org');
+    ['purchaserNameHeader', 'purchaserNameBody'].forEach(function (id) {
+      var el = document.getElementById(id);
+      el.textContent = 'ジーニーソリューションズ株式会社　' + org + '　' + name;
+      el.style.color = '#111';
+    });
+    document.getElementById('statusSub').style.display = 'none';
+    closeModal(document.getElementById('modalAssign'));
+    JienieLayout.toast('担当者を割り振りました。');
+  });
+
+  // ---- 購買グループ割振り ----
+  var groupList = document.getElementById('groupList');
+  groupList.addEventListener('click', function (e) {
+    var li = e.target.closest('li'); if (!li) return;
+    groupList.querySelectorAll('li').forEach(function (x) { x.classList.remove('selected'); });
+    li.classList.add('selected');
+    li.querySelector('input').checked = true;
+  });
+  document.getElementById('groupSubmit').addEventListener('click', function () {
+    var sel = groupList.querySelector('li.selected');
+    if (!sel) { JienieLayout.toast('購買グループを選択してください'); return; }
+    closeModal(document.getElementById('modalGroup'));
+    JienieLayout.toast('購買グループを割振りしました。');
+  });
+
+  // ---- 購買メモ: mở modal → prefill → 更新 → cập nhật hiển thị ----
+  document.getElementById('memoEdit').addEventListener('click', function () {
+    var cur = document.getElementById('memoText').textContent.trim();
+    document.getElementById('memoInput').value = (cur === '（未入力）') ? '' : cur;
+    openModal('modalMemo');
+  });
+  document.getElementById('memoSubmit').addEventListener('click', function () {
+    var v = document.getElementById('memoInput').value.trim();
+    document.getElementById('memoText').textContent = v || '（未入力）';
+    closeModal(document.getElementById('modalMemo'));
+    JienieLayout.toast('購買メモを更新しました。');
+  });
+
+  // ---- 購買ステータス inline edit ----
+  var pView = document.getElementById('pStatusView');
+  var pEditWrap = document.getElementById('pStatusEditWrap');
+  document.getElementById('pStatusEdit').addEventListener('click', function () {
+    document.getElementById('pStatusSelect').value = document.getElementById('pStatusText').textContent;
+    pView.style.display = 'none'; pEditWrap.style.display = 'flex';
+  });
+  document.getElementById('pStatusSave').addEventListener('click', function () {
+    document.getElementById('pStatusText').textContent = document.getElementById('pStatusSelect').value;
+    pEditWrap.style.display = 'none'; pView.style.display = '';
+    JienieLayout.toast('購買ステータスを更新しました。');
+  });
+  document.getElementById('pStatusCancel').addEventListener('click', function () {
+    pEditWrap.style.display = 'none'; pView.style.display = '';
+  });
+
+  // ---- 品目カテゴリ inline edit ----
+  var catView = document.getElementById('catView');
+  var catEdit = document.getElementById('catEdit');
+  document.getElementById('catEditLink').addEventListener('click', function (e) {
+    e.preventDefault();
+    catView.classList.add('hidden'); catEdit.classList.add('show');
+  });
+  document.getElementById('catCancel').addEventListener('click', function () {
+    catEdit.classList.remove('show'); catView.classList.remove('hidden');
+    ['catLargeErr','catMediumErr','catSmallErr'].forEach(function(id){ document.getElementById(id).style.display='none'; });
+    ['catLarge','catMedium','catSmall'].forEach(function(id){ document.getElementById(id).classList.remove('has-error'); });
+  });
+  document.getElementById('catReflect').addEventListener('click', function () {
+    var large = document.getElementById('catLarge');
+    var medium = document.getElementById('catMedium');
+    var small = document.getElementById('catSmall');
+    var ok = true;
+    [['catLarge', large], ['catMedium', medium], ['catSmall', small]].forEach(function (p) {
+      var el = p[1]; var errEl = document.getElementById(p[0] + 'Err');
+      if (!el.value) { el.classList.add('has-error'); errEl.style.display = 'block'; ok = false; }
+      else { el.classList.remove('has-error'); errEl.style.display = 'none'; }
+    });
+    if (!ok) return;
+    document.getElementById('catText').textContent =
+      '(大)' + large.value + ' ― (中)' + medium.value + ' ― (小)' + small.value;
+    catEdit.classList.remove('show'); catView.classList.remove('hidden');
+    JienieLayout.toast('反映しました。');
+  });
+})();
+</script>
+
+</body>
+</html>
